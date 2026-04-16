@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Tasks - Task Management System</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#3b82f6">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+  <div id="welcome" class="welcome-message">Welcome, User</div>
+  <h1>✅ My Tasks</h1>
+  
+  <div class="card">
+    <div id="tasks"></div>
+    <p id="emptyState" style="text-align: center; color: #94a3b8; padding: 2rem;">
+      No tasks assigned yet. Check back soon!
+    </p>
+  </div>
+</div>
+
+<script type="module" src="member.js"></script>
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("service-worker.js");
+}
+</script>
+
+</body>
+</html>
