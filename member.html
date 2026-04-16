@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Tasks - mytaskForThesisHub</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#3b82f6">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <h1 style="margin: 0;">✅ My Tasks</h1>
+    <div style="display: flex; align-items: center; gap: 1rem;">
+      <div id="welcome" class="welcome-message">Welcome, User</div>
+      <button onclick="signOutUser()" style="background: #dc2626; color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.75rem;">Logout</button>
+    </div>
+  </div>
+  
+  <div id="datetime" style="text-align: center; margin-bottom: 1rem; font-size: 1.1rem; color: #3b82f6; font-weight: bold;"></div>
+  
+  <div class="card">
+    <div id="tasks"></div>
+    <p id="emptyState" style="text-align: center; color: #94a3b8; padding: 2rem;">
+      No tasks assigned yet. Check back soon!
+    </p>
+  </div>
+
+  <div class="card" style="margin-top: 2rem;">
+    <h2 style="margin-bottom: 1rem;">📊 Active Polls</h2>
+    <div id="polls"></div>
+    <p id="pollsEmptyState" style="text-align: center; color: #94a3b8; padding: 2rem;">
+      No active polls at the moment.
+    </p>
+  </div>
+
+  <div class="card" style="margin-top: 2rem;">
+    <h2 style="margin-bottom: 1rem;">📢 Announcements</h2>
+    <div id="announcements"></div>
+    <p id="announcementsEmptyState" style="text-align: center; color: #94a3b8; padding: 2rem;">
+      No announcements at the moment.
+    </p>
+  </div>
+</div>
+
+<footer style="text-align: center; padding: 1rem; color: #94a3b8; font-size: 0.8rem; margin-top: 2rem;">
+  task assignment system for thesis
+</footer>
+
+<script type="module">
+  import { requireAuth } from "./auth.js";
+  requireAuth(['member']);
+</script>
+<script type="module" src="member.js"></script>
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("service-worker.js");
+}
+</script>
+
+</body>
+</html>
