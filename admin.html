@@ -12,79 +12,119 @@
 </head>
 <body>
 
-<div class="container">
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-    <h1 style="margin: 0;">📊 Admin Dashboard</h1>
-    <button onclick="signOutUser()" style="background: #dc2626; color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.75rem;">Logout</button>
-  </div>
-  
-  <div class="card">
-    <h2>Create New Task</h2>
+<!-- Mobile Navigation Toggle -->
+<button class="mobile-nav-toggle" onclick="toggleMobileSidebar()">☰</button>
+
+<!-- Mobile Overlay -->
+<div class="sidebar-overlay" onclick="closeMobileSidebar()"></div>
+
+<div class="app-container">
+  <!-- Sidebar Navigation -->
+  <nav class="sidebar">
+    <div class="sidebar-header">
+      <h2>📊 Admin</h2>
+      <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+    </div>
+    <ul class="nav-list">
+      <li><button class="nav-btn active" onclick="showSection('create-task')">➕ Create Task</button></li>
+      <li><button class="nav-btn" onclick="showSection('create-poll')">📊 Create Poll</button></li>
+      <li><button class="nav-btn" onclick="showSection('create-announcement')">📢 Announcement</button></li>
+      <li><button class="nav-btn" onclick="showSection('create-resource')">📚 Resource</button></li>
+      <li><button class="nav-btn" onclick="showSection('manage-polls')">📊 Manage Polls</button></li>
+      <li><button class="nav-btn" onclick="showSection('manage-announcements')">📢 Manage Announcements</button></li>
+      <li><button class="nav-btn" onclick="showSection('support-tickets')">🎫 Support Tickets</button></li>
+      <li><button class="nav-btn" onclick="showSection('manage-resources')">📚 Manage Resources</button></li>
+      <li><button class="nav-btn" onclick="showSection('progress-report')">📈 Progress Report</button></li>
+      <li><button class="nav-btn" onclick="showSection('task-analytics')">📈 Analytics</button></li>
+      <li><button class="nav-btn" onclick="showSection('all-tasks')">📋 All Tasks</button></li>
+    </ul>
+    <div class="sidebar-footer">
+      <button onclick="signOutUser()" class="logout-btn">🚪 Logout</button>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <div class="content-header">
+      <h1 id="page-title">📊 Admin Dashboard</h1>
+    </div>
     
-    <form onsubmit="event.preventDefault(); createTask();">
-      <div class="form-row">
-        <div class="form-group">
-          <label for="title">Task Title</label>
-          <input id="title" type="text" placeholder="Enter task title" required>
+    <div class="content-sections">
+      <!-- Create New Task Section -->
+      <section id="create-task" class="content-section active">
+        <div class="card">
+          <h2>Create New Task</h2>
+          
+          <form onsubmit="event.preventDefault(); createTask();">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="title">Task Title</label>
+                <input id="title" type="text" placeholder="Enter task title" required>
+              </div>
+              
+              <div class="form-group">
+                <label for="deadline">Deadline</label>
+                <input id="deadline" type="date" required>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label for="description">Description</label>
+              <textarea id="description" placeholder="Enter task description" rows="4"></textarea>
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label for="assignedTo">Assign To</label>
+                <select id="assignedTo" required>
+                  <option value="">Select a member</option>
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label for="linkInput">Link</label>
+                <input id="linkInput" type="url" placeholder="https://example.com/resource" autocomplete="off">
+                <p style="font-size: 0.85rem; color: #94a3b8; margin-top: 0.25rem;">Optional: add a reference link for this task.</p>
+              </div>
+            </div>
+            
+            <button type="submit" class="btn-success">✓ Create Task</button>
+          </form>
         </div>
-        
-        <div class="form-group">
-          <label for="deadline">Deadline</label>
-          <input id="deadline" type="date" required>
-        </div>
-      </div>
+      </section>
       
-      <div class="form-group">
-        <label for="description">Description</label>
-        <textarea id="description" placeholder="Enter task description" rows="4"></textarea>
-      </div>
-      
-      <div class="form-row">
-        <div class="form-group">
-          <label for="assignedTo">Assign To</label>
-          <select id="assignedTo" required>
-            <option value="">Select a member</option>
-          </select>
+      <!-- Create New Poll Section -->
+      <section id="create-poll" class="content-section">
+        <div class="card">
+          <h2>Create New Poll</h2>
+          
+          <form onsubmit="event.preventDefault(); createPoll();">
+            <div class="form-group">
+              <label for="pollQuestion">Poll Question</label>
+              <input id="pollQuestion" type="text" placeholder="Enter poll question" required>
+            </div>
+            
+            <div id="pollOptions">
+              <div class="form-group">
+                <label>Option 1</label>
+                <input type="text" class="poll-option-input" placeholder="Enter option" required>
+              </div>
+              <div class="form-group">
+                <label>Option 2</label>
+                <input type="text" class="poll-option-input" placeholder="Enter option" required>
+              </div>
+            </div>
+            
+            <button type="button" onclick="addPollOption()" style="background: #6b7280; margin-bottom: 1rem;">+ Add Option</button>
+            <button type="submit" class="btn-secondary">📊 Create Poll</button>
+          </form>
         </div>
-        
-        <div class="form-group">
-          <label for="linkInput">Link</label>
-          <input id="linkInput" type="url" placeholder="https://example.com/resource" autocomplete="off">
-          <p style="font-size: 0.85rem; color: #94a3b8; margin-top: 0.25rem;">Optional: add a reference link for this task.</p>
-        </div>
-      </div>
+      </section>
       
-      <button type="submit" class="btn-success">✓ Create Task</button>
-    </form>
-  </div>
-  
-  <div class="card">
-    <h2>Create New Poll</h2>
-    
-    <form onsubmit="event.preventDefault(); createPoll();">
-      <div class="form-group">
-        <label for="pollQuestion">Poll Question</label>
-        <input id="pollQuestion" type="text" placeholder="Enter poll question" required>
-      </div>
-      
-      <div id="pollOptions">
-        <div class="form-group">
-          <label>Option 1</label>
-          <input type="text" class="poll-option-input" placeholder="Enter option" required>
-        </div>
-        <div class="form-group">
-          <label>Option 2</label>
-          <input type="text" class="poll-option-input" placeholder="Enter option" required>
-        </div>
-      </div>
-      
-      <button type="button" onclick="addPollOption()" style="background: #6b7280; margin-bottom: 1rem;">+ Add Option</button>
-      <button type="submit" class="btn-secondary">📊 Create Poll</button>
-    </form>
-  </div>
-  
-  <div class="card">
-    <h2>Create Announcement</h2>
+      <!-- Create Announcement Section -->
+      <section id="create-announcement" class="content-section">
+        <div class="card">
+          <h2>Create Announcement</h2>
     
     <form onsubmit="event.preventDefault(); createAnnouncement();">
       <div class="form-group">
@@ -104,12 +144,15 @@
         </div>
       </div>
       
-      <button type="submit" class="btn-warning">📢 Create Announcement</button>
-    </form>
-  </div>
-  
-  <div class="card">
-    <h2>Create Resource</h2>
+            <button type="submit" class="btn-warning">📢 Create Announcement</button>
+          </form>
+        </div>
+      </section>
+      
+      <!-- Create Resource Section -->
+      <section id="create-resource" class="content-section">
+        <div class="card">
+          <h2>Create Resource</h2>
     
     <form onsubmit="event.preventDefault(); createResource();">
       <div class="form-group">
@@ -128,54 +171,79 @@
         <p style="font-size: 0.85rem; color: #94a3b8; margin-top: 0.25rem;">URL of the resource (required).</p>
       </div>
       
-      <button type="submit" class="btn-success">📚 Create Resource</button>
-    </form>
-  </div>
-  
-  <div class="card">
-    <h2>📊 Manage Polls</h2>
-    <div id="pollsList">
-      <p style="color: #94a3b8; text-align: center;">Loading polls...</p>
+          <button type="submit" class="btn-success">📚 Create Resource</button>
+        </form>
+      </div>
+      </section>
+      
+      <!-- Manage Polls Section -->
+      <section id="manage-polls" class="content-section">
+        <div class="card">
+          <h2>📊 Manage Polls</h2>
+          <div id="pollsList">
+            <p style="color: #94a3b8; text-align: center;">Loading polls...</p>
+          </div>
+        </div>
+      </section>
+      
+      <!-- Manage Announcements Section -->
+      <section id="manage-announcements" class="content-section">
+        <div class="card">
+          <h2>📢 Manage Announcements</h2>
+          <div id="announcementsList">
+            <p style="color: #94a3b8; text-align: center;">Loading announcements...</p>
+          </div>
+        </div>
+      </section>
+      
+      <!-- Support Tickets Section -->
+      <section id="support-tickets" class="content-section">
+        <div class="card">
+          <h2>🎫 Support Tickets</h2>
+          <div id="ticketsList">
+            <p style="color: #94a3b8; text-align: center;">Loading tickets...</p>
+          </div>
+        </div>
+      </section>
+      
+      <!-- Manage Resources Section -->
+      <section id="manage-resources" class="content-section">
+        <div class="card">
+          <h2>📚 Manage Resources</h2>
+          <div id="resourcesList">
+            <p style="color: #94a3b8; text-align: center;">Loading resources...</p>
+          </div>
+        </div>
+      </section>
+      
+      <!-- Progress Report Section -->
+      <section id="progress-report" class="content-section">
+        <div class="card">
+          <h2>📈 Thesis Progress Report</h2>
+          <div id="progressReportPanel">
+            <p style="color: #94a3b8; text-align: center;">Loading thesis progress report...</p>
+          </div>
+          <button type="button" onclick="saveProgressReport()" class="btn-success" style="margin-top: 1rem;">💾 Save Progress</button>
+        </div>
+      </section>
+      
+      <!-- Task Analytics Section -->
+      <section id="task-analytics" class="content-section">
+        <div class="card">
+          <h2>📈 Task Analytics</h2>
+          <canvas id="taskChart"></canvas>
+        </div>
+      </section>
+      
+      <!-- All Tasks Section -->
+      <section id="all-tasks" class="content-section">
+        <div class="card">
+          <h2>📋 All Tasks</h2>
+          <div id="tasks"></div>
+        </div>
+      </section>
     </div>
-  </div>
-  
-  <div class="card">
-    <h2>📢 Manage Announcements</h2>
-    <div id="announcementsList">
-      <p style="color: #94a3b8; text-align: center;">Loading announcements...</p>
-    </div>
-  </div>
-  <div class="card">
-    <h2>🎫 Support Tickets</h2>
-    <div id="ticketsList">
-      <p style="color: #94a3b8; text-align: center;">Loading tickets...</p>
-    </div>
-  </div>
-
-  <div class="card">
-    <h2>📚 Manage Resources</h2>
-    <div id="resourcesList">
-      <p style="color: #94a3b8; text-align: center;">Loading resources...</p>
-    </div>
-  </div>
-  
-  <div class="card">
-    <h2>� Thesis Progress Report</h2>
-    <div id="progressReportPanel">
-      <p style="color: #94a3b8; text-align: center;">Loading thesis progress report...</p>
-    </div>
-    <button type="button" onclick="saveProgressReport()" class="btn-success" style="margin-top: 1rem;">💾 Save Progress</button>
-  </div>
-  
-  <div class="card">
-    <h2>�📈 Task Analytics</h2>
-    <canvas id="taskChart"></canvas>
-  </div>
-  
-  <div class="card">
-    <h2>📋 All Tasks</h2>
-    <div id="tasks"></div>
-  </div>
+  </main>
 </div>
 
 <footer style="text-align: center; padding: 1rem; color: #94a3b8; font-size: 0.8rem; margin-top: 2rem;">
@@ -183,6 +251,77 @@
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Navigation functions
+function showSection(sectionId) {
+  // Hide all sections
+  const sections = document.querySelectorAll('.content-section');
+  sections.forEach(section => section.classList.remove('active'));
+  
+  // Show selected section
+  const targetSection = document.getElementById(sectionId);
+  if (targetSection) {
+    targetSection.classList.add('active');
+  }
+  
+  // Update active nav button
+  const navButtons = document.querySelectorAll('.nav-btn');
+  navButtons.forEach(btn => btn.classList.remove('active'));
+  
+  // Find and activate the corresponding nav button
+  const activeBtn = document.querySelector(`[onclick="showSection('${sectionId}')"]`);
+  if (activeBtn) {
+    activeBtn.classList.add('active');
+  }
+  
+  // Update page title
+  const titles = {
+    'create-task': '➕ Create Task',
+    'create-poll': '📊 Create Poll',
+    'create-announcement': '📢 Create Announcement',
+    'create-resource': '📚 Create Resource',
+    'manage-polls': '📊 Manage Polls',
+    'manage-announcements': '📢 Manage Announcements',
+    'support-tickets': '🎫 Support Tickets',
+    'manage-resources': '📚 Manage Resources',
+    'progress-report': '📈 Progress Report',
+    'task-analytics': '📈 Task Analytics',
+    'all-tasks': '📋 All Tasks'
+  };
+  
+  const pageTitle = document.getElementById('page-title');
+  if (pageTitle && titles[sectionId]) {
+    pageTitle.textContent = titles[sectionId];
+  }
+  
+  // Close mobile sidebar after selection
+  closeMobileSidebar();
+}
+
+function toggleSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  sidebar.classList.toggle('collapsed');
+  
+  const appContainer = document.querySelector('.app-container');
+  appContainer.classList.toggle('has-collapsed-sidebar');
+}
+
+function toggleMobileSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.querySelector('.sidebar-overlay');
+  
+  sidebar.classList.toggle('open');
+  overlay.classList.toggle('show');
+}
+
+function closeMobileSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.querySelector('.sidebar-overlay');
+  
+  sidebar.classList.remove('open');
+  overlay.classList.remove('show');
+}
+</script>
 <script type="module">
   import { requireAuth } from "./auth.js?v=3";
   await requireAuth(['admin']);
