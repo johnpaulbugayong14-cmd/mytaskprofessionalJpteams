@@ -1,5 +1,6 @@
 import { collection, onSnapshot, doc, updateDoc, addDoc, getDoc, setDoc, arrayUnion, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { db } from "./firebase.js";
+import { db, auth } from "./firebase.js";
+import { signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getStoredUserEmail, signOutUser } from "./auth.js";
 import { initializeNotifications, sendNotificationToUsers, showLocalNotification } from "./notifications.js";
 
@@ -177,6 +178,8 @@ function loadProgressReport() {
       }
     }
     renderMemberProgressReport(sections);
+  }, (error) => {
+    console.error('Progress report onSnapshot error:', error);
   });
 }
 
@@ -358,6 +361,8 @@ function loadPolls() {
     });
 
     pollsEmptyState.style.display = pollCount === 0 ? "block" : "none";
+  }, (error) => {
+    console.error('Polls onSnapshot error:', error);
   });
 }
 
@@ -486,6 +491,8 @@ function loadAnnouncements() {
     });
 
     announcementsEmptyState.style.display = announcementCount === 0 ? "block" : "none";
+  }, (error) => {
+    console.error('Announcements onSnapshot error:', error);
   });
 }
 
@@ -535,6 +542,8 @@ function loadResources() {
         </div>
       `;
     });
+  }, (error) => {
+    console.error('Resources onSnapshot error:', error);
   });
 }
 
@@ -551,15 +560,15 @@ function loadResources() {
   // Retry getting userEmail if first attempt fails (to handle timing issues)
   let retries = 0;
   console.log('Starting to retrieve userEmail...');
-  while (!userEmail && retries < 5) {
+  while (!userEmail && retries < 10) {
     console.log(`Attempt ${retries + 1} to get userEmail`);
     userEmail = await getStoredUserEmail();
     console.log(`Attempt ${retries + 1} result: userEmail =`, userEmail);
     if (!userEmail) {
       retries++;
-      if (retries < 5) {
-        console.log(`Retrying in 200ms (retry ${retries}/5)...`);
-        await new Promise(resolve => setTimeout(resolve, 200));
+      if (retries < 10) {
+        console.log(`Retrying in 500ms (retry ${retries}/10)...`);
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
   }
@@ -573,6 +582,11 @@ function loadResources() {
     if (welcomeEl) welcomeEl.style.display = "none";
   } else {
     console.log('User authenticated, setting up dashboard for:', userEmail);
+    if (!auth.currentUser) {
+      console.log('Auth not ready, signing in anonymously...');
+      await signInAnonymously(auth);
+      console.log('Auth ready');
+    }
     if (welcomeEl) welcomeEl.textContent = `Welcome, ${getUserName(userEmail)}`;
     console.log('User logged in as:', userEmail);
     console.log('Starting to load data from Firestore...');
@@ -627,6 +641,8 @@ function loadResources() {
       if (taskCount === 0 && !emptyState) {
         container.innerHTML = '<p style="text-align: center; color: #94a3b8; padding: 2rem;">No tasks assigned yet. Check back soon!</p>';
       }
+    }, (error) => {
+      console.error('Tasks onSnapshot error:', error);
     });
     
     // Load polls and announcements

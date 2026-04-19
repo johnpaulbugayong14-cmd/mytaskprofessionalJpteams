@@ -173,7 +173,6 @@ export async function sendNotificationToUsers(userEmails, title, body, type = 'g
     // Don't throw error - notifications are optional
   }
 }
-}
 
 export async function initializeNotifications() {
   const permissionGranted = await requestNotificationPermission();

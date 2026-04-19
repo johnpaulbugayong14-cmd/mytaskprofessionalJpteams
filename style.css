@@ -73,6 +73,15 @@ h2 {
   align-items: center;
 }
 
+.sidebar-header h2 {
+  margin: 0;
+  font-size: 1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: calc(100% - 3rem);
+}
+
 .sidebar-toggle {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(148, 163, 184, 0.25);
@@ -87,6 +96,19 @@ h2 {
   justify-content: center;
   border-radius: 0.5rem;
   transition: all 0.25s ease;
+}
+
+.sidebar.collapsed .sidebar-header {
+  justify-content: center;
+  padding: 1rem;
+}
+
+.sidebar.collapsed .sidebar-header h2 {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-toggle {
+  margin: 0 auto;
 }
 
 .sidebar-toggle:hover {
