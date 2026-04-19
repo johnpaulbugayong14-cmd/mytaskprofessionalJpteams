@@ -1,21 +1,17 @@
 export default async function handler(req, res) {
-  const allowedOrigins = [
-    process.env.FRONTEND_URL,
-    'https://mytaskprofessional-jpteams.vercel.app',
-    'https://johnpaulbugayong14-cmd.github.io'
-  ].filter(Boolean);
-
   const origin = req.headers.origin;
-  const allowedOrigin = allowedOrigins.includes(origin) ? origin : '*';
+  const allowedOrigin = origin === 'https://johnpaulbugayong14-cmd.github.io'
+    ? origin
+    : 'https://johnpaulbugayong14-cmd.github.io';
 
   res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Vary', 'Origin');
 
   if (req.method === 'OPTIONS') {
-    return res.status(204).end();
+    return res.status(200).end();
   }
 
   if (req.method !== 'POST') {
