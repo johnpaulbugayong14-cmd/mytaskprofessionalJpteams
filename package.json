@@ -1,5 +1,3 @@
 {
-  "dependencies": {
-    "firebase": "^12.12.0"
-  }
+  "type": "module"
 }
