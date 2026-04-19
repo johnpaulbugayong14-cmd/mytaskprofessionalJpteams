@@ -215,6 +215,19 @@ h2 {
   border-top: 1px solid rgba(148, 163, 184, 0.2);
 }
 
+.sidebar.collapsed .sidebar-footer {
+  padding: 1rem;
+}
+
+.sidebar.collapsed .logout-btn {
+  padding: 0.75rem;
+  font-size: 1.2rem;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .logout-btn {
   width: 100%;
   padding: 0.75rem;
