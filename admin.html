@@ -11,13 +11,14 @@
   <meta name="apple-mobile-web-app-title" content="My Thesis Hub">
   <link rel="manifest" href="manifest.json?v=5">
   <meta name="theme-color" content="#3b82f6">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✓</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M20 50l15 15 45-45' stroke='%233b82f6' stroke-width='8' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
   <link rel="stylesheet" href="style.css?v=1">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
 
 <!-- Mobile Navigation Toggle -->
-<button class="mobile-nav-toggle" onclick="toggleMobileSidebar()">☰</button>
+<button class="mobile-nav-toggle" onclick="toggleMobileSidebar()"><i class="fas fa-bars"></i></button>
 
 <!-- Mobile Overlay -->
 <div class="sidebar-overlay" onclick="closeMobileSidebar()"></div>
@@ -26,28 +27,28 @@
   <!-- Sidebar Navigation -->
   <nav class="sidebar">
     <div class="sidebar-header">
-      <h2>📊 Admin</h2>
-      <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+      <h2><i class="fas fa-chart-bar"></i> Admin</h2>
+      <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
     </div>
     <ul class="nav-list">
-      <li><button class="nav-btn active" onclick="showSection('create-task')">➕ Create Task</button></li>
-      <li><button class="nav-btn" onclick="showSection('create-poll')">📊 Create Poll</button></li>
-      <li><button class="nav-btn" onclick="showSection('create-announcement')">📢 Announcement</button></li>
-      <li><button class="nav-btn" onclick="showSection('create-resource')">📚 Resource</button></li>
-      <li><button class="nav-btn" onclick="showSection('manage-polls')">📊 Manage Polls</button></li>
-      <li><button class="nav-btn" onclick="showSection('manage-announcements')">📢 Manage Announcements</button></li>
-      <li><button class="nav-btn" onclick="showSection('support-tickets')">🎫 Support Tickets</button></li>
-      <li><button class="nav-btn" onclick="showSection('manage-resources')">📚 Manage Resources</button></li>
-      <li><button class="nav-btn" onclick="showSection('progress-report')">📈 Progress Report</button></li>
-      <li><button class="nav-btn" onclick="showSection('task-analytics')">📈 Analytics</button></li>
-      <li><button class="nav-btn" onclick="showSection('all-tasks')">📋 All Tasks</button></li>
+      <li><button class="nav-btn active" onclick="showSection('create-task')"><i class="fas fa-plus"></i> Create Task</button></li>
+      <li><button class="nav-btn" onclick="showSection('create-poll')"><i class="fas fa-poll"></i> Create Poll</button></li>
+      <li><button class="nav-btn" onclick="showSection('create-announcement')"><i class="fas fa-bullhorn"></i> Announcement</button></li>
+      <li><button class="nav-btn" onclick="showSection('create-resource')"><i class="fas fa-book"></i> Resource</button></li>
+      <li><button class="nav-btn" onclick="showSection('manage-polls')"><i class="fas fa-poll"></i> Manage Polls</button></li>
+      <li><button class="nav-btn" onclick="showSection('manage-announcements')"><i class="fas fa-bullhorn"></i> Manage Announcements</button></li>
+      <li><button class="nav-btn" onclick="showSection('support-tickets')"><i class="fas fa-ticket-alt"></i> Support Tickets</button></li>
+      <li><button class="nav-btn" onclick="showSection('manage-resources')"><i class="fas fa-book"></i> Manage Resources</button></li>
+      <li><button class="nav-btn" onclick="showSection('progress-report')"><i class="fas fa-chart-line"></i> Progress Report</button></li>
+      <li><button class="nav-btn" onclick="showSection('task-analytics')"><i class="fas fa-chart-bar"></i> Analytics</button></li>
+      <li><button class="nav-btn" onclick="showSection('all-tasks')"><i class="fas fa-clipboard-list"></i> All Tasks</button></li>
     </ul>
   </nav>
 
   <!-- Main Content -->
   <main class="main-content">
     <div class="content-header">
-      <h1 id="page-title">📊 Admin Dashboard</h1>
+      <h1 id="page-title"><i class="fas fa-chart-bar"></i> Admin Dashboard</h1>
       <div class="header-actions">
         <div id="welcome" class="welcome-header">welcome, boss pi!</div>
         <button onclick="signOutUser()" class="logout-btn header-logout">Logout</button>
@@ -93,7 +94,7 @@
               </div>
             </div>
             
-            <button type="submit" class="btn-success">✓ Create Task</button>
+            <button type="submit" class="btn-success"><i class="fas fa-check"></i> Create Task</button>
           </form>
         </div>
       </section>
@@ -121,7 +122,7 @@
             </div>
             
             <button type="button" onclick="addPollOption()" style="background: #6b7280; margin-bottom: 1rem;">+ Add Option</button>
-            <button type="submit" class="btn-secondary">📊 Create Poll</button>
+            <button type="submit" class="btn-secondary"><i class="fas fa-poll"></i> Create Poll</button>
           </form>
         </div>
       </section>
@@ -149,7 +150,7 @@
         </div>
       </div>
       
-            <button type="submit" class="btn-warning">📢 Create Announcement</button>
+            <button type="submit" class="btn-warning"><i class="fas fa-bullhorn"></i> Create Announcement</button>
           </form>
         </div>
       </section>
@@ -176,7 +177,7 @@
         <p style="font-size: 0.85rem; color: #94a3b8; margin-top: 0.25rem;">URL of the resource (required).</p>
       </div>
       
-          <button type="submit" class="btn-success">📚 Create Resource</button>
+          <button type="submit" class="btn-success"><i class="fas fa-book"></i> Create Resource</button>
         </form>
       </div>
       </section>
@@ -184,7 +185,7 @@
       <!-- Manage Polls Section -->
       <section id="manage-polls" class="content-section">
         <div class="card">
-          <h2>📊 Manage Polls</h2>
+          <h2><i class="fas fa-poll"></i> Manage Polls</h2>
           <div id="pollsList">
             <p style="color: #94a3b8; text-align: center;">Loading polls...</p>
           </div>
@@ -194,7 +195,7 @@
       <!-- Manage Announcements Section -->
       <section id="manage-announcements" class="content-section">
         <div class="card">
-          <h2>📢 Manage Announcements</h2>
+          <h2><i class="fas fa-bullhorn"></i> Manage Announcements</h2>
           <div id="announcementsList">
             <p style="color: #94a3b8; text-align: center;">Loading announcements...</p>
           </div>
@@ -204,7 +205,7 @@
       <!-- Support Tickets Section -->
       <section id="support-tickets" class="content-section">
         <div class="card">
-          <h2>🎫 Support Tickets</h2>
+          <h2><i class="fas fa-ticket-alt"></i> Support Tickets</h2>
           <div id="ticketsList">
             <p style="color: #94a3b8; text-align: center;">Loading tickets...</p>
           </div>
@@ -214,7 +215,7 @@
       <!-- Manage Resources Section -->
       <section id="manage-resources" class="content-section">
         <div class="card">
-          <h2>📚 Manage Resources</h2>
+          <h2><i class="fas fa-book"></i> Manage Resources</h2>
           <div id="resourcesList">
             <p style="color: #94a3b8; text-align: center;">Loading resources...</p>
           </div>
@@ -224,18 +225,18 @@
       <!-- Progress Report Section -->
       <section id="progress-report" class="content-section">
         <div class="card">
-          <h2>📈 Thesis Progress Report</h2>
+          <h2><i class="fas fa-chart-line"></i> Thesis Progress Report</h2>
           <div id="progressReportPanel">
             <p style="color: #94a3b8; text-align: center;">Loading thesis progress report...</p>
           </div>
-          <button type="button" onclick="saveProgressReport()" class="btn-success" style="margin-top: 1rem;">💾 Save Progress</button>
+          <button type="button" onclick="saveProgressReport()" class="btn-success" style="margin-top: 1rem;"><i class="fas fa-save"></i> Save Progress</button>
         </div>
       </section>
       
       <!-- Task Analytics Section -->
       <section id="task-analytics" class="content-section">
         <div class="card analytics-card">
-          <h2>📈 Task Analytics</h2>
+          <h2><i class="fas fa-chart-bar"></i> Task Analytics</h2>
           <div class="chart-container">
             <canvas id="taskChart"></canvas>
           </div>
@@ -245,7 +246,7 @@
       <!-- All Tasks Section -->
       <section id="all-tasks" class="content-section">
         <div class="card">
-          <h2>📋 All Tasks</h2>
+          <h2><i class="fas fa-clipboard-list"></i> All Tasks</h2>
           <div id="tasks"></div>
         </div>
       </section>
@@ -283,22 +284,22 @@ function showSection(sectionId) {
   
   // Update page title
   const titles = {
-    'create-task': '➕ Create Task',
-    'create-poll': '📊 Create Poll',
-    'create-announcement': '📢 Create Announcement',
-    'create-resource': '📚 Create Resource',
-    'manage-polls': '📊 Manage Polls',
-    'manage-announcements': '📢 Manage Announcements',
-    'support-tickets': '🎫 Support Tickets',
-    'manage-resources': '📚 Manage Resources',
-    'progress-report': '📈 Progress Report',
-    'task-analytics': '📈 Task Analytics',
-    'all-tasks': '📋 All Tasks'
+    'create-task': '<i class="fas fa-plus"></i> Create Task',
+    'create-poll': '<i class="fas fa-poll"></i> Create Poll',
+    'create-announcement': '<i class="fas fa-bullhorn"></i> Create Announcement',
+    'create-resource': '<i class="fas fa-book"></i> Create Resource',
+    'manage-polls': '<i class="fas fa-poll"></i> Manage Polls',
+    'manage-announcements': '<i class="fas fa-bullhorn"></i> Manage Announcements',
+    'support-tickets': '<i class="fas fa-ticket-alt"></i> Support Tickets',
+    'manage-resources': '<i class="fas fa-book"></i> Manage Resources',
+    'progress-report': '<i class="fas fa-chart-line"></i> Progress Report',
+    'task-analytics': '<i class="fas fa-chart-bar"></i> Task Analytics',
+    'all-tasks': '<i class="fas fa-clipboard-list"></i> All Tasks'
   };
   
   const pageTitle = document.getElementById('page-title');
   if (pageTitle && titles[sectionId]) {
-    pageTitle.textContent = titles[sectionId];
+    pageTitle.innerHTML = titles[sectionId];
   }
   
   // Trigger chart update when analytics is shown
