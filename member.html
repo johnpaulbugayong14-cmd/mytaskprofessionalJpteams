@@ -85,10 +85,10 @@
 </footer>
 
 <script type="module">
-  import { requireAuth } from "./auth.js";
+  import { requireAuth } from "./auth.js?v=3";
   await requireAuth(['member']);
 </script>
-<script type="module" src="member.js"></script>
+<script type="module" src="member.js?v=3"></script>
 <script>
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("service-worker.js");

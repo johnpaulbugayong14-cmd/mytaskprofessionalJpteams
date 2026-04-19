@@ -184,10 +184,10 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script type="module">
-  import { requireAuth } from "./auth.js";
+  import { requireAuth } from "./auth.js?v=3";
   await requireAuth(['admin']);
 </script>
-<script type="module" src="admin.js"></script>
+<script type="module" src="admin.js?v=3"></script>
 <script>
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("service-worker.js");

@@ -1,0 +1,184 @@
+/**
+ * Notification System for My Thesis Hub
+ *
+ * SETUP INSTRUCTIONS:
+ * 1. Go to Firebase Console > Project Settings > Cloud Messaging
+ * 2. Add your Web Push certificate public key below
+ * 3. Add your Android `google-services.json` for native Android push support
+ * 4. Use Firebase Cloud Functions or your own server to send messages to FCM tokens
+ */
+
+import { db, messaging } from "./firebase.js";
+import { getStoredUserEmail } from "./auth.js";
+import { setDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js";
+
+// IMPORTANT: Replace with your actual VAPID public key from Firebase Console
+// Steps to get your VAPID key:
+// 1. Go to https://console.firebase.google.com
+// 2. Select your project (task-edd4d)
+// 3. Go to Project Settings (gear icon)
+// 4. Click on "Cloud Messaging" tab
+// 5. Scroll down to "Web Push certificates"
+// 6. Click "Generate key pair" (if not already generated)
+// 7. Copy the "Key pair" value and replace the line below
+const VAPID_PUBLIC_KEY = 'BBu_m1NKUZO5bp6k5q29DgzYpmjVWe8z1C6KojHrq7RDqOJ0O01txWvzqKWrnLMAGlrm8eOcdTn_O1wDnf5OZB8';
+
+export async function requestNotificationPermission() {
+  if (!('Notification' in window)) {
+    console.log('This browser does not support notifications');
+    return false;
+  }
+
+  if (Notification.permission === 'granted') {
+    return true;
+  }
+
+  if (Notification.permission !== 'denied') {
+    try {
+      const permission = await Notification.requestPermission();
+      return permission === 'granted';
+    } catch (error) {
+      console.error('Error requesting notification permission:', error);
+      return false;
+    }
+  }
+
+  return false;
+}
+
+async function getFcmToken(registration) {
+  if (VAPID_PUBLIC_KEY === 'BBu_m1NKUZO5bp6k5q29DgzYpmjVWe8z1C6KojHrq7RDqOJ0O01txWvzqKWrnLMAGlrm8eOcdTn_O1wDnf5OZB8') {
+    console.warn('VAPID key not configured. FCM web notifications will not work.');
+    return null;
+  }
+
+  try {
+    const token = await getToken(messaging, {
+      vapidKey: VAPID_PUBLIC_KEY,
+      serviceWorkerRegistration: registration
+    });
+
+    console.log('Firebase messaging token:', token);
+    return token;
+  } catch (error) {
+    console.error('Failed to get FCM token:', error);
+    return null;
+  }
+}
+
+export async function saveFcmTokenForCurrentUser(token) {
+  const email = await getStoredUserEmail();
+  if (!email || !token) {
+    return;
+  }
+
+  try {
+    const tokenDoc = doc(db, 'fcmTokens', email);
+    await setDoc(tokenDoc, {
+      email,
+      token,
+      updatedAt: new Date(),
+      platform: window.Capacitor?.getPlatform() || 'web'
+    }, { merge: true });
+
+    console.log('Saved FCM token for user:', email);
+  } catch (error) {
+    console.error('Failed to save FCM token:', error);
+  }
+}
+
+export async function subscribeToNotifications() {
+  if (!('serviceWorker' in navigator)) {
+    console.log('Service workers are not supported in this browser');
+    return null;
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.register('service-worker.js');
+    await navigator.serviceWorker.ready;
+
+    const token = await getFcmToken(registration);
+    if (!token) {
+      console.log('Could not get FCM token for this device');
+      return null;
+    }
+
+    console.log('Successfully subscribed to Firebase push notifications');
+    return token;
+  } catch (error) {
+    console.error('Error subscribing to notifications:', error);
+    return null;
+  }
+}
+
+export function showLocalNotification(title, body, icon = null) {
+  if (Notification.permission === 'granted') {
+    const notification = new Notification(title, {
+      body,
+      icon: icon || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="%233b82f6"/><text x="256" y="280" font-family="Arial, sans-serif" font-size="200" font-weight="bold" text-anchor="middle" fill="white">✓</text></svg>',
+      badge: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="%233b82f6"/><text x="256" y="280" font-family="Arial, sans-serif" font-size="200" font-weight="bold" text-anchor="middle" fill="white">✓</text></svg>'
+    });
+
+    notification.onclick = () => {
+      window.focus();
+      notification.close();
+    };
+
+    setTimeout(() => notification.close(), 5000);
+  }
+}
+
+// Replace with your actual production API URL when deploying
+const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? ''
+  : 'https://mytaskprofessionaljpteams-main.vercel.app'; // Update this to your real URL
+
+export async function sendNotificationToUsers(userEmails, title, body, type = 'general') {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/send-notification`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        userEmails,
+        title,
+        body,
+        type
+      })
+    });
+
+    const result = await response.json();
+    if (result.success) {
+      console.log('Notification sent successfully');
+    } else {
+      console.error('Failed to send notification:', result);
+    }
+  } catch (error) {
+    console.error('Error sending notification:', error);
+  }
+}
+
+export async function initializeNotifications() {
+  const permissionGranted = await requestNotificationPermission();
+  if (!permissionGranted) {
+    return null;
+  }
+
+  const token = await subscribeToNotifications();
+  if (!token) {
+    return null;
+  }
+
+  await saveFcmTokenForCurrentUser(token);
+
+  onMessage(messaging, (payload) => {
+    console.log('Foreground FCM message received:', payload);
+    const title = payload.notification?.title || payload.data?.title || 'My Thesis Hub';
+    const body = payload.notification?.body || payload.data?.body || 'You have a new message';
+    showLocalNotification(title, body);
+  });
+
+  return token;
+}
