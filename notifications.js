@@ -174,6 +174,10 @@ export function showLocalNotification(title, body, icon = null) {
 
 export async function sendNotificationToUsers(userEmails, title, body, type = 'general') {
   if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') return;
+  if (window.location.hostname === 'johnpaulbugayong14-cmd.github.io') {
+    console.warn('Notification backend unavailable on GitHub Pages; skipping sendNotificationToUsers.');
+    return;
+  }
 
   try {
     const response = await fetch('/api/send-notification', {

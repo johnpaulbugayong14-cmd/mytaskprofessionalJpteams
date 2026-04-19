@@ -21,7 +21,7 @@ app.use(cors({
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error(`CORS policy does not allow access from origin ${origin}`));
+      callback(null, true);
     }
   },
   methods: ['GET', 'POST', 'OPTIONS'],
@@ -29,6 +29,7 @@ app.use(cors({
   credentials: true,
   optionsSuccessStatus: 200
 }));
+app.options('*', cors());
 app.use(express.json());
 
 // GitHub Actions Configuration (stored securely on backend)
