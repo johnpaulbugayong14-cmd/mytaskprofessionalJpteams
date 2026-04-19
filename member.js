@@ -486,23 +486,36 @@ function loadResources() {
 }
 
 (async () => {
+  console.log('=== MEMBER.JS INITIALIZATION STARTED ===');
+  
   // Retry getting userEmail if first attempt fails (to handle timing issues)
   let retries = 0;
+  console.log('Starting to retrieve userEmail...');
   while (!userEmail && retries < 5) {
+    console.log(`Attempt ${retries + 1} to get userEmail`);
     userEmail = await getStoredUserEmail();
+    console.log(`Attempt ${retries + 1} result: userEmail =`, userEmail);
     if (!userEmail) {
       retries++;
-      await new Promise(resolve => setTimeout(resolve, 200));
+      if (retries < 5) {
+        console.log(`Retrying in 200ms (retry ${retries}/5)...`);
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
     }
   }
+  
+  console.log('=== FINAL USER EMAIL ===', userEmail);
 
   if (!userEmail) {
+    console.log('No userEmail found after retries, showing login message');
     container.innerHTML = '<p style="text-align: center; color: #94a3b8; padding: 2rem;">Please log in to view your tasks.</p>';
     if (emptyState) emptyState.style.display = "none";
     if (welcomeEl) welcomeEl.style.display = "none";
   } else {
+    console.log('User authenticated, setting up dashboard for:', userEmail);
     if (welcomeEl) welcomeEl.textContent = `Welcome, ${getUserName(userEmail)}`;
     console.log('User logged in as:', userEmail);
+    console.log('Starting to load data from Firestore...');
     
     // Initialize notifications
     initializeNotifications();
@@ -512,7 +525,9 @@ function loadResources() {
     setInterval(updateDateTime, 1000);
     
     // Load tasks
+    console.log('Setting up tasks listener...');
     onSnapshot(collection(db, "tasks"), (snap) => {
+      console.log('Tasks snapshot received, docs count:', snap.size);
       container.innerHTML = "";
       let taskCount = 0;
 
@@ -522,6 +537,7 @@ function loadResources() {
 
       docs.forEach(doc => {
         const t = doc.data();
+        console.log('Processing task:', t.title, 'assigned to:', t.assignedTo, 'current user:', userEmail);
         if (t.assignedTo !== "everyone" && t.assignedTo !== userEmail) return;
 
         taskCount++;

@@ -53,35 +53,45 @@ class StorageManager {
   }
 
   async get(key) {
+    console.log(`StorageManager.get: Requesting key "${key}"`);
     await this.ensureInitialized();
+    console.log(`StorageManager.get: Initialized. isCapacitor=${this.isCapacitor}, localStorage will be used`);
 
     // Try Capacitor Preferences first
     if (this.isCapacitor && this.preferences) {
       try {
+        console.log(`StorageManager.get: Trying Capacitor Preferences for key "${key}"`);
         const result = await this.preferences.get({ key });
+        console.log(`StorageManager.get: Capacitor result:`, result);
         if (result && result.value) return result;
       } catch (error) {
-        console.error('Error getting from Capacitor Preferences:', error);
+        console.error('StorageManager.get: Error getting from Capacitor Preferences:', error);
       }
     }
 
     // Always check localStorage as secondary or fallback
+    console.log(`StorageManager.get: Checking localStorage for key "${key}"`);
     const value = localStorage.getItem(key);
+    console.log(`StorageManager.get: localStorage value:`, value);
     return value ? { value } : { value: null };
   }
 
   async set(key, value) {
+    console.log(`StorageManager.set: Setting key "${key}" with value:`, value);
     await this.ensureInitialized();
+    console.log(`StorageManager.set: Initialized. Saving to localStorage...`);
 
     // Save to both for maximum reliability
     if (this.isCapacitor && this.preferences) {
       try {
+        console.log(`StorageManager.set: Also saving to Capacitor Preferences`);
         await this.preferences.set({ key, value });
       } catch (error) {
-        console.error('Error setting in Capacitor Preferences:', error);
+        console.error('StorageManager.set: Error setting in Capacitor Preferences:', error);
       }
     }
     localStorage.setItem(key, value);
+    console.log(`StorageManager.set: Successfully saved to localStorage`);
   }
 
   async remove(key) {
@@ -131,9 +141,19 @@ function getPreRegisteredRole(email) {
 // Get stored user from storage
 async function getStoredUser() {
   try {
-    const { value } = await storage.get('authUser');
+    console.log('getStoredUser: Attempting to retrieve authUser from storage...');
+    const result = await storage.get('authUser');
+    console.log('getStoredUser: Storage result:', result);
+    
+    const { value } = result;
+    console.log('getStoredUser: Extracted value:', value);
+    
     if (value) {
-      return JSON.parse(value);
+      const parsed = JSON.parse(value);
+      console.log('getStoredUser: Parsed user:', parsed);
+      return parsed;
+    } else {
+      console.log('getStoredUser: No value found in storage');
     }
   } catch (error) {
     console.error("Error getting auth user from storage", error);
@@ -144,8 +164,11 @@ async function getStoredUser() {
 // Store user in storage
 async function storeUser(user) {
   try {
+    console.log('storeUser: Storing user:', user);
     const userString = JSON.stringify(user);
+    console.log('storeUser: Serialized to:', userString);
     await storage.set('authUser', userString);
+    console.log('storeUser: Successfully stored user');
   } catch (error) {
     console.error("Error storing auth user", error);
   }
@@ -153,20 +176,31 @@ async function storeUser(user) {
 
 // Login function - attached to window for global access
 window.login = async function() {
+  console.log('=== LOGIN FUNCTION CALLED ===');
   const email = document.getElementById("email").value.trim();
   const password = document.getElementById("password").value;
+  console.log('Login attempt for email:', email);
+  
   const account = PRE_REGISTERED_CREDENTIALS.find(a => a.email === email && a.password === password);
 
   if (!account) {
+    console.log('Login failed: Invalid credentials');
     showMessage("Invalid login credentials. Please try again.");
     return;
   }
 
+  console.log('Credentials valid, account found:', account);
+
   try {
+    console.log('Signing in with Firebase Auth (anonymously)...');
     // Sign in anonymously with Firebase Auth
     await signInAnonymously(auth);
+    console.log('Firebase Auth successful');
 
+    console.log('Storing user in storage...');
     await storeUser({ email: account.email, role: account.role });
+    console.log('User stored, redirecting to:', account.role === "admin" ? "admin.html" : "member.html");
+    
     window.location.href = account.role === "admin" ? "admin.html" : "member.html";
   } catch (error) {
     console.error("Firebase Auth error:", error);
@@ -176,8 +210,12 @@ window.login = async function() {
 
 // Exported functions for other modules
 export async function getStoredUserEmail() {
+  console.log('getStoredUserEmail: Called');
   const user = await getStoredUser();
-  return user ? user.email : null;
+  console.log('getStoredUserEmail: Got user:', user);
+  const email = user ? user.email : null;
+  console.log('getStoredUserEmail: Returning email:', email);
+  return email;
 }
 
 export async function getStoredUserRole() {
