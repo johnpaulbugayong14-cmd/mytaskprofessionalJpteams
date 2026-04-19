@@ -640,8 +640,19 @@ function updateChart(done, pending, overdue, needsAction, pendingValidation) {
       datasets: [{
         data: [done, pending, overdue, needsAction, pendingValidation]
       }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+        }
+      }
     }
   });
+
+  window.adminTaskChart = chart;
 }
 
 /* CREATE POLL */

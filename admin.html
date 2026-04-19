@@ -302,6 +302,10 @@ function showSection(sectionId) {
     pageTitle.textContent = titles[sectionId];
   }
   
+  if (sectionId === 'task-analytics' && window.adminTaskChart && typeof window.adminTaskChart.resize === 'function') {
+    setTimeout(() => window.adminTaskChart.resize(), 100);
+  }
+  
   // Close mobile sidebar after selection
   closeMobileSidebar();
 }
