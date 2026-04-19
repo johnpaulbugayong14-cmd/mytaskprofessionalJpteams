@@ -46,14 +46,11 @@ export default async function handler(req, res) {
 
     const tokens = [];
 
-    // Get FCM tokens for each recipient
     for (const email of userEmails) {
       try {
         const tokenDoc = await getDoc(doc(db, 'fcmTokens', email));
         if (tokenDoc.exists() && tokenDoc.data().token) {
           tokens.push(tokenDoc.data().token);
-        } else {
-          console.log(`No FCM token found for ${email}`);
         }
       } catch (error) {
         console.error(`Error getting token for ${email}:`, error);
@@ -64,7 +61,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: false, message: 'No valid FCM tokens found for recipients' });
     }
 
-    // Send FCM notification using legacy API
     const fcmPayload = {
       registration_ids: tokens,
       notification: {
@@ -91,15 +87,12 @@ export default async function handler(req, res) {
     const fcmResult = await fcmResponse.json();
 
     if (fcmResponse.ok) {
-      console.log('FCM sent successfully:', fcmResult);
-      res.status(200).json({ success: true, result: fcmResult });
-    } else {
-      console.error('FCM send failed:', fcmResult);
-      res.status(500).json({ success: false, error: fcmResult });
+      return res.status(200).json({ success: true, result: fcmResult });
     }
 
+    return res.status(500).json({ success: false, error: fcmResult });
   } catch (error) {
     console.error('Error in send-notification:', error);
-    res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({ success: false, error: error.message });
   }
 }
