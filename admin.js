@@ -214,16 +214,30 @@ function renderAdminProgressReport(sections) {
   container.innerHTML = sections.map((section, sectionIndex) => `
     <div style="margin-bottom: 1.25rem;">
       <h3 style="margin: 0 0 0.75rem 0; color: #0ea5e9;">${section.title}</h3>
-      ${Array.isArray(section.items) ? section.items.map((item, itemIndex) => `
-        <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 0.65rem; padding: 0.75rem; background: #111827; border: 1px solid #374151; border-radius: 0.5rem;">
-          <span style="color: #d1d5db;">${item.name}</span>
-          <select id="progress-${sectionIndex}-${itemIndex}" style="background: #0f172a; color: #f8fafc; border: 1px solid #4b5563; border-radius: 0.375rem; padding: 0.45rem 0.6rem;">
-            ${progressStatuses.map(statusOption => `
-              <option value="${statusOption}" ${statusOption === (item.status || "Not Started") ? "selected" : ""}>${statusOption}</option>
-            `).join('')}
-          </select>
-        </div>
-      `).join('') : ''}
+      ${Array.isArray(section.items) ? section.items.map((item, itemIndex) => {
+        const assignedToValue = Array.isArray(item.assignedTo) ? item.assignedTo : (item.assignedTo ? [item.assignedTo] : []);
+        return `
+          <div style="display: grid; gap: 0.75rem; margin-bottom: 0.65rem; padding: 0.75rem; background: #111827; border: 1px solid #374151; border-radius: 0.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+              <span style="color: #d1d5db;">${item.name}</span>
+              <select id="progress-${sectionIndex}-${itemIndex}" style="background: #0f172a; color: #f8fafc; border: 1px solid #4b5563; border-radius: 0.375rem; padding: 0.25rem 0.5rem; font-size: 0.875rem;">
+                <option value="Not Started" ${item.status === 'Not Started' || !item.status ? 'selected' : ''}>Not Started</option>
+                <option value="Pending" ${item.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                <option value="Completed" ${item.status === 'Completed' ? 'selected' : ''}>Completed</option>
+              </select>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;">
+              <label style="color: #cbd5e1; font-size: 0.9rem; min-width: 120px;">Assign to:</label>
+              <select id="assignedTo-${sectionIndex}-${itemIndex}" multiple style="background: #0f172a; color: #f8fafc; border: 1px solid #4b5563; border-radius: 0.375rem; padding: 0.45rem 0.6rem; min-width: 180px; min-height: 40px;">
+                <option value="" ${Array.isArray(assignedToValue) ? (!assignedToValue.includes('') && assignedToValue.length === 0) : assignedToValue === '' ? 'selected' : ''}>Unassigned</option>
+                ${members.filter(member => member.uid !== 'everyone').map(member => `
+                  <option value="${member.uid}" ${Array.isArray(assignedToValue) ? (assignedToValue.includes(member.uid) ? 'selected' : '') : (member.uid === assignedToValue ? 'selected' : '')}>${member.name}</option>
+                `).join('')}
+              </select>
+            </div>
+          </div>
+        `;
+      }).join('') : ''}
     </div>
   `).join('');
 }
@@ -233,10 +247,15 @@ function getProgressFormValues() {
   return defaultSections.map((section, sectionIndex) => ({
     title: section.title,
     items: section.items.map((item, itemIndex) => {
-      const select = document.getElementById(`progress-${sectionIndex}-${itemIndex}`);
+      const statusSelect = document.getElementById(`progress-${sectionIndex}-${itemIndex}`);
+      const assignedSelect = document.getElementById(`assignedTo-${sectionIndex}-${itemIndex}`);
+      const assignedTo = assignedSelect ? Array.from(assignedSelect.selectedOptions).map(option => option.value).filter(v => v !== '') : (Array.isArray(item.assignedTo) ? item.assignedTo : []);
+      const assignedToName = assignedSelect ? Array.from(assignedSelect.selectedOptions).map(option => members.find(m => m.uid === option.value)?.name).filter(Boolean) : (Array.isArray(item.assignedToName) ? item.assignedToName : []);
       return {
         name: item.name,
-        status: select ? select.value : item.status
+        status: statusSelect ? statusSelect.value : item.status,
+        assignedTo,
+        assignedToName
       };
     })
   }));
@@ -456,7 +475,14 @@ function loadProgressReport() {
       const data = snap.data();
       console.log('Progress report data:', data);
       if (Array.isArray(data.sections)) {
-        sections = data.sections;
+        sections = data.sections.map(section => ({
+          ...section,
+          items: Array.isArray(section.items) ? section.items.map(item => ({
+            assignedTo: Array.isArray(item.assignedTo) ? item.assignedTo : (item.assignedTo ? [item.assignedTo] : []),
+            assignedToName: Array.isArray(item.assignedToName) ? item.assignedToName : (item.assignedToName ? [item.assignedToName] : []),
+            ...item
+          })) : []
+        }));
       } else {
         setDoc(progressRef, { sections }, { merge: true });
       }

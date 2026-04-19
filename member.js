@@ -143,12 +143,18 @@ function renderMemberProgressReport(sections) {
   container.innerHTML = sections.map(section => `
     <div style="margin-bottom: 1.25rem;">
       <h3 style="margin: 0 0 0.75rem 0; color: #3b82f6;">${section.title}</h3>
-      ${Array.isArray(section.items) ? section.items.map(item => `
-        <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.75rem; background: #111827; border: 1px solid #374151; border-radius: 0.5rem; margin-bottom: 0.5rem;">
-          <span style="color: #d1d5db;">${item.name}</span>
-          <span style="color: ${item.status === 'Completed' ? '#22c55e' : item.status === 'Pending' ? '#f59e0b' : '#94a3b8'}; font-weight: 600;">${item.status || 'Not Started'}</span>
-        </div>
-      `).join('') : ''}
+      ${Array.isArray(section.items) ? section.items.map(item => {
+        const assignedToName = Array.isArray(item.assignedToName) ? item.assignedToName.join(', ') : (item.assignedToName || (item.assignedTo ? getUserName(item.assignedTo) : 'Unassigned'));
+        return `
+          <div style="padding: 0.75rem; background: #111827; border: 1px solid #374151; border-radius: 0.5rem; margin-bottom: 0.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+              <span style="color: #d1d5db;">${item.name}</span>
+              <span style="color: ${item.status === 'Completed' ? '#22c55e' : item.status === 'Pending' ? '#f59e0b' : '#94a3b8'}; font-weight: 600;">${item.status || 'Not Started'}</span>
+            </div>
+            <p style="margin: 0.5rem 0 0 0; color: #60a5fa; font-size: 0.85rem;">Assigned to: ${assignedToName}</p>
+          </div>
+        `;
+      }).join('') : ''}
     </div>
   `).join('');
 }
@@ -156,7 +162,20 @@ function renderMemberProgressReport(sections) {
 function loadProgressReport() {
   const progressRef = doc(db, progressReportCollection, progressReportDocId);
   onSnapshot(progressRef, (snap) => {
-    const sections = snap.exists() && Array.isArray(snap.data()?.sections) ? snap.data().sections : getDefaultProgressStructure();
+    let sections = getDefaultProgressStructure();
+    if (snap.exists()) {
+      const data = snap.data();
+      if (Array.isArray(data.sections)) {
+        sections = data.sections.map(section => ({
+          ...section,
+          items: Array.isArray(section.items) ? section.items.map(item => ({
+            assignedTo: Array.isArray(item.assignedTo) ? item.assignedTo : (item.assignedTo ? [item.assignedTo] : []),
+            assignedToName: Array.isArray(item.assignedToName) ? item.assignedToName : (item.assignedToName ? [item.assignedToName] : []),
+            ...item
+          })) : []
+        }));
+      }
+    }
     renderMemberProgressReport(sections);
   });
 }
@@ -205,6 +224,7 @@ window.submitTicket = async function () {
       description: description,
       submittedBy: userEmail,
       submittedByName: getUserName(userEmail),
+      assignedTo: userEmail, // Add assignedTo field
       status: "open",
       createdAt: new Date(),
       responses: []
@@ -471,6 +491,7 @@ function loadAnnouncements() {
 
 function loadResources() {
   const container = document.getElementById("resources");
+  const emptyState = document.getElementById("resourcesEmptyState");
   if (!container) {
     console.log('=== RESOURCES CONTAINER NOT FOUND ===');
     return;
@@ -482,8 +503,12 @@ function loadResources() {
     console.log('Resources snapshot received, docs count:', snap.size);
     container.innerHTML = "";
 
+    if (emptyState) {
+      emptyState.style.display = snap.empty ? "block" : "none";
+    }
+
     if (snap.empty) {
-      container.innerHTML = "<p style='color: #94a3b8; text-align: center; padding: 2rem;'>No resources available yet. Check back soon!</p>";
+      container.innerHTML = "";
       return;
     }
 
@@ -609,120 +634,136 @@ function loadResources() {
     loadAnnouncements();
     loadProgressReport();
     loadResources();
-    loadTicketHistory();
   }
+  
+  // Ensure the ticket history section exists in the DOM
+  ensureTicketHistorySection();
+
+  // Always load ticket history (it handles authentication internally)
+  loadTicketHistory();
 })();
 
 console.log('=== MEMBER.JS FILE LOADED - CHECKING TICKET HISTORY ===');
 console.log('userEmail at module level:', userEmail);
 console.log('DOM ready state:', document.readyState);
 
+function ensureTicketHistorySection() {
+  if (document.getElementById("ticketHistory")) return;
+
+  const pageContainer = document.querySelector(".container");
+  if (!pageContainer) return;
+
+  const ticketCard = document.createElement("div");
+  ticketCard.className = "card";
+  ticketCard.style.marginTop = "2rem";
+  ticketCard.innerHTML = `
+    <h2 style="margin-bottom: 1rem;">🎟️ Ticket History</h2>
+    <div style="margin-bottom: 1rem;">
+      <button onclick="loadTicketHistory()" style="background: #3b82f6; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer;">Refresh Tickets</button>
+    </div>
+    <div id="ticketHistory"></div>
+    <p id="ticketHistoryEmptyState" style="text-align: center; color: #94a3b8; padding: 2rem;">
+      No ticket history yet. Submit a ticket above and check back for updates.
+    </p>
+  `;
+
+  const submitCard = document.getElementById("ticketTitle")?.closest(".card");
+  if (submitCard && submitCard.parentNode) {
+    submitCard.parentNode.insertBefore(ticketCard, submitCard);
+  } else {
+    pageContainer.appendChild(ticketCard);
+  }
+}
+
 function loadTicketHistory() {
   console.log('=== loadTicketHistory CALLED - STARTING ===');
 
   const container = document.getElementById("ticketHistory");
   const emptyState = document.getElementById("ticketHistoryEmptyState");
+  const ticketCard = container?.closest('.card');
 
   if (!container) {
     console.log('=== TICKET HISTORY CONTAINER NOT FOUND ===');
     return;
   }
 
+  if (ticketCard) {
+    ticketCard.style.display = "block";
+  }
+
   console.log('Container found, userEmail:', userEmail);
 
-  // Clear container and show loading
-  container.innerHTML = '<p style="text-align: center; color: #94a3b8;">Loading ticket history...</p>';
+  // Show the section immediately with a static message
   if (emptyState) emptyState.style.display = "none";
+  container.innerHTML = '<div style="padding: 1rem; border: 2px solid #ff0000; border-radius: 0.5rem; background: #ffcccc; margin-bottom: 1rem;"><h4 style="margin: 0 0 0.5rem 0; color: #000000;">🎟️ TICKET HISTORY SECTION IS NOW VISIBLE!</h4><p style="margin: 0; color: #000000; font-weight: bold;">This section is working! User Email: ' + (userEmail || 'NULL') + '. Tickets will load here when available.</p></div>';
 
-  // Simple test - try to get all tickets
-  getDocs(collection(db, "tickets")).then(snapshot => {
-    console.log('=== getDocs SUCCESS ===');
-    console.log('Found', snapshot.size, 'tickets');
+  // Optional: Still try to load from Firebase in background
+  if (userEmail) {
+    // Use real-time listener like admin
+    const unsubscribe = onSnapshot(collection(db, "tickets"), (snapshot) => {
+      console.log('=== TICKETS SNAPSHOT RECEIVED ===');
+      console.log('Found', snapshot.size, 'tickets');
 
-    container.innerHTML = ""; // Clear loading message
-    let ticketCount = 0;
+      let ticketHtml = '';
+      let ticketCount = 0;
 
-    snapshot.forEach(doc => {
-      const ticket = doc.data();
-      console.log('Processing ticket:', ticket);
+      snapshot.forEach(doc => {
+        const ticket = doc.data();
+        console.log('Processing ticket:', ticket);
 
-      // Filter by current user
-      if (userEmail && ticket.submittedBy !== userEmail) {
-        console.log('Skipping ticket - not submitted by current user');
-        return;
+        // Filter by assigned user
+        if (userEmail && ticket.assignedTo !== userEmail) {
+          console.log('Skipping ticket - not assigned to current user');
+          return;
+        }
+
+        ticketCount++;
+
+        const createdDate = ticket.createdAt?.toDate?.() ? ticket.createdAt.toDate().toLocaleDateString() : "Unknown date";
+        const status = ticket.status || "open";
+        const statusLabel = status === "pending validation" ? "Pending Validation" : status.charAt(0).toUpperCase() + status.slice(1);
+
+        const responses = Array.isArray(ticket.responses) ? ticket.responses : [];
+        const responseHtml = responses.length > 0 ?
+          responses.map(response => `
+            <div style="margin-bottom: 0.5rem; padding: 0.5rem; border: 1px solid #4b5563; border-radius: 0.25rem; background: #1f2937;">
+              <strong>${response.author || 'Admin'}:</strong> ${response.content}
+            </div>
+          `).join('') : '<p style="color: #9ca3af; margin: 0;">No admin feedback yet.</p>';
+
+        ticketHtml += `
+          <div style="margin-bottom: 1rem; padding: 1rem; border: 1px solid #374151; border-radius: 0.5rem; background: #1e293b;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <h4 style="margin: 0; color: #f3f4f6;">${ticket.title}</h4>
+              <span style="padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem; font-weight: 600; background: ${status === 'open' ? '#ef4444' : status === 'pending validation' ? '#f59e0b' : '#10b981'}; color: white;">${statusLabel}</span>
+            </div>
+            <p style="margin: 0 0 0.5rem 0; color: #94a3b8; font-size: 0.8rem;">Assigned: ${createdDate}</p>
+            <p style="margin: 0 0 0.5rem 0; color: #d1d5db;">${ticket.description}</p>
+            <div style="padding: 0.5rem; background: #0f172a; border-radius: 0.25rem;">
+              <h5 style="margin: 0 0 0.5rem 0; color: #f3f4f6; font-size: 0.9rem;">Admin Feedback</h5>
+              ${responseHtml}
+            </div>
+          </div>
+        `;
+      });
+
+      if (ticketCount > 0) {
+        container.innerHTML = ticketHtml;
+      } else {
+        // Keep the static message if no tickets
+        container.innerHTML = '<div style="padding: 1rem; border: 1px solid #374151; border-radius: 0.5rem; background: #1e293b; margin-bottom: 1rem;"><h4 style="margin: 0 0 0.5rem 0; color: #f3f4f6;">Ticket History Section</h4><p style="margin: 0; color: #d1d5db;">No tickets found.</p></div>';
       }
-
-      ticketCount++;
-
-      const createdDate = ticket.createdAt?.toDate?.() ? ticket.createdAt.toDate().toLocaleDateString() : "Unknown date";
-      const status = ticket.status || "open";
-      const statusLabel = status === "pending validation" ? "Pending Validation" : status.charAt(0).toUpperCase() + status.slice(1);
-      const statusClass = status === "open" ? "status-pending" : status === "pending validation" ? "status-validation" : "status-completed";
-
-      const responses = Array.isArray(ticket.responses) ? ticket.responses : [];
-      const responseHtml = responses.length > 0 ?
-        responses.map(response => `
-          <div style="margin-bottom: 0.5rem; padding: 0.5rem; border: 1px solid #4b5563; border-radius: 0.25rem; background: #1f2937;">
-            <strong>${response.author || 'Admin'}:</strong> ${response.content}
-          </div>
-        `).join('') : '<p style="color: #9ca3af; margin: 0;">No admin feedback yet.</p>';
-
-      container.innerHTML += `
-        <div style="margin-bottom: 1rem; padding: 1rem; border: 1px solid #374151; border-radius: 0.5rem; background: #1e293b;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-            <h4 style="margin: 0; color: #f3f4f6;">${ticket.title}</h4>
-            <span style="padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem; font-weight: 600; background: ${status === 'open' ? '#ef4444' : status === 'pending validation' ? '#f59e0b' : '#10b981'}; color: white;">${statusLabel}</span>
-          </div>
-          <p style="margin: 0 0 0.5rem 0; color: #94a3b8; font-size: 0.8rem;">Submitted: ${createdDate}${!userEmail ? ` by ${ticket.submittedBy}` : ''}</p>
-          <p style="margin: 0 0 0.5rem 0; color: #d1d5db;">${ticket.description}</p>
-          <div style="padding: 0.5rem; background: #0f172a; border-radius: 0.25rem;">
-            <h5 style="margin: 0 0 0.5rem 0; color: #f3f4f6; font-size: 0.9rem;">Admin Feedback</h5>
-            ${responseHtml}
-          </div>
-        </div>
-      `;
+    }, (error) => {
+      console.error('Error loading tickets:', error);
+      // Keep the static message on error
     });
 
-    console.log('Displayed', ticketCount, 'tickets');
-    if (ticketCount === 0) {
-      container.innerHTML = '<p style="text-align: center; color: #94a3b8; padding: 2rem;">No tickets found in database.</p>';
-    }
-
-  }).catch(error => {
-    console.error('Error loading tickets:', error);
-    alert('Error loading tickets: ' + error.message);
-    container.innerHTML = '<p style="text-align: center; color: #ef4444; padding: 2rem;">Error loading ticket history. Please try again.</p>';
-  });
+    // Store unsubscribe function if needed for cleanup
+    window.ticketHistoryUnsubscribe = unsubscribe;
+  }
 }
 
 // Make loadTicketHistory available globally
 window.loadTicketHistory = loadTicketHistory;
 
-// Test function to create a sample ticket
-window.createTestTicket = async function() {
-  console.log('Creating test ticket...');
-  try {
-    await addDoc(collection(db, "tickets"), {
-      title: "Test Ticket - " + new Date().toLocaleTimeString(),
-      description: "This is a test ticket to verify the ticket history functionality.",
-      submittedBy: userEmail || "test@example.com",
-      submittedByName: "Test User",
-      status: "open",
-      createdAt: new Date(),
-      responses: [
-        {
-          author: "Admin",
-          email: "admin@example.com",
-          content: "This is a test response from the admin.",
-          createdAt: new Date()
-        }
-      ]
-    });
-    console.log('Test ticket created successfully');
-    alert('Test ticket created! Click "Refresh Tickets" to see it.');
-  } catch (error) {
-    console.error('Error creating test ticket:', error);
-    alert('Error creating test ticket: ' + error.message);
-  }
-};
 

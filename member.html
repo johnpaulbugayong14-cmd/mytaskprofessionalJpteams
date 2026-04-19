@@ -31,6 +31,17 @@
   </div>
 
   <div class="card" style="margin-top: 2rem;">
+    <h2 style="margin-bottom: 1rem;">🎟️ Ticket History</h2>
+    <div style="margin-bottom: 1rem;">
+      <button onclick="loadTicketHistory()" style="background: #3b82f6; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer;">Refresh Tickets</button>
+    </div>
+    <div id="ticketHistory"></div>
+    <p id="ticketHistoryEmptyState" style="text-align: center; color: #94a3b8; padding: 2rem;">
+      No ticket history yet. Submit a ticket above and check back for updates.
+    </p>
+  </div>
+
+  <div class="card" style="margin-top: 2rem;">
     <h2 style="margin-bottom: 1rem;">📊 Active Polls</h2>
     <div id="polls"></div>
     <p id="pollsEmptyState" style="text-align: center; color: #94a3b8; padding: 2rem;">
@@ -64,18 +75,6 @@
   </div>
 
   <div class="card" style="margin-top: 2rem;">
-    <h2 style="margin-bottom: 1rem;">🎟️ Ticket History</h2>
-    <div style="margin-bottom: 1rem;">
-      <button onclick="loadTicketHistory()" style="background: #3b82f6; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer; margin-right: 0.5rem;">Refresh Tickets</button>
-      <button onclick="createTestTicket()" style="background: #10b981; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer;">Create Test Ticket</button>
-    </div>
-    <div id="ticketHistory"></div>
-    <p id="ticketHistoryEmptyState" style="text-align: center; color: #94a3b8; padding: 2rem;">
-      No ticket history yet. Submit a ticket above and check back for updates.
-    </p>
-  </div>
-
-  <div class="card" style="margin-top: 2rem;">
     <h2 style="margin-bottom: 1rem;">📚 Resources</h2>
     <div id="resources"></div>
     <p id="resourcesEmptyState" style="text-align: center; color: #94a3b8; padding: 2rem;">
@@ -101,7 +100,7 @@
   import { initializeNotifications } from "./notifications.js?v=5";
   await requireAuth(['member']);
 </script>
-<script type="module" src="member.js?v=5"></script>
+<script type="module" src="member.js?v=6"></script>
 <script>
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("service-worker.js");
