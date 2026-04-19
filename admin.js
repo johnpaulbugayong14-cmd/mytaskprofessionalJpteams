@@ -93,7 +93,7 @@ import { sendNotificationToUsers, showLocalNotification, initializeNotifications
 // Backend Proxy Configuration (Token is hidden on backend server)
 const EMAIL_BACKEND_CONFIG = {
   enabled: true,
-  apiUrl: 'http://localhost:3001/api/trigger-email' // Backend server endpoint
+  apiUrl: 'https://mytaskprofessional-jpteams.vercel.app/api/trigger-email' // Backend server endpoint
 };
 
 // User Email Mapping (login email → actual recipient email)
