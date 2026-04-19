@@ -1,4 +1,4 @@
-import { collection, onSnapshot, doc, updateDoc, addDoc, getDoc, setDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { collection, onSnapshot, doc, updateDoc, addDoc, getDoc, setDoc, arrayUnion, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { db } from "./firebase.js";
 import { getStoredUserEmail, signOutUser } from "./auth.js";
 import { initializeNotifications, sendNotificationToUsers, showLocalNotification } from "./notifications.js";
@@ -174,20 +174,32 @@ window.markDone = async function (id) {
 };
 
 window.submitTicket = async function () {
+  console.log('submitTicket called, userEmail:', userEmail);
   if (!userEmail) {
     alert("Please wait for the page to load completely.");
     return;
   }
 
+  // Prevent multiple submissions
+  if (window.isSubmittingTicket) {
+    console.log('Ticket submission already in progress, ignoring...');
+    return;
+  }
+  window.isSubmittingTicket = true;
+
   const title = document.getElementById("ticketTitle").value.trim();
   const description = document.getElementById("ticketDescription").value.trim();
+  console.log('Ticket data - title:', title, 'description:', description);
 
   if (!title || !description) {
     alert("Please fill in both title and description.");
+    window.isSubmittingTicket = false;
     return;
   }
 
   try {
+    console.log('Adding ticket to Firestore...');
+    console.log('Submitting ticket with userEmail:', userEmail);
     await addDoc(collection(db, "tickets"), {
       title: title,
       description: description,
@@ -197,22 +209,32 @@ window.submitTicket = async function () {
       createdAt: new Date(),
       responses: []
     });
+    console.log('Ticket added successfully with submittedBy:', userEmail);
 
-    // Send notification to admin
-    const adminEmail = "johnpaulbugayong@gmail.com"; // Admin email
-    const notificationTitle = "New Support Ticket Submitted";
-    const notificationBody = `New ticket: "${title}" submitted by ${getUserName(userEmail)}`;
-    await sendNotificationToUsers([adminEmail], notificationTitle, notificationBody, 'ticket');
-    showLocalNotification(notificationTitle, notificationBody);
+    // Send notification to admin (non-blocking)
+    try {
+      const adminEmail = "johnpaulbugayong@gmail.com"; // Admin email
+      const notificationTitle = "New Support Ticket Submitted";
+      const notificationBody = `New ticket: "${title}" submitted by ${getUserName(userEmail)}`;
+      console.log('Sending notification...');
+      await sendNotificationToUsers([adminEmail], notificationTitle, notificationBody, 'ticket');
+      console.log('Notification process completed');
+    } catch (notificationError) {
+      console.warn("Notification process failed:", notificationError);
+    }
 
     // Clear form
     document.getElementById("ticketTitle").value = "";
     document.getElementById("ticketDescription").value = "";
 
-    alert("Ticket submitted successfully! The admin will review it soon.");
+    alert("✅ Ticket submitted successfully! The admin will review it soon." + 
+          (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 
+           "\n\n📱 Note: Push notifications are disabled in local development." : ""));
   } catch (error) {
     console.error("Error submitting ticket:", error);
     alert("Failed to submit ticket. Please try again.");
+  } finally {
+    window.isSubmittingTicket = false;
   }
 };
 
@@ -448,10 +470,16 @@ function loadAnnouncements() {
 }
 
 function loadResources() {
-  const container = document.getElementById("resourcesContainer");
-  if (!container) return;
+  const container = document.getElementById("resources");
+  if (!container) {
+    console.log('=== RESOURCES CONTAINER NOT FOUND ===');
+    return;
+  }
 
+  console.log('=== MEMBER RESOURCES LISTENER SETUP ===');
   onSnapshot(collection(db, "resources"), (snap) => {
+    console.log('=== MEMBER RESOURCES LISTENER TRIGGERED ===');
+    console.log('Resources snapshot received, docs count:', snap.size);
     container.innerHTML = "";
 
     if (snap.empty) {
@@ -487,6 +515,13 @@ function loadResources() {
 
 (async () => {
   console.log('=== MEMBER.JS INITIALIZATION STARTED ===');
+  
+  // Wait for DOM to be ready
+  if (document.readyState === 'loading') {
+    await new Promise(resolve => {
+      document.addEventListener('DOMContentLoaded', resolve);
+    });
+  }
   
   // Retry getting userEmail if first attempt fails (to handle timing issues)
   let retries = 0;
@@ -574,5 +609,120 @@ function loadResources() {
     loadAnnouncements();
     loadProgressReport();
     loadResources();
+    loadTicketHistory();
   }
 })();
+
+console.log('=== MEMBER.JS FILE LOADED - CHECKING TICKET HISTORY ===');
+console.log('userEmail at module level:', userEmail);
+console.log('DOM ready state:', document.readyState);
+
+function loadTicketHistory() {
+  console.log('=== loadTicketHistory CALLED - STARTING ===');
+
+  const container = document.getElementById("ticketHistory");
+  const emptyState = document.getElementById("ticketHistoryEmptyState");
+
+  if (!container) {
+    console.log('=== TICKET HISTORY CONTAINER NOT FOUND ===');
+    return;
+  }
+
+  console.log('Container found, userEmail:', userEmail);
+
+  // Clear container and show loading
+  container.innerHTML = '<p style="text-align: center; color: #94a3b8;">Loading ticket history...</p>';
+  if (emptyState) emptyState.style.display = "none";
+
+  // Simple test - try to get all tickets
+  getDocs(collection(db, "tickets")).then(snapshot => {
+    console.log('=== getDocs SUCCESS ===');
+    console.log('Found', snapshot.size, 'tickets');
+
+    container.innerHTML = ""; // Clear loading message
+    let ticketCount = 0;
+
+    snapshot.forEach(doc => {
+      const ticket = doc.data();
+      console.log('Processing ticket:', ticket);
+
+      // Filter by current user
+      if (userEmail && ticket.submittedBy !== userEmail) {
+        console.log('Skipping ticket - not submitted by current user');
+        return;
+      }
+
+      ticketCount++;
+
+      const createdDate = ticket.createdAt?.toDate?.() ? ticket.createdAt.toDate().toLocaleDateString() : "Unknown date";
+      const status = ticket.status || "open";
+      const statusLabel = status === "pending validation" ? "Pending Validation" : status.charAt(0).toUpperCase() + status.slice(1);
+      const statusClass = status === "open" ? "status-pending" : status === "pending validation" ? "status-validation" : "status-completed";
+
+      const responses = Array.isArray(ticket.responses) ? ticket.responses : [];
+      const responseHtml = responses.length > 0 ?
+        responses.map(response => `
+          <div style="margin-bottom: 0.5rem; padding: 0.5rem; border: 1px solid #4b5563; border-radius: 0.25rem; background: #1f2937;">
+            <strong>${response.author || 'Admin'}:</strong> ${response.content}
+          </div>
+        `).join('') : '<p style="color: #9ca3af; margin: 0;">No admin feedback yet.</p>';
+
+      container.innerHTML += `
+        <div style="margin-bottom: 1rem; padding: 1rem; border: 1px solid #374151; border-radius: 0.5rem; background: #1e293b;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <h4 style="margin: 0; color: #f3f4f6;">${ticket.title}</h4>
+            <span style="padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem; font-weight: 600; background: ${status === 'open' ? '#ef4444' : status === 'pending validation' ? '#f59e0b' : '#10b981'}; color: white;">${statusLabel}</span>
+          </div>
+          <p style="margin: 0 0 0.5rem 0; color: #94a3b8; font-size: 0.8rem;">Submitted: ${createdDate}${!userEmail ? ` by ${ticket.submittedBy}` : ''}</p>
+          <p style="margin: 0 0 0.5rem 0; color: #d1d5db;">${ticket.description}</p>
+          <div style="padding: 0.5rem; background: #0f172a; border-radius: 0.25rem;">
+            <h5 style="margin: 0 0 0.5rem 0; color: #f3f4f6; font-size: 0.9rem;">Admin Feedback</h5>
+            ${responseHtml}
+          </div>
+        </div>
+      `;
+    });
+
+    console.log('Displayed', ticketCount, 'tickets');
+    if (ticketCount === 0) {
+      container.innerHTML = '<p style="text-align: center; color: #94a3b8; padding: 2rem;">No tickets found in database.</p>';
+    }
+
+  }).catch(error => {
+    console.error('Error loading tickets:', error);
+    alert('Error loading tickets: ' + error.message);
+    container.innerHTML = '<p style="text-align: center; color: #ef4444; padding: 2rem;">Error loading ticket history. Please try again.</p>';
+  });
+}
+
+// Make loadTicketHistory available globally
+window.loadTicketHistory = loadTicketHistory;
+
+// Test function to create a sample ticket
+window.createTestTicket = async function() {
+  console.log('Creating test ticket...');
+  try {
+    await addDoc(collection(db, "tickets"), {
+      title: "Test Ticket - " + new Date().toLocaleTimeString(),
+      description: "This is a test ticket to verify the ticket history functionality.",
+      submittedBy: userEmail || "test@example.com",
+      submittedByName: "Test User",
+      status: "open",
+      createdAt: new Date(),
+      responses: [
+        {
+          author: "Admin",
+          email: "admin@example.com",
+          content: "This is a test response from the admin.",
+          createdAt: new Date()
+        }
+      ]
+    });
+    console.log('Test ticket created successfully');
+    alert('Test ticket created! Click "Refresh Tickets" to see it.');
+  } catch (error) {
+    console.error('Error creating test ticket:', error);
+    alert('Error creating test ticket: ' + error.message);
+  }
+};
+

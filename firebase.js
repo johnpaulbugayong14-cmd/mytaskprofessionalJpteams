@@ -14,8 +14,10 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+console.log('=== FIREBASE APP INITIALIZED ===');
 
 export const db = getFirestore(app);
+console.log('=== FIRESTORE DB INITIALIZED ===');
 export const storage = getStorage(app);
 export const auth = getAuth(app);
 

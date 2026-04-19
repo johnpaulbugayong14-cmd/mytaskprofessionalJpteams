@@ -74,8 +74,6 @@ class PushNotificationsManager {
   }
 }
 
-const pushNotificationsManager = new PushNotificationsManager();
-
 import {
   collection,
   addDoc,
@@ -94,6 +92,24 @@ import { sendNotificationToUsers, showLocalNotification, initializeNotifications
 
 window.signOutUser = signOutUser;
 
+const pushNotificationsManager = new PushNotificationsManager();
+
+let chart;
+
+const progressReportCollection = "progressReports";
+const progressReportDocId = "thesisProgress";
+const progressStatuses = ["Not Started", "Pending", "Completed"];
+
+let members = [
+  { uid: "everyone", name: "Everyone" },
+  { uid: "kingfordnabor@gmail.com", name: "Kingford Nabor" },
+  { uid: "allancorral@gmail.com", name: "Allan Corral" },
+  { uid: "phricksborebor@gmail.com", name: "Phricks Borebor" },
+  { uid: "moezarperez@gmail.com", name: "Moezar Perez" },
+  { uid: "test@example.com", name: "Test User" },
+  { uid: "rogelioledda@gmail.com", name: "Rogelio Ledda" }
+];
+
 (async () => {
   // Retry getting admin credentials if first attempt fails (to handle timing issues)
   let adminEmail = await getStoredUserEmail();
@@ -108,22 +124,6 @@ window.signOutUser = signOutUser;
       await new Promise(resolve => setTimeout(resolve, 200));
     }
   }
-
-let members = [
-  { uid: "everyone", name: "Everyone" },
-  { uid: "kingfordnabor@gmail.com", name: "Kingford Nabor" },
-  { uid: "allancorral@gmail.com", name: "Allan Corral" },
-  { uid: "phricksborebor@gmail.com", name: "Phricks Borebor" },
-  { uid: "moezarperez@gmail.com", name: "Moezar Perez" },
-  { uid: "test@example.com", name: "Test User" },
-  { uid: "rogelioledda@gmail.com", name: "Rogelio Ledda" }
-];
-
-let chart;
-
-const progressReportCollection = "progressReports";
-const progressReportDocId = "thesisProgress";
-const progressStatuses = ["Not Started", "Pending", "Completed"];
 
 function getDefaultProgressStructure() {
   return [
@@ -194,14 +194,23 @@ function getDefaultProgressStructure() {
 }
 
 function renderAdminProgressReport(sections) {
+  console.log('=== RENDER ADMIN PROGRESS REPORT CALLED ===');
+  console.log('Sections to render:', sections);
   const container = document.getElementById("progressReportPanel");
-  if (!container) return;
+  console.log('Progress report panel element:', container);
+
+  if (!container) {
+    console.error('Progress report panel not found!');
+    return;
+  }
 
   if (!Array.isArray(sections) || sections.length === 0) {
+    console.log('No sections to render');
     container.innerHTML = '<p style="color: #94a3b8; text-align: center;">No progress report data yet.</p>';
     return;
   }
 
+  console.log('Rendering', sections.length, 'sections');
   container.innerHTML = sections.map((section, sectionIndex) => `
     <div style="margin-bottom: 1.25rem;">
       <h3 style="margin: 0 0 0.75rem 0; color: #0ea5e9;">${section.title}</h3>
@@ -243,24 +252,6 @@ window.saveProgressReport = async function() {
     alert("Failed to save thesis progress. Please try again.");
   }
 };
-
-function loadProgressReport() {
-  const progressRef = doc(db, progressReportCollection, progressReportDocId);
-  onSnapshot(progressRef, (snap) => {
-    let sections = getDefaultProgressStructure();
-    if (snap.exists()) {
-      const data = snap.data();
-      if (Array.isArray(data.sections)) {
-        sections = data.sections;
-      } else {
-        setDoc(progressRef, { sections }, { merge: true });
-      }
-    } else {
-      setDoc(progressRef, { sections }, { merge: true });
-    }
-    renderAdminProgressReport(sections);
-  });
-}
 
 function loadMembers() {
   const select = document.getElementById("assignedTo");
@@ -319,7 +310,163 @@ loadAnnouncementAssignTo();
   pushNotificationsManager.addListener('pushNotificationActionPerformed', notification => {
     console.log('Push action performed: ', notification);
   });
-})();
+
+  // Set up listeners after authentication
+  console.log('=== SETTING UP ADMIN LISTENERS ===');
+  console.log('Admin authenticated, email:', adminEmail, 'role:', adminRole);
+
+  /* LOAD TICKETS */
+  onSnapshot(collection(db, "tickets"), (snap) => {
+    console.log('=== ADMIN TICKETS LISTENER TRIGGERED ===');
+    console.log('Tickets snapshot received, docs count:', snap.size);
+    const container = document.getElementById("ticketsList");
+    if (!container) return;
+    container.innerHTML = "";
+
+    if (snap.empty) {
+      container.innerHTML = "<p style='color: #94a3b8; text-align: center;'>No support tickets submitted yet.</p>";
+      return;
+    }
+
+    const docs = [];
+    snap.forEach(docSnap => docs.push(docSnap));
+    docs.sort((a, b) => {
+      const timeA = a.data().createdAt?.toMillis ? a.data().createdAt.toMillis() : (a.data().createdAt || 0);
+      const timeB = b.data().createdAt?.toMillis ? b.data().createdAt.toMillis() : (b.data().createdAt || 0);
+      return timeB - timeA;
+    });
+
+    docs.forEach(docSnap => {
+      const ticket = docSnap.data();
+      const createdDate = ticket.createdAt?.toDate?.() ? ticket.createdAt.toDate().toLocaleDateString() : "Unknown date";
+      const responses = Array.isArray(ticket.responses) ? ticket.responses : [];
+      const status = ticket.status || "open";
+
+      const statusColor = status === "open" ? "#ef4444" : status === "pending validation" ? "#f59e0b" : "#10b981";
+      const statusBg = status === "open" ? "rgba(239, 68, 68, 0.1)" : status === "pending validation" ? "rgba(245, 158, 11, 0.1)" : "rgba(16, 185, 129, 0.1)";
+
+      const responseHtml = responses.length > 0 ? responses.map(response => `
+        <div style="margin-bottom: 0.75rem; padding: 0.75rem; border: 1px solid #4b5563; border-radius: 0.375rem; background: #1f2937;">
+          <div style="margin-bottom: 0.5rem;">
+            <span style="font-weight: 600; color: #f3f4f6;">${response.author || 'Admin'}</span>
+            <span style="font-size: 0.8rem; color: #9ca3af; margin-left: 0.5rem;">${formatCommentDate(response.createdAt)}</span>
+          </div>
+          <p class="comment-content" style="margin: 0; color: #d1d5db; white-space: pre-wrap;">${response.content}</p>
+        </div>
+      `).join('') : '';
+
+      const closeButton = status !== 'closed' ? `
+              <button onclick="window.changeTicketStatus('${docSnap.id}', 'closed')" style="background: #ef4444; color: white; border: none; padding: 0.75rem 1rem; border-radius: 0.375rem; cursor: pointer;">Close Ticket</button>
+      ` : '';
+      const reopenButton = status === 'closed' ? `
+              <button onclick="window.changeTicketStatus('${docSnap.id}', 'open')" style="background: #10b981; color: white; border: none; padding: 0.75rem 1rem; border-radius: 0.375rem; cursor: pointer;">Reopen Ticket</button>
+      ` : '';
+      const pendingButton = status === 'open' ? `
+              <button onclick="window.changeTicketStatus('${docSnap.id}', 'pending validation')" style="background: #f59e0b; color: white; border: none; padding: 0.75rem 1rem; border-radius: 0.375rem; cursor: pointer;">Mark Pending</button>
+      ` : '';
+
+      const statusButtons = [pendingButton, closeButton, reopenButton].filter(Boolean).join('');
+
+      const html = `
+        <div style="margin-bottom: 1.5rem; padding: 1.5rem; border: 1px solid #374151; border-radius: 0.5rem; background: #1e293b;">
+          <div style="margin-bottom: 1rem;">
+            <h4 style="margin: 0 0 0.5rem 0; color: #f3f4f6;">${ticket.title}</h4>
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.75rem;">
+              <span style="font-size: 0.85rem; color: #9ca3af;">Submitted by: ${ticket.submittedByName || ticket.submittedBy}</span>
+              <span style="font-size: 0.85rem; color: #9ca3af;">${createdDate}</span>
+              <span style="padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; background: ${statusBg}; color: ${statusColor}; text-transform: uppercase;">${status}</span>
+            </div>
+          </div>
+          
+          <p style="margin: 0 0 1rem 0; color: #d1d5db; white-space: pre-wrap;">${ticket.description}</p>
+          
+          ${responseHtml ? `
+            <div style="margin-bottom: 1rem;">
+              <h5 style="margin: 0 0 0.75rem 0; color: #f3f4f6;">Responses (${responses.length})</h5>
+              ${responseHtml}
+            </div>
+          ` : ''}
+          
+          <div style="padding: 1rem; background: #0f172a; border-radius: 0.5rem; border: 1px solid #374151;">
+            <textarea id="responseInput-${docSnap.id}" rows="3" placeholder="Type your response..." style="width: 100%; padding: 0.75rem; border-radius: 0.375rem; border: 1px solid #4b5563; background: #111827; color: #f3f4f6; margin-bottom: 0.75rem;"></textarea>
+            <div style="display: flex; gap: 0.5rem;">
+              <button onclick="window.respondToTicket('${docSnap.id}')" style="background: #3b82f6; color: white; border: none; padding: 0.75rem 1rem; border-radius: 0.375rem; cursor: pointer; flex: 1;">Send Response</button>
+              ${statusButtons}
+              <button onclick="window.deleteTicket('${docSnap.id}')" class="btn-danger" style="padding: 0.75rem 1rem;">Delete Ticket</button>
+            </div>
+          </div>
+        </div>
+      `;
+      console.log('Generated ticket HTML:', html.substring(0, 200) + '...');
+      container.innerHTML += html;
+    });
+  });
+
+  /* LOAD RESOURCES */
+  onSnapshot(collection(db, "resources"), (snap) => {
+    console.log('=== ADMIN RESOURCES LISTENER TRIGGERED ===');
+    console.log('Resources snapshot received, docs count:', snap.size);
+    const container = document.getElementById("resourcesList");
+    if (!container) return;
+    container.innerHTML = "";
+
+    if (snap.empty) {
+      container.innerHTML = "<p style='color: #94a3b8; text-align: center;'>No resources created yet.</p>";
+      return;
+    }
+
+    const docs = [];
+    snap.forEach(docSnap => docs.push(docSnap));
+    docs.sort((a, b) => {
+      const timeA = a.data().createdAt?.toMillis ? a.data().createdAt.toMillis() : (a.data().createdAt || 0);
+      const timeB = b.data().createdAt?.toMillis ? b.data().createdAt.toMillis() : (b.data().createdAt || 0);
+      return timeB - timeA;
+    });
+
+    docs.forEach(docSnap => {
+      const resource = docSnap.data();
+      const createdDate = resource.createdAt?.toDate?.() ? resource.createdAt.toDate().toLocaleDateString() : "Unknown date";
+
+      container.innerHTML += `
+        <div class="card" style="margin-bottom: 1rem;">
+          <h4 style="margin-bottom: 0.5rem;">${resource.title}</h4>
+          <p style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 0.75rem;">Posted: ${createdDate}</p>
+          <p style="margin: 0.5rem 0; line-height: 1.4; color: #d1d5db;">${resource.description}</p>
+          <div style="margin-top: 1rem;">
+            <a href="${resource.link}" target="_blank" style="background: #10b981; color: white; padding: 0.5rem 1rem; border-radius: 0.375rem; text-decoration: none; display: inline-block;">🔗 Open Resource</a>
+            <button onclick="window.deleteResource('${docSnap.id}')" class="btn-danger" style="margin-left: 0.5rem; padding: 0.5rem 1rem;">🗑️ Delete</button>
+          </div>
+        </div>
+      `;
+    });
+  });
+
+function loadProgressReport() {
+  console.log('=== LOAD PROGRESS REPORT CALLED ===');
+  const container = document.getElementById("progressReportPanel");
+  console.log('Progress report container element:', container);
+
+  const progressRef = doc(db, progressReportCollection, progressReportDocId);
+  console.log('Progress report reference:', progressRef);
+
+  onSnapshot(progressRef, (snap) => {
+    console.log('Progress report snapshot received:', snap.exists());
+    let sections = getDefaultProgressStructure();
+    if (snap.exists()) {
+      const data = snap.data();
+      console.log('Progress report data:', data);
+      if (Array.isArray(data.sections)) {
+        sections = data.sections;
+      } else {
+        setDoc(progressRef, { sections }, { merge: true });
+      }
+    } else {
+      console.log('Progress report document does not exist, creating default');
+      setDoc(progressRef, { sections }, { merge: true });
+    }
+    renderAdminProgressReport(sections);
+  });
+}
 
 /* CREATE TASK */
 window.createTask = async function () {
@@ -667,9 +814,12 @@ window.createAnnouncement = async function () {
 
 /* CREATE RESOURCE */
 window.createResource = async function () {
+  console.log('createResource called');
   const title = document.getElementById("resourceTitle").value.trim();
   const description = document.getElementById("resourceDescription").value.trim();
   const link = document.getElementById("resourceLink").value.trim();
+
+  console.log('Resource data:', { title, description, link });
 
   if (!title || !description || !link) {
     alert("Please fill all fields.");
@@ -684,14 +834,22 @@ window.createResource = async function () {
       createdAt: new Date()
     };
 
+    console.log('Adding resource to Firestore...');
     await addDoc(collection(db, "resources"), resourceData);
+    console.log('Resource added successfully');
 
-    // Send notification to all members
-    const notificationTitle = "New Resource Added";
-    const notificationBody = `New resource: "${title}"`;
-    const allMemberEmails = members.map(m => m.uid).filter(email => email !== "everyone");
-    await sendNotificationToUsers(allMemberEmails, notificationTitle, notificationBody, 'resource');
-    showLocalNotification(notificationTitle, notificationBody);
+    // Send notification to all members (non-blocking)
+    try {
+      const notificationTitle = "New Resource Added";
+      const notificationBody = `New resource: "${title}"`;
+      const allMemberEmails = members.map(m => m.uid).filter(email => email !== "everyone");
+      console.log('Sending notification to members:', allMemberEmails);
+      await sendNotificationToUsers(allMemberEmails, notificationTitle, notificationBody, 'resource');
+      showLocalNotification(notificationTitle, notificationBody);
+      console.log('Notification sent successfully');
+    } catch (notificationError) {
+      console.warn("Notification failed, but resource was created successfully:", notificationError);
+    }
 
     document.getElementById("resourceTitle").value = "";
     document.getElementById("resourceDescription").value = "";
@@ -839,6 +997,9 @@ loadProgressReport();
 
 /* TICKET MANAGEMENT FUNCTIONS */
 window.respondToTicket = async function(ticketId) {
+  console.log('=== RESPOND TO TICKET CALLED ===');
+  console.log('ticketId:', ticketId, 'type:', typeof ticketId);
+  console.log('window.respondToTicket is defined:', typeof window.respondToTicket);
   const responseText = document.getElementById(`responseInput-${ticketId}`).value.trim();
   if (!responseText) {
     alert("Please enter a response.");
@@ -864,6 +1025,8 @@ window.respondToTicket = async function(ticketId) {
 };
 
 window.changeTicketStatus = async function(ticketId, newStatus) {
+  console.log('=== CHANGE TICKET STATUS CALLED ===');
+  console.log('ticketId:', ticketId, 'newStatus:', newStatus);
   try {
     await updateDoc(doc(db, "tickets", ticketId), {
       status: newStatus
@@ -876,6 +1039,7 @@ window.changeTicketStatus = async function(ticketId, newStatus) {
 };
 
 window.deleteTicket = async function(ticketId) {
+  console.log('deleteTicket called with ticketId:', ticketId);
   if (confirm("Are you sure you want to delete this ticket? This action cannot be undone.")) {
     try {
       await deleteDoc(doc(db, "tickets", ticketId));
@@ -887,125 +1051,10 @@ window.deleteTicket = async function(ticketId) {
   }
 };
 
-/* LOAD TICKETS */
-onSnapshot(collection(db, "tickets"), (snap) => {
-  const container = document.getElementById("ticketsList");
-  if (!container) return;
-  container.innerHTML = "";
-
-  if (snap.empty) {
-    container.innerHTML = "<p style='color: #94a3b8; text-align: center;'>No support tickets submitted yet.</p>";
-    return;
-  }
-
-  const docs = [];
-  snap.forEach(docSnap => docs.push(docSnap));
-  docs.sort((a, b) => {
-    const timeA = a.data().createdAt?.toMillis ? a.data().createdAt.toMillis() : (a.data().createdAt || 0);
-    const timeB = b.data().createdAt?.toMillis ? b.data().createdAt.toMillis() : (b.data().createdAt || 0);
-    return timeB - timeA;
-  });
-
-  docs.forEach(docSnap => {
-    const ticket = docSnap.data();
-    const createdDate = ticket.createdAt?.toDate?.() ? ticket.createdAt.toDate().toLocaleDateString() : "Unknown date";
-    const responses = Array.isArray(ticket.responses) ? ticket.responses : [];
-    const status = ticket.status || "open";
-
-    const statusColor = status === "open" ? "#ef4444" : status === "pending validation" ? "#f59e0b" : "#10b981";
-    const statusBg = status === "open" ? "rgba(239, 68, 68, 0.1)" : status === "pending validation" ? "rgba(245, 158, 11, 0.1)" : "rgba(16, 185, 129, 0.1)";
-
-    const responseHtml = responses.length > 0 ? responses.map(response => `
-      <div style="margin-bottom: 0.75rem; padding: 0.75rem; border: 1px solid #4b5563; border-radius: 0.375rem; background: #1f2937;">
-        <div style="margin-bottom: 0.5rem;">
-          <span style="font-weight: 600; color: #f3f4f6;">${response.author || 'Admin'}</span>
-          <span style="font-size: 0.8rem; color: #9ca3af; margin-left: 0.5rem;">${formatCommentDate(response.createdAt)}</span>
-        </div>
-        <p class="comment-content" style="margin: 0; color: #d1d5db; white-space: pre-wrap;">${response.content}</p>
-      </div>
-    `).join('') : `<p style='color: #9ca3af; margin: 0;'>No responses yet.</p>`;
-
-    container.innerHTML += `
-      <div class="card" style="margin-bottom: 1rem; border-left: 4px solid ${statusColor};">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
-          <div>
-            <h4 style="margin: 0 0 0.25rem 0; color: #f3f4f6;">${ticket.title}</h4>
-            <p style="margin: 0; color: #94a3b8; font-size: 0.85rem;">
-              Submitted by: ${ticket.submittedByName || ticket.submittedBy} on ${createdDate}
-            </p>
-          </div>
-          <div style="display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end;">
-            <span style="padding: 0.25rem 0.75rem; background: ${statusBg}; color: ${statusColor}; border-radius: 20px; font-size: 0.8rem; font-weight: 600;">
-              ${status === "pending validation" ? "Pending Validation" : status.charAt(0).toUpperCase() + status.slice(1)}
-            </span>
-            <select onchange="changeTicketStatus('${docSnap.id}', this.value)" style="background: #0f172a; color: #f8fafc; border: 1px solid #4b5563; border-radius: 0.375rem; padding: 0.25rem 0.5rem; font-size: 0.8rem;">
-              <option value="open" ${status === "open" ? "selected" : ""}>Open</option>
-              <option value="pending validation" ${status === "pending validation" ? "selected" : ""}>Pending Validation</option>
-              <option value="closed" ${status === "closed" ? "selected" : ""}>Closed</option>
-            </select>
-          </div>
-        </div>
-        
-        <div style="margin-bottom: 1rem; padding: 1rem; background: #111827; border-radius: 0.5rem; border: 1px solid #374151;">
-          <p class="comment-content" style="margin: 0; color: #d1d5db; white-space: pre-wrap; line-height: 1.5;">${ticket.description}</p>
-        </div>
-        
-        <div style="margin-bottom: 1rem;">
-          <h5 style="margin: 0 0 0.75rem 0; color: #f3f4f6;">Responses (${responses.length})</h5>
-          ${responseHtml}
-        </div>
-        
-        <div style="padding: 1rem; background: #0f172a; border-radius: 0.5rem; border: 1px solid #374151;">
-          <textarea id="responseInput-${docSnap.id}" rows="3" placeholder="Type your response..." style="width: 100%; padding: 0.75rem; border-radius: 0.375rem; border: 1px solid #4b5563; background: #111827; color: #f3f4f6; margin-bottom: 0.75rem;"></textarea>
-          <div style="display: flex; gap: 0.5rem;">
-            <button onclick="respondToTicket('${docSnap.id}')" style="background: #3b82f6; color: white; border: none; padding: 0.75rem 1rem; border-radius: 0.375rem; cursor: pointer; flex: 1;">Send Response</button>
-            <button onclick="deleteTicket('${docSnap.id}')" class="btn-danger" style="padding: 0.75rem 1rem;">Delete Ticket</button>
-          </div>
-        </div>
-      </div>
-    `;
-  });
-});
-
-/* LOAD RESOURCES */
-onSnapshot(collection(db, "resources"), (snap) => {
-  const container = document.getElementById("resourcesList");
-  if (!container) return;
-  container.innerHTML = "";
-
-  if (snap.empty) {
-    container.innerHTML = "<p style='color: #94a3b8; text-align: center;'>No resources created yet.</p>";
-    return;
-  }
-
-  const docs = [];
-  snap.forEach(docSnap => docs.push(docSnap));
-  docs.sort((a, b) => {
-    const timeA = a.data().createdAt?.toMillis ? a.data().createdAt.toMillis() : (a.data().createdAt || 0);
-    const timeB = b.data().createdAt?.toMillis ? b.data().createdAt.toMillis() : (b.data().createdAt || 0);
-    return timeB - timeA;
-  });
-
-  docs.forEach(docSnap => {
-    const resource = docSnap.data();
-    const createdDate = resource.createdAt?.toDate?.() ? resource.createdAt.toDate().toLocaleDateString() : "Unknown date";
-
-    container.innerHTML += `
-      <div class="card" style="margin-bottom: 1rem;">
-        <h4>${resource.title}</h4>
-        <p style="color: #94a3b8; font-size: 0.85rem;">Created: ${createdDate}</p>
-        <p style="margin: 0.5rem 0; line-height: 1.4;">${resource.description}</p>
-        <div style="margin-top: 1rem;">
-          <a href="${resource.link}" target="_blank" style="background: #10b981; color: white; padding: 0.5rem 1rem; border-radius: 0.375rem; text-decoration: none; display: inline-block;">🔗 Open Resource</a>
-          <button onclick="deleteResource('${docSnap.id}')" class="btn-danger" style="margin-left: 0.5rem; padding: 0.5rem 1rem;">🗑️ Delete</button>
-        </div>
-      </div>
-    `;
-  });
-});
-
+/* DELETE RESOURCE */
 /* DELETE RESOURCE */
 window.deleteResource = async function (id) {
+  console.log('deleteResource called with id:', id);
   if (confirm("Are you sure you want to delete this resource? This action cannot be undone.")) {
     try {
       await deleteDoc(doc(db, "resources", id));
@@ -1016,3 +1065,11 @@ window.deleteResource = async function (id) {
     }
   }
 };
+
+console.log('=== ADMIN.JS FUNCTIONS LOADED ===');
+console.log('window.respondToTicket:', typeof window.respondToTicket);
+console.log('window.changeTicketStatus:', typeof window.changeTicketStatus);
+console.log('window.deleteTicket:', typeof window.deleteTicket);
+console.log('window.deleteResource:', typeof window.deleteResource);
+
+})();

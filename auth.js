@@ -55,24 +55,34 @@ class StorageManager {
   async get(key) {
     console.log(`StorageManager.get: Requesting key "${key}"`);
     await this.ensureInitialized();
-    console.log(`StorageManager.get: Initialized. isCapacitor=${this.isCapacitor}, localStorage will be used`);
 
-    // Try Capacitor Preferences first
-    if (this.isCapacitor && this.preferences) {
-      try {
-        console.log(`StorageManager.get: Trying Capacitor Preferences for key "${key}"`);
-        const result = await this.preferences.get({ key });
-        console.log(`StorageManager.get: Capacitor result:`, result);
-        if (result && result.value) return result;
-      } catch (error) {
-        console.error('StorageManager.get: Error getting from Capacitor Preferences:', error);
+    // Attempt multiple retries for Capacitor Preferences on cold start
+    let attempts = 0;
+    const maxAttempts = 3;
+
+    while (attempts < maxAttempts) {
+      if (this.isCapacitor && this.preferences) {
+        try {
+          console.log(`StorageManager.get: Trying Capacitor Preferences (Attempt ${attempts + 1})`);
+          const result = await this.preferences.get({ key });
+          if (result && result.value) {
+            console.log(`StorageManager.get: Success from Capacitor`);
+            return result;
+          }
+        } catch (error) {
+          console.error('StorageManager.get: Capacitor error:', error);
+        }
       }
+
+      if (attempts < maxAttempts - 1) {
+        await new Promise(resolve => setTimeout(resolve, 100)); // Small wait before retry
+      }
+      attempts++;
     }
 
-    // Always check localStorage as secondary or fallback
-    console.log(`StorageManager.get: Checking localStorage for key "${key}"`);
+    // Fallback to localStorage
+    console.log(`StorageManager.get: Falling back to localStorage for "${key}"`);
     const value = localStorage.getItem(key);
-    console.log(`StorageManager.get: localStorage value:`, value);
     return value ? { value } : { value: null };
   }
 
@@ -278,10 +288,16 @@ async function safeInitializeNotifications() {
 
 // Global initialization for all pages
 async function init() {
+  console.log('Init: Starting...');
   await storage.ensureInitialized();
 
+  // On Android, give the native bridge an extra moment to settle
+  if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+    await new Promise(resolve => setTimeout(resolve, 200));
+  }
+
   const path = window.location.pathname.toLowerCase();
-  const isLoginPage = path.endsWith('login.html') || path.endsWith('index.html');
+  const isLoginPage = path.endsWith('login.html') || path.endsWith('index.html') || path === '/' || path === '';
 
   const user = await getStoredUser();
   console.log('Init: user found:', user, 'isLoginPage:', isLoginPage, 'path:', path);

@@ -48,8 +48,9 @@ export async function requestNotificationPermission() {
 }
 
 async function getFcmToken(registration) {
-  if (VAPID_PUBLIC_KEY === 'BBu_m1NKUZO5bp6k5q29DgzYpmjVWe8z1C6KojHrq7RDqOJ0O01txWvzqKWrnLMAGlrm8eOcdTn_O1wDnf5OZB8') {
-    console.warn('VAPID key not configured. FCM web notifications will not work.');
+  // Check if VAPID key is configured (real keys are much longer than the placeholder)
+  if (!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY.length < 50 || VAPID_PUBLIC_KEY === 'BBu_m1NKUZO5bp6k5q29DgzYpmjVWe8z1C6KojHrq7RDqOJ0O01txWvzqKWrnLMAGlrm8eOcdTn_O1wDnf5OZB8') {
+    console.log('VAPID key not configured. FCM web notifications will not work.');
     return null;
   }
 
@@ -89,6 +90,12 @@ export async function saveFcmTokenForCurrentUser(token) {
 }
 
 export async function subscribeToNotifications() {
+  // Skip FCM in local development to prevent VAPID key errors
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    console.log('Skipping FCM notifications in local development');
+    return null;
+  }
+
   if (!('serviceWorker' in navigator)) {
     console.log('Service workers are not supported in this browser');
     return null;
@@ -129,14 +136,16 @@ export function showLocalNotification(title, body, icon = null) {
   }
 }
 
-// Replace with your actual production API URL when deploying
-const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-  ? ''
-  : 'https://mytaskprofessionaljpteams-main.vercel.app'; // Update this to your real URL
-
 export async function sendNotificationToUsers(userEmails, title, body, type = 'general') {
+  // Skip notifications in local development (no API server)
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    console.log('📱 Notifications disabled in local development - API not available');
+    console.log('Would send notification:', { userEmails, title, body, type });
+    return;
+  }
+
   try {
-    const response = await fetch(`${API_BASE_URL}/api/send-notification`, {
+    const response = await fetch('/api/send-notification', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -149,15 +158,21 @@ export async function sendNotificationToUsers(userEmails, title, body, type = 'g
       })
     });
 
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
     const result = await response.json();
     if (result.success) {
-      console.log('Notification sent successfully');
+      console.log('✅ Notification sent successfully');
     } else {
-      console.error('Failed to send notification:', result);
+      console.warn('⚠️ Failed to send notification:', result);
     }
   } catch (error) {
-    console.error('Error sending notification:', error);
+    console.error('❌ Error sending notification:', error.message);
+    // Don't throw error - notifications are optional
   }
+}
 }
 
 export async function initializeNotifications() {
