@@ -95,6 +95,10 @@ window.signOutUser = signOutUser;
 const pushNotificationsManager = new PushNotificationsManager();
 
 let chart;
+let chartUpdateTimeout;
+let lastMemberProgress = {};
+
+window.lastMemberProgress = lastMemberProgress;
 
 const progressReportCollection = "progressReports";
 const progressReportDocId = "thesisProgress";
@@ -585,105 +589,292 @@ window.needAction = async function (id) {
 
 /* REALTIME + GRAPH */
 onSnapshot(collection(db, "tasks"), (snap) => {
-  let done = 0, pending = 0, overdue = 0, needsAction = 0, pendingValidation = 0;
-
   const now = Date.now();
   const container = document.getElementById("tasks");
-  container.innerHTML = "";
 
   const docs = [];
   snap.forEach(docSnap => docs.push(docSnap));
   docs.sort((a, b) => b.data().createdAt - a.data().createdAt);
 
+  // Track progress by member for analytics
+  const memberProgress = {};
+
   docs.forEach(docSnap => {
     const t = docSnap.data();
+    const memberName = t.assignedToName || t.assignedTo || "Unassigned";
 
-    if (new Date(t.deadline).getTime() < now && (t.status === "pending" || t.status === "pending validation")) {
-      t.status = "overdue";
+    let status = (t.status || "pending").toLowerCase().trim();
+    if (new Date(t.deadline).getTime() < now && (status === "pending" || status === "pending validation")) {
+      status = "overdue";
     }
 
-    if (t.status === "done") done++;
-    else if (t.status === "overdue") overdue++;
-    else if (t.status === "needs action") needsAction++;
-    else if (t.status === "pending validation") pendingValidation++;
-    else pending++;
+    if (!memberProgress[memberName]) {
+      memberProgress[memberName] = { done: 0, pending: 0, overdue: 0, needsAction: 0, pendingValidation: 0 };
+    }
 
-    container.innerHTML += `
-      <div class="card" style="${t.status === 'pending validation' ? 'border: 2px solid #f59e0b; background: rgba(245, 158, 11, 0.1);' : ''}">
-        <h3>${t.title}</h3>
-        <p>Assigned To: ${t.assignedToName}</p>
-        <p>Deadline: ${t.deadline}</p>
-        ${t.description ? `<p><strong>Description:</strong> ${t.description}</p>` : ""}  
-        ${t.linkURL ? `<a href="${t.linkURL}" target="_blank">🔗 Open Link</a>` : ""}
-        <p>Status: <span style="${t.status === 'pending validation' ? 'color: #f59e0b; font-weight: bold;' : ''}">${t.status}</span></p>
-        ${t.status === 'pending validation' ? '<p style="color: #f59e0b; font-weight: bold;">⚠️ Member has submitted this task for validation!</p>' : ''}
-        <button onclick="markDone('${docSnap.id}')">Mark Done</button>
-        ${(t.status === "pending" || t.status === "overdue" || t.status === "pending validation") ? `<button onclick="needAction('${docSnap.id}')" class="btn-warning" style="margin-top: 0.5rem;">Need an Action</button>` : ""}
-        <button onclick="deleteTask('${docSnap.id}')" class="btn-danger" style="margin-top: 0.5rem;">Delete</button>
-      </div>
-    `;
+    if (status === "done") memberProgress[memberName].done++;
+    else if (status === "overdue") memberProgress[memberName].overdue++;
+    else if (status === "needs action") memberProgress[memberName].needsAction++;
+    else if (status === "pending validation") memberProgress[memberName].pendingValidation++;
+    else memberProgress[memberName].pending++;
   });
 
-  updateChart(done, pending, overdue, needsAction, pendingValidation);
+  // Update chart data store
+  lastMemberProgress = memberProgress;
+  window.lastMemberProgress = memberProgress;
+
+  // Only update chart if analytics is currently active (no constant polling)
+  if (document.getElementById('task-analytics')?.classList.contains('active')) {
+    clearTimeout(chartUpdateTimeout);
+    chartUpdateTimeout = setTimeout(() => {
+      updateChart(lastMemberProgress);
+    }, 100); // Reduced delay for immediate updates when active
+  }
+
+  // Only rebuild task list if we're not on analytics page (to avoid lag)
+  if (!document.getElementById('task-analytics')?.classList.contains('active')) {
+    let html = "";
+    docs.forEach(docSnap => {
+      const t = docSnap.data();
+      html += `
+        <div class="card" style="${t.status === 'pending validation' ? 'border: 2px solid #f59e0b; background: rgba(245, 158, 11, 0.1);' : ''}">
+          <h3>${t.title}</h3>
+          <p>Assigned To: ${t.assignedToName}</p>
+          <p>Deadline: ${t.deadline}</p>
+          ${t.description ? `<p><strong>Description:</strong> ${t.description}</p>` : ""}  
+          ${t.linkURL ? `<a href="${t.linkURL}" target="_blank">🔗 Open Link</a>` : ""}
+          <p>Status: <span style="${t.status === 'pending validation' ? 'color: #f59e0b; font-weight: bold;' : ''}">${t.status}</span></p>
+          ${t.status === 'pending validation' ? '<p style="color: #f59e0b; font-weight: bold;">⚠️ Member has submitted this task for validation!</p>' : ''}
+          <button onclick="markDone('${docSnap.id}')">Mark Done</button>
+          ${(t.status === "pending" || t.status === "overdue" || t.status === "pending validation") ? `<button onclick="needAction('${docSnap.id}')" class="btn-warning" style="margin-top: 0.5rem;">Need an Action</button>` : ""}
+          <button onclick="deleteTask('${docSnap.id}')" class="btn-danger" style="margin-top: 0.5rem;">Delete</button>
+        </div>
+      `;
+    });
+    container.innerHTML = html;
+  }
 });
 
+// Update chart only when analytics is visible and data changed
+function updateChartIfNeeded() {
+  // This function is deprecated - chart updates are now handled directly in onSnapshot when analytics is active
+  if (document.getElementById('task-analytics')?.classList.contains('active')) {
+    updateChart(lastMemberProgress);
+  }
+}
+
+let lastChartData = null;
+
 /* GRAPH */
-function updateChart(done, pending, overdue, needsAction, pendingValidation) {
+function updateChart(memberProgress) {
   const ctx = document.getElementById("taskChart");
+  if (!ctx) {
+    console.error('Chart canvas element not found');
+    return;
+  }
 
-  if (chart) chart.destroy();
+  if (typeof Chart === 'undefined') {
+    console.error('Chart.js is not loaded yet.');
+    return;
+  }
 
-  chart = new Chart(ctx, {
-    type: "bar",
-    data: {
-      labels: ["Done", "Pending", "Overdue", "Needs Action", "Pending Validation"],
-      datasets: [{
-        label: 'Task Counts',
-        data: [done, pending, overdue, needsAction, pendingValidation],
-        backgroundColor: [
-          '#10b981',
-          '#3b82f6',
-          '#ef4444',
-          '#f59e0b',
-          '#8b5cf6'
-        ],
-        borderColor: [
-          '#059669',
-          '#2563eb',
-          '#b91c1c',
-          '#d97706',
-          '#7c3aed'
-        ],
+  const parent = ctx.parentElement;
+  const placeholderClass = 'chart-placeholder';
+  const existingPlaceholder = parent ? parent.querySelector(`.${placeholderClass}`) : null;
+
+  // Handle empty data
+  if (!memberProgress || Object.keys(memberProgress).length === 0) {
+    if (chart) {
+      chart.destroy();
+      chart = null;
+    }
+
+    if (parent && !existingPlaceholder) {
+      const msg = document.createElement('p');
+      msg.className = placeholderClass;
+      msg.textContent = 'No task data available. Create a task to see analytics.';
+      msg.style.color = '#94a3b8';
+      msg.style.textAlign = 'center';
+      msg.style.padding = '2rem';
+      parent.appendChild(msg);
+    }
+    return;
+  }
+
+  if (existingPlaceholder) {
+    existingPlaceholder.remove();
+  }
+
+  const memberNames = Object.keys(memberProgress).filter(name => name && name !== "");
+  
+  if (memberNames.length === 0) {
+    return;
+  }
+
+  const doneData = memberNames.map(member => memberProgress[member].done);
+  const pendingData = memberNames.map(member => memberProgress[member].pending);
+  const overdueData = memberNames.map(member => memberProgress[member].overdue);
+  const needsActionData = memberNames.map(member => memberProgress[member].needsAction);
+  const pendingValidationData = memberNames.map(member => memberProgress[member].pendingValidation);
+
+  const currentData = {
+    labels: memberNames,
+    datasets: [doneData, pendingData, overdueData, needsActionData, pendingValidationData]
+  };
+
+  const dataChanged = !lastChartData ||
+    JSON.stringify(lastChartData.labels) !== JSON.stringify(currentData.labels) ||
+    JSON.stringify(lastChartData.datasets) !== JSON.stringify(currentData.datasets);
+
+  if (!dataChanged) {
+    return; // No need to update if data hasn't changed
+  }
+
+  lastChartData = currentData;
+
+  // Update existing chart
+  if (chart && chart.data && !chart.destroyed) {
+    chart.data.labels = memberNames;
+    chart.data.datasets[0].data = doneData;
+    chart.data.datasets[1].data = pendingData;
+    chart.data.datasets[2].data = overdueData;
+    chart.data.datasets[3].data = needsActionData;
+    chart.data.datasets[4].data = pendingValidationData;
+    chart.update('none');
+    return;
+  }
+
+  // Destroy any existing chart before creating new one
+  if (chart && !chart.destroyed) {
+    chart.destroy();
+  }
+
+  // Create new chart
+  try {
+    const datasets = [
+      {
+        label: 'Done',
+        data: memberNames.map(member => memberProgress[member].done),
+        backgroundColor: '#16a34a',
+        borderColor: '#15803d',
         borderWidth: 1
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        x: {
-          ticks: {
-            color: '#cbd5e1'
+      },
+      {
+        label: 'Pending',
+        data: memberNames.map(member => memberProgress[member].pending),
+        backgroundColor: '#2563eb',
+        borderColor: '#1d4ed8',
+        borderWidth: 1
+      },
+      {
+        label: 'Overdue',
+        data: memberNames.map(member => memberProgress[member].overdue),
+        backgroundColor: '#dc2626',
+        borderColor: '#b91c1c',
+        borderWidth: 1
+      },
+      {
+        label: 'Needs Action',
+        data: memberNames.map(member => memberProgress[member].needsAction),
+        backgroundColor: '#f59e0b',
+        borderColor: '#d97706',
+        borderWidth: 1
+      },
+      {
+        label: 'Pending Validation',
+        data: memberNames.map(member => memberProgress[member].pendingValidation),
+        backgroundColor: '#8b5cf6',
+        borderColor: '#7c3aed',
+        borderWidth: 1
+      }
+    ];
+
+    chart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: memberNames,
+        datasets
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: 'y',
+        animation: false,
+        layout: {
+          padding: {
+            left: 8,
+            right: 8,
+            top: 8,
+            bottom: 8
           }
         },
-        y: {
-          beginAtZero: true,
-          ticks: {
-            stepSize: 1,
-            color: '#cbd5e1'
+        elements: {
+          bar: {
+            borderRadius: 4,
+            barThickness: 16,
+            maxBarThickness: 18
+          }
+        },
+        scales: {
+          x: {
+            beginAtZero: true,
+            ticks: {
+              color: '#cbd5e1',
+              maxTicksLimit: 5
+            },
+            grid: {
+              color: 'rgba(148, 163, 184, 0.12)'
+            }
+          },
+          y: {
+            ticks: {
+              color: '#cbd5e1',
+              font: {
+                size: 12
+              },
+              padding: 6
+            },
+            grid: {
+              display: false
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top',
+            labels: {
+              color: '#cbd5e1',
+              boxWidth: 12,
+              boxHeight: 12,
+              padding: 12
+            }
+          },
+          tooltip: {
+            enabled: true,
+            callbacks: {
+              label: function(context) {
+                return context.dataset.label + ': ' + context.parsed.x;
+              }
+            }
           }
         }
-      },
-      plugins: {
-        legend: {
-          display: false
-        }
       }
-    }
-  });
-
-  window.adminTaskChart = chart;
+    });
+    window.adminTaskChart = chart;
+    window.updateChart = updateChart;
+  } catch (err) {
+    console.error('Chart initialization error:', err);
+  }
 }
+
+// Expose updateChart and lastMemberProgress globally
+window.updateChart = updateChart;
+window.updateChartIfNeeded = function() {
+  if (window.lastMemberProgress) {
+    updateChart(window.lastMemberProgress);
+  }
+};
 
 /* CREATE POLL */
 window.createPoll = async function () {

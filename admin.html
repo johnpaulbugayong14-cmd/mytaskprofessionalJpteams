@@ -237,9 +237,11 @@
       
       <!-- Task Analytics Section -->
       <section id="task-analytics" class="content-section">
-        <div class="card">
+        <div class="card analytics-card">
           <h2>📈 Task Analytics</h2>
-          <canvas id="taskChart"></canvas>
+          <div class="chart-container">
+            <canvas id="taskChart"></canvas>
+          </div>
         </div>
       </section>
       
@@ -302,8 +304,13 @@ function showSection(sectionId) {
     pageTitle.textContent = titles[sectionId];
   }
   
-  if (sectionId === 'task-analytics' && window.adminTaskChart && typeof window.adminTaskChart.resize === 'function') {
-    setTimeout(() => window.adminTaskChart.resize(), 100);
+  // Trigger chart update when analytics is shown
+  if (sectionId === 'task-analytics') {
+    setTimeout(() => {
+      if (window.updateChart && window.lastMemberProgress !== undefined) {
+        window.updateChart(window.lastMemberProgress);
+      }
+    }, 50); // Faster response when switching tabs
   }
   
   // Close mobile sidebar after selection
