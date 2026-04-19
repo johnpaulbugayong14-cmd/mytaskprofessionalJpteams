@@ -3,13 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Admin Dashboard - My Thesis Hub</title>
   <meta name="application-name" content="My Thesis Hub">
   <meta name="apple-mobile-web-app-title" content="My Thesis Hub">
   <link rel="manifest" href="manifest.json?v=5">
   <meta name="theme-color" content="#3b82f6">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✓</text></svg>">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=1">
 </head>
 <body>
 
@@ -48,6 +51,10 @@
   <main class="main-content">
     <div class="content-header">
       <h1 id="page-title">📊 Admin Dashboard</h1>
+      <div class="header-actions">
+        <div id="welcome" class="welcome-header">Welcome, Admin</div>
+        <button onclick="signOutUser()" class="logout-btn header-logout">Logout</button>
+      </div>
     </div>
     
     <div class="content-sections">

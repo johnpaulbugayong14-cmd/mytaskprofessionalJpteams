@@ -117,7 +117,7 @@ h2 {
 
 .app-footer {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: flex-end;
   padding: 1rem 2rem;
   color: #94a3b8;
