@@ -64,12 +64,28 @@ self.addEventListener('fetch', event => {
   event.respondWith(
     fetch(event.request)
       .then(response => {
-        // Cache the new response
-        const responseClone = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseClone));
+        // Only cache GET and HEAD requests
+        if (event.request.method === 'GET' || event.request.method === 'HEAD') {
+          if (response && response.ok) {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then(cache => {
+              try {
+                cache.put(event.request, responseClone);
+              } catch (e) {
+                console.warn('Failed to cache response:', e);
+              }
+            }).catch(err => console.warn('Failed to open cache:', err));
+          }
+        }
         return response;
       })
-      .catch(() => caches.match(event.request))
+      .catch(() => {
+        // Try to return cached response on network error
+        if (event.request.method === 'GET' || event.request.method === 'HEAD') {
+          return caches.match(event.request);
+        }
+        throw new Error('Network request failed');
+      })
   );
 });
 
