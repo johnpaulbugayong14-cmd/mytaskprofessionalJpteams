@@ -634,19 +634,49 @@ function updateChart(done, pending, overdue, needsAction, pendingValidation) {
   if (chart) chart.destroy();
 
   chart = new Chart(ctx, {
-    type: "doughnut",
+    type: "bar",
     data: {
       labels: ["Done", "Pending", "Overdue", "Needs Action", "Pending Validation"],
       datasets: [{
-        data: [done, pending, overdue, needsAction, pendingValidation]
+        label: 'Task Counts',
+        data: [done, pending, overdue, needsAction, pendingValidation],
+        backgroundColor: [
+          '#10b981',
+          '#3b82f6',
+          '#ef4444',
+          '#f59e0b',
+          '#8b5cf6'
+        ],
+        borderColor: [
+          '#059669',
+          '#2563eb',
+          '#b91c1c',
+          '#d97706',
+          '#7c3aed'
+        ],
+        borderWidth: 1
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      scales: {
+        x: {
+          ticks: {
+            color: '#cbd5e1'
+          }
+        },
+        y: {
+          beginAtZero: true,
+          ticks: {
+            stepSize: 1,
+            color: '#cbd5e1'
+          }
+        }
+      },
       plugins: {
         legend: {
-          position: 'bottom',
+          display: false
         }
       }
     }
