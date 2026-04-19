@@ -174,13 +174,17 @@ export function showLocalNotification(title, body, icon = null) {
 
 export async function sendNotificationToUsers(userEmails, title, body, type = 'general') {
   if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') return;
+
+  const apiUrl = window.location.hostname === 'johnpaulbugayong14-cmd.github.io'
+    ? 'https://mytaskprofessional-jpteams.vercel.app/api/send-notification'
+    : '/api/send-notification';
+
   if (window.location.hostname === 'johnpaulbugayong14-cmd.github.io') {
-    console.warn('Notification backend unavailable on GitHub Pages; skipping sendNotificationToUsers.');
-    return;
+    console.log('Using Vercel notifications backend from GitHub Pages.');
   }
 
   try {
-    const response = await fetch('/api/send-notification', {
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userEmails, title, body, type })
