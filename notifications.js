@@ -1,78 +1,128 @@
-/**
- * Notification System for My Thesis Hub
- *
- * SETUP INSTRUCTIONS:
- * 1. Go to Firebase Console > Project Settings > Cloud Messaging
- * 2. Add your Web Push certificate public key below
- * 3. Add your Android `google-services.json` for native Android push support
- * 4. Use Firebase Cloud Functions or your own server to send messages to FCM tokens
- */
-
 import { db, messaging } from "./firebase.js";
 import { getStoredUserEmail } from "./auth.js";
 import { setDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js";
 
-// IMPORTANT: Replace with your actual VAPID public key from Firebase Console
-// Steps to get your VAPID key:
-// 1. Go to https://console.firebase.google.com
-// 2. Select your project (task-edd4d)
-// 3. Go to Project Settings (gear icon)
-// 4. Click on "Cloud Messaging" tab
-// 5. Scroll down to "Web Push certificates"
-// 6. Click "Generate key pair" (if not already generated)
-// 7. Copy the "Key pair" value and replace the line below
 const VAPID_PUBLIC_KEY = 'BBu_m1NKUZO5bp6k5q29DgzYpmjVWe8z1C6KojHrq7RDqOJ0O01txWvzqKWrnLMAGlrm8eOcdTn_O1wDnf5OZB8';
 
+// Robust Capacitor check
+const getCapacitor = () => {
+  if (typeof window !== 'undefined' && window.Capacitor) {
+    return window.Capacitor;
+  }
+  return null;
+};
+
+const isNative = () => {
+  const cap = getCapacitor();
+  return !!(cap && cap.isNativePlatform && cap.isNativePlatform());
+};
+
+async function getPushPlugin() {
+  const cap = getCapacitor();
+  if (!cap) return null;
+
+  // Wait a bit for plugins to load if needed
+  let retries = 0;
+  while (retries < 10) {
+    if (cap.Plugins && cap.Plugins.PushNotifications) {
+      return cap.Plugins.PushNotifications;
+    }
+    await new Promise(r => setTimeout(r, 100));
+    retries++;
+  }
+  return null;
+}
+
 export async function requestNotificationPermission() {
+  console.log('Requesting notification permission...');
+
+  if (isNative()) {
+    try {
+      const PushNotifications = await getPushPlugin();
+      if (PushNotifications) {
+        console.log('Using Native PushNotifications plugin for permission');
+        const permission = await PushNotifications.requestPermissions();
+        console.log('Native permission result:', permission);
+        return permission.receive === 'granted';
+      } else {
+        console.warn('Native PushNotifications plugin not found after retries');
+      }
+    } catch (error) {
+      console.error('Error requesting native notification permission:', error);
+    }
+  }
+
+  // Fallback to Web API
   if (!('Notification' in window)) {
     console.log('This browser does not support notifications');
     return false;
   }
 
-  if (Notification.permission === 'granted') {
-    return true;
-  }
+  if (Notification.permission === 'granted') return true;
 
-  if (Notification.permission !== 'denied') {
-    try {
-      const permission = await Notification.requestPermission();
-      return permission === 'granted';
-    } catch (error) {
-      console.error('Error requesting notification permission:', error);
-      return false;
-    }
+  try {
+    const permission = await Notification.requestPermission();
+    return permission === 'granted';
+  } catch (error) {
+    console.error('Error requesting web notification permission:', error);
+    return false;
   }
-
-  return false;
 }
 
 async function getFcmToken(registration) {
-  // Check if VAPID key is configured (real keys are much longer than the placeholder)
-  if (!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY.length < 50 || VAPID_PUBLIC_KEY === 'BBu_m1NKUZO5bp6k5q29DgzYpmjVWe8z1C6KojHrq7RDqOJ0O01txWvzqKWrnLMAGlrm8eOcdTn_O1wDnf5OZB8') {
-    console.log('VAPID key not configured. FCM web notifications will not work.');
-    return null;
+  if (isNative()) {
+    return new Promise(async (resolve) => {
+      try {
+        const PushNotifications = await getPushPlugin();
+        if (!PushNotifications) {
+          console.error('PushNotifications plugin unavailable for token retrieval');
+          resolve(null);
+          return;
+        }
+
+        // Remove existing listeners to avoid duplicates
+        await PushNotifications.removeAllListeners();
+
+        await PushNotifications.addListener('registration', (token) => {
+          console.log('Native Push registration success, token:', token.value);
+          resolve(token.value);
+        });
+
+        await PushNotifications.addListener('registrationError', (err) => {
+          console.error('Native Push registration error:', err.error);
+          resolve(null);
+        });
+
+        console.log('Calling PushNotifications.register()...');
+        await PushNotifications.register();
+
+        // Timeout if registration takes too long
+        setTimeout(() => resolve(null), 10000);
+      } catch (error) {
+        console.error('Error in native token retrieval:', error);
+        resolve(null);
+      }
+    });
   }
+
+  if (!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY.length < 50) return null;
 
   try {
     const token = await getToken(messaging, {
       vapidKey: VAPID_PUBLIC_KEY,
       serviceWorkerRegistration: registration
     });
-
-    console.log('Firebase messaging token:', token);
     return token;
   } catch (error) {
-    console.error('Failed to get FCM token:', error);
+    console.error('Failed to get web FCM token:', error);
     return null;
   }
 }
 
 export async function saveFcmTokenForCurrentUser(token) {
   const email = await getStoredUserEmail();
-  if (!email || !token) {
-    return;
-  }
+  if (!email || !token) return;
 
   try {
     const tokenDoc = doc(db, 'fcmTokens', email);
@@ -80,41 +130,33 @@ export async function saveFcmTokenForCurrentUser(token) {
       email,
       token,
       updatedAt: new Date(),
-      platform: window.Capacitor?.getPlatform() || 'web'
+      platform: isNative() ? 'android' : 'web',
+      lastSeen: new Date()
     }, { merge: true });
-
     console.log('Saved FCM token for user:', email);
   } catch (error) {
-    console.error('Failed to save FCM token:', error);
+    console.error('Failed to save FCM token to Firestore:', error);
   }
 }
 
 export async function subscribeToNotifications() {
-  // Skip FCM in local development to prevent VAPID key errors
+  if (isNative()) {
+    console.log('Subscribing to native notifications...');
+    return await getFcmToken();
+  }
+
   if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    console.log('Skipping FCM notifications in local development');
     return null;
   }
 
-  if (!('serviceWorker' in navigator)) {
-    console.log('Service workers are not supported in this browser');
-    return null;
-  }
+  if (!('serviceWorker' in navigator)) return null;
 
   try {
     const registration = await navigator.serviceWorker.register('service-worker.js');
     await navigator.serviceWorker.ready;
-
-    const token = await getFcmToken(registration);
-    if (!token) {
-      console.log('Could not get FCM token for this device');
-      return null;
-    }
-
-    console.log('Successfully subscribed to Firebase push notifications');
-    return token;
+    return await getFcmToken(registration);
   } catch (error) {
-    console.error('Error subscribing to notifications:', error);
+    console.error('Error subscribing to web notifications:', error);
     return null;
   }
 }
@@ -123,76 +165,71 @@ export function showLocalNotification(title, body, icon = null) {
   if (Notification.permission === 'granted') {
     const notification = new Notification(title, {
       body,
-      icon: icon || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="%233b82f6"/><text x="256" y="280" font-family="Arial, sans-serif" font-size="200" font-weight="bold" text-anchor="middle" fill="white">✓</text></svg>',
-      badge: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="%233b82f6"/><text x="256" y="280" font-family="Arial, sans-serif" font-size="200" font-weight="bold" text-anchor="middle" fill="white">✓</text></svg>'
+      icon: icon || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="%233b82f6"/><text x="256" y="280" font-family="Arial, sans-serif" font-size="200" font-weight="bold" text-anchor="middle" fill="white">✓</text></svg>'
     });
-
-    notification.onclick = () => {
-      window.focus();
-      notification.close();
-    };
-
+    notification.onclick = () => { window.focus(); notification.close(); };
     setTimeout(() => notification.close(), 5000);
   }
 }
 
 export async function sendNotificationToUsers(userEmails, title, body, type = 'general') {
-  // Skip notifications in local development (no API server)
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    console.log('📱 Notifications disabled in local development - API not available');
-    console.log('Would send notification:', { userEmails, title, body, type });
-    return;
-  }
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') return;
 
   try {
     const response = await fetch('/api/send-notification', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        userEmails,
-        title,
-        body,
-        type
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userEmails, title, body, type })
     });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const result = await response.json();
-    if (result.success) {
-      console.log('✅ Notification sent successfully');
-    } else {
-      console.warn('⚠️ Failed to send notification:', result);
-    }
+    if (!response.ok) console.warn('Notification send failed with status:', response.status);
   } catch (error) {
-    console.error('❌ Error sending notification:', error.message);
-    // Don't throw error - notifications are optional
+    console.error('Error sending notification via API:', error);
   }
 }
 
 export async function initializeNotifications() {
+  console.log('Initializing Notifications system...');
+
+  // Ensure we wait for Capacitor if it's there
+  if (typeof window !== 'undefined' && !window.Capacitor && isNative()) {
+     await new Promise(r => setTimeout(r, 500));
+  }
+
   const permissionGranted = await requestNotificationPermission();
   if (!permissionGranted) {
+    console.warn('Notification permission was denied');
     return null;
   }
 
   const token = await subscribeToNotifications();
   if (!token) {
+    console.warn('Failed to retrieve FCM token');
     return null;
   }
 
+  console.log('Successfully obtained token, saving to database...');
   await saveFcmTokenForCurrentUser(token);
 
-  onMessage(messaging, (payload) => {
-    console.log('Foreground FCM message received:', payload);
-    const title = payload.notification?.title || payload.data?.title || 'My Thesis Hub';
-    const body = payload.notification?.body || payload.data?.body || 'You have a new message';
-    showLocalNotification(title, body);
-  });
+  if (isNative()) {
+    const PushNotifications = await getPushPlugin();
+    if (PushNotifications) {
+      await PushNotifications.addListener('pushNotificationReceived', (notification) => {
+        console.log('Native push received in foreground:', notification);
+        // On Android, foreground notifications don't show by default unless you use LocalNotifications
+      });
+
+      await PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+        console.log('Push action performed:', notification);
+      });
+    }
+  } else {
+    onMessage(messaging, (payload) => {
+      console.log('Web foreground message:', payload);
+      const title = payload.notification?.title || 'My Thesis Hub';
+      const body = payload.notification?.body || 'New message';
+      showLocalNotification(title, body);
+    });
+  }
 
   return token;
 }

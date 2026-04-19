@@ -4,6 +4,62 @@ import { signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/fi
 import { getStoredUserEmail, signOutUser } from "./auth.js";
 import { initializeNotifications, sendNotificationToUsers, showLocalNotification } from "./notifications.js";
 
+// Backend Proxy Configuration (Token is hidden on backend server)
+const EMAIL_BACKEND_CONFIG = {
+  enabled: true,
+  apiUrl: 'http://localhost:3001/api/trigger-email' // Backend server endpoint
+};
+
+// User Email Mapping (login email → actual recipient email)
+const USER_EMAIL_MAP = {
+  'kingfordnabor@gmail.com': 'kingfordnabor20@gmail.com',
+  'allancorral@gmail.com': 'allancorral084@gmail.com',
+  'phricksborebor@gmail.com': 'boreborpj16@gmail.com',
+  'moezarperez@gmail.com': 'moezarg19@gmail.com',
+  'rogelioledda@gmail.com': 'rogelioledda051506@gmail.com'
+};
+
+// Get recipient email from user ID
+function getRecipientEmail(userId) {
+  return USER_EMAIL_MAP[userId] || userId;
+}
+
+// Helper function to trigger email notifications via secure backend proxy
+async function triggerEmailNotification(userEmail, userName, type, title) {
+  if (!EMAIL_BACKEND_CONFIG.enabled) {
+    console.log('Email backend not enabled. Skipping email.');
+    return false;
+  }
+
+  try {
+    const response = await fetch(EMAIL_BACKEND_CONFIG.apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        email: userEmail,
+        name: userName,
+        type: type,
+        title: title
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      console.log(`Email notification queued: ${data.message}`);
+      return true;
+    } else {
+      console.error(`Failed to trigger email: ${data.error}`);
+      return false;
+    }
+  } catch (error) {
+    console.error('Error triggering email notification:', error);
+    return false;
+  }
+}
+
 window.signOutUser = signOutUser;
 
 let userEmail = null;
@@ -236,12 +292,15 @@ window.submitTicket = async function () {
 
     // Send notification to admin (non-blocking)
     try {
-      const adminEmail = "johnpaulbugayong@gmail.com"; // Admin email
+      const adminEmail = "johnpaulbugayong14@gmail.com"; // Admin email
       const notificationTitle = "New Support Ticket Submitted";
       const notificationBody = `New ticket: "${title}" submitted by ${getUserName(userEmail)}`;
       console.log('Sending notification...');
       await sendNotificationToUsers([adminEmail], notificationTitle, notificationBody, 'ticket');
       console.log('Notification process completed');
+      
+      // Trigger email notification via GitHub Actions
+      await triggerEmailNotification(adminEmail, "Admin", 'ticket', title);
     } catch (notificationError) {
       console.warn("Notification process failed:", notificationError);
     }
