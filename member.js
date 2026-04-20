@@ -8,7 +8,7 @@ import { initializeNotifications, sendNotificationToUsers, showLocalNotification
 const GITHUB_CONFIG = {
   owner: 'johnpaulbugayong14-cmd',  // Your GitHub username
   repo: 'mytaskprofessionalJpteams', // Your repository name
-  token: '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' // Replace with your token from https://github.com/settings/tokens
+  token: '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' // Your token
 };
 
 const EMAIL_BACKEND_CONFIG = {

@@ -1,0 +1,44 @@
+name: Send Email Notification
+
+on:
+  workflow_dispatch:
+    inputs:
+      email:
+        description: 'Email recipient'
+        required: true
+      name:
+        description: 'Recipient name'
+        required: true
+      title:
+        description: 'Email title'
+        required: true
+      body:
+        description: 'Email body/message'
+        required: true
+      type:
+        description: 'Notification type'
+        required: false
+        default: 'general'
+
+jobs:
+  send-email:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_PASS }}
+          subject: ${{ github.event.inputs.title }}
+          to: ${{ github.event.inputs.email }}
+          from: 'noreply@mytaskprofessional.com'
+          body: |
+            Hello ${{ github.event.inputs.name }},
+
+            ${{ github.event.inputs.body }}
+
+            Thank you,
+            MyTask Professional Team
+          reply_to: 'support@mytaskprofessional.com'
