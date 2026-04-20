@@ -87,10 +87,22 @@ import {
   getDoc,
   arrayUnion
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-import { db } from "./firebase.js";
+import { db, auth } from "./firebase.js";
 import { signOutUser, getStoredUserEmail, getStoredUserRole } from "./auth.js";
 import { sendNotificationToUsers, showLocalNotification, initializeNotifications } from "./notifications.js";
+
+console.log('=== admin.js loaded ===');
+console.log('Firestore db object:', db);
+console.log('Firebase auth currentUser:', auth?.currentUser);
+
+window.addEventListener('error', (event) => {
+  console.error('Admin runtime error:', event.error || event.message, event.filename, event.lineno, event.colno);
+});
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('Admin unhandled rejection:', event.reason);
+});
 
 // GitHub Actions Configuration
 const GITHUB_CONFIG = {
