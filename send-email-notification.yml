@@ -1,24 +1,8 @@
 name: Send Email Notification
 
 on:
-  workflow_dispatch:
-    inputs:
-      email:
-        description: 'Email recipient'
-        required: true
-      name:
-        description: 'Recipient name'
-        required: true
-      title:
-        description: 'Email title'
-        required: true
-      body:
-        description: 'Email body/message'
-        required: true
-      type:
-        description: 'Notification type'
-        required: false
-        default: 'general'
+  repository_dispatch:
+    types: [send-email]
 
 jobs:
   send-email:
@@ -31,14 +15,14 @@ jobs:
           server_port: 587
           username: ${{ secrets.GMAIL_USER }}
           password: ${{ secrets.GMAIL_PASS }}
-          subject: ${{ github.event.inputs.title }}
-          to: ${{ github.event.inputs.email }}
-          from: 'noreply@mytaskprofessional.com'
+          subject: New ${{ github.event.client_payload.type }} assigned to you
+          to: ${{ github.event.client_payload.email }}
+          from: ${{ secrets.GMAIL_USER }}
           body: |
-            Hello ${{ github.event.inputs.name }},
-
-            ${{ github.event.inputs.body }}
-
-            Thank you,
-            MyTask Professional Team
-          reply_to: 'support@mytaskprofessional.com'
+            Hello ${{ github.event.client_payload.name }},
+            
+            You have a new ${{ github.event.client_payload.type }}: ${{ github.event.client_payload.title }}
+            
+            Please log in to your account to review the details.
+            
+            MyTask Professional System
