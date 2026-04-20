@@ -229,6 +229,7 @@ window.submitTicket = async function () {
       submittedByName: getUserName(userEmail),
       assignedTo: userEmail, // Add assignedTo field
       status: "open",
+      adminEmailNotificationSent: false,
       createdAt: new Date(),
       responses: []
     });

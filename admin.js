@@ -522,6 +522,7 @@ window.createTask = async function () {
       assignedToName: member.name,
       linkURL: link || null,
       status: "pending",
+      emailNotificationSent: false,
       createdAt: Date.now()
     };
 
@@ -892,6 +893,7 @@ window.createPoll = async function () {
       question,
       options,
       votes: {},
+      emailNotificationSent: false,
       createdAt: new Date()
     };
 
@@ -1048,7 +1050,8 @@ window.createAnnouncement = async function () {
       assignedTo,
       assignedToNames,
       createdAt: new Date(),
-      commentsEnabled: true
+      commentsEnabled: true,
+      emailNotificationSent: false
     };
 
     await addDoc(collection(db, "announcements"), announcementData);
