@@ -8,7 +8,19 @@ jobs:
   send-email:
     runs-on: ubuntu-latest
     steps:
-      - name: Send Email
+      - name: Verify secrets exist
+        run: |
+          if [ -z "${{ secrets.GMAIL_USER }}" ]; then
+            echo "ERROR: GMAIL_USER secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.GMAIL_PASS }}" ]; then
+            echo "ERROR: GMAIL_PASS secret is not set"
+            exit 1
+          fi
+          echo "Secrets verified"
+      
+      - name: Send Email via Gmail
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
@@ -25,4 +37,6 @@ jobs:
             
             Please log in to your account to review the details.
             
+            Best regards,
             MyTask Professional System
+          reply_to: noreply@mytaskprofessional.com
