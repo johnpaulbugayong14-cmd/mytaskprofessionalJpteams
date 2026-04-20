@@ -1,7 +1,5 @@
 {
   "version": 2,
-  "buildCommand": "echo 'Build complete'",
-  "outputDirectory": "www",
   "headers": [
     {
       "source": "/(.*)",
