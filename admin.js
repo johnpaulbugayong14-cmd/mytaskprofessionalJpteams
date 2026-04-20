@@ -93,9 +93,12 @@ import { sendNotificationToUsers, showLocalNotification, initializeNotifications
 // GitHub Actions Configuration
 const GITHUB_CONFIG = {
   owner: 'johnpaulbugayong14-cmd',  // Your GitHub username
-  repo: 'mytaskprofessionalJpteams', // Your repository name
-  token: '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' // Your token
+  repo: 'mytaskprofessionalJpteams' // Your repository name
 };
+
+function getGithubToken() {
+  return localStorage.getItem('github_token') || '';
+}
 
 const EMAIL_BACKEND_CONFIG = {
   enabled: true,
@@ -126,10 +129,16 @@ async function triggerEmailNotification(userEmail, userName, type, title) {
   try {
     const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/dispatches`;
     
+    const token = getGithubToken();
+    if (!token) {
+      console.error('GitHub token missing. Set localStorage.github_token with a valid PAT.');
+      return false;
+    }
+
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Authorization': `token ${GITHUB_CONFIG.token}`,
+        'Authorization': `token ${token}`,
         'Content-Type': 'application/json',
         'Accept': 'application/vnd.github.v3+json'
       },
