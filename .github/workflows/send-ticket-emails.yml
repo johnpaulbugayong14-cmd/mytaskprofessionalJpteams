@@ -104,7 +104,7 @@ jobs:
                         </div>
                         <p>Please log in to the admin panel to review and respond to this ticket.</p>
                         <p>
-                          <a href="https://mytaskprofessional.vercel.app/admin.html" style="display: inline-block; background-color: #0ea5e9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View Ticket</a>
+                          <a href="http://mytaskprofessional-jpteams.vercel.app/?v=2" style="display: inline-block; background-color: #0ea5e9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View Ticket</a>
                         </p>
                       </div>
                       <div style="background-color: #f0f0f0; padding: 15px; text-align: center; font-size: 12px; color: #666;">
