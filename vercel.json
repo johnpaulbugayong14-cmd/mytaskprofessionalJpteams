@@ -2,11 +2,6 @@
   "version": 2,
   "buildCommand": "echo 'Build complete'",
   "outputDirectory": "www",
-  "functions": {
-    "api/**/*.js": {
-      "runtime": "node@20.x"
-    }
-  },
   "headers": [
     {
       "source": "/(.*)",
