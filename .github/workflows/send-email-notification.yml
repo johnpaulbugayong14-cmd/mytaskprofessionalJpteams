@@ -1,66 +1,44 @@
 name: Send Email Notification
 
 on:
-  repository_dispatch:
-    types: [send-email]
+  workflow_dispatch:
+    inputs:
+      email:
+        description: 'Email recipient'
+        required: true
+      name:
+        description: 'Recipient name'
+        required: true
+      title:
+        description: 'Email title'
+        required: true
+      body:
+        description: 'Email body/message'
+        required: true
+      type:
+        description: 'Notification type'
+        required: false
+        default: 'general'
 
 jobs:
   send-email:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - name: Send Email
+        uses: dawidd6/action-send-mail@v3
         with:
-          node-version: '18'
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_PASS }}
+          subject: ${{ github.event.inputs.title }}
+          to: ${{ github.event.inputs.email }}
+          from: 'noreply@mytaskprofessional.com'
+          body: |
+            Hello ${{ github.event.inputs.name }},
 
-      - name: Install dependencies
-        run: npm install nodemailer
+            ${{ github.event.inputs.body }}
 
-      - name: Send email notification
-        env:
-          GMAIL_USER: ${{ secrets.GMAIL_USER }}
-          GMAIL_PASS: ${{ secrets.GMAIL_PASS }}
-        run: |
-          node -e "
-          const nodemailer = require('nodemailer');
-          
-          const payload = ${{ toJson(github.event.client_payload) }};
-          const { email, name, type, title } = payload;
-          
-          if (!email || !name || !type || !title) {
-            console.error('Missing required fields in payload');
-            process.exit(1);
-          }
-          
-          const transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-              user: process.env.GMAIL_USER,
-              pass: process.env.GMAIL_PASS,
-            },
-          });
-          
-          const mailOptions = {
-            from: process.env.GMAIL_USER,
-            to: email,
-            subject: \`New \${type} assigned to you\`,
-            text: \`Hello \${name},
-
-You have a new \${type}: \${title}
-
-Please log in to your account to review the details.
-
-— MyThesisHub Automated System Notification\`,
-          };
-          
-          transporter.sendMail(mailOptions, (error, info) => {
-            if (error) {
-              console.error('Error sending email:', error.message);
-              process.exit(1);
-            }
-            console.log('Email sent successfully:', info.response);
-          });
-          "
+            Thank you,
+            MyTask Professional Team
+          reply_to: 'support@mytaskprofessional.com'
