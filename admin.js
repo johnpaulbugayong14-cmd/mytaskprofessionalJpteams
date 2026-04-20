@@ -85,6 +85,7 @@ import {
   deleteDoc,
   setDoc,
   getDoc,
+  getDocs,
   arrayUnion
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
@@ -470,6 +471,7 @@ loadAnnouncementAssignTo();
 
   /* LOAD TICKETS */
   try {
+    console.log('Registering tickets onSnapshot listener...');
     onSnapshot(collection(db, "tickets"), (snap) => {
         console.log('=== ADMIN TICKETS LISTENER TRIGGERED ===');
         console.log('Tickets snapshot received, docs count:', snap.size);
@@ -553,9 +555,8 @@ loadAnnouncementAssignTo();
       `;
       console.log('Generated ticket HTML:', html.substring(0, 200) + '...');
       container.innerHTML += html;
-    });
     }, (error) => {
-      console.error('Error loading tickets:', error);
+      console.error('Tickets listener error:', error);
       const container = document.getElementById("ticketsList");
       if (container) {
         container.innerHTML = "<p style='color: #ef4444; text-align: center;'>Error loading tickets. Check console for details.</p>";
@@ -566,12 +567,14 @@ loadAnnouncementAssignTo();
   }
 
   /* LOAD RESOURCES */
-  onSnapshot(collection(db, "resources"), (snap) => {
-    console.log('=== ADMIN RESOURCES LISTENER TRIGGERED ===');
-    console.log('Resources snapshot received, docs count:', snap.size);
-    const container = document.getElementById("resourcesList");
-    if (!container) return;
-    container.innerHTML = "";
+  try {
+    console.log('Registering resources onSnapshot listener...');
+    onSnapshot(collection(db, "resources"), (snap) => {
+      console.log('=== ADMIN RESOURCES LISTENER TRIGGERED ===');
+      console.log('Resources snapshot received, docs count:', snap.size);
+      const container = document.getElementById("resourcesList");
+      if (!container) return;
+      container.innerHTML = "";
 
     if (snap.empty) {
       container.innerHTML = "<p style='color: #94a3b8; text-align: center;'>No resources created yet.</p>";
@@ -612,8 +615,10 @@ function loadProgressReport() {
   const progressRef = doc(db, progressReportCollection, progressReportDocId);
   console.log('Progress report reference:', progressRef);
 
-  onSnapshot(progressRef, (snap) => {
-    console.log('Progress report snapshot received:', snap.exists());
+  try {
+    console.log('Registering progress report onSnapshot listener...');
+    onSnapshot(progressRef, (snap) => {
+      console.log('Progress report snapshot received:', snap.exists());
     let sections = getDefaultProgressStructure();
     if (snap.exists()) {
       const data = snap.data();
@@ -635,7 +640,16 @@ function loadProgressReport() {
       setDoc(progressRef, { sections }, { merge: true });
     }
     renderAdminProgressReport(sections);
-  });
+    }, (error) => {
+      console.error('Progress report listener error:', error);
+      const container = document.getElementById("progressReportPanel");
+      if (container) {
+        container.innerHTML = "<p style='color: #ef4444; text-align: center;'>Error loading progress report. Check console for details.</p>";
+      }
+    });
+  } catch (error) {
+    console.error('Failed to set up progress report listener:', error);
+  }
 }
 
 /* CREATE TASK */
@@ -733,8 +747,10 @@ window.needAction = async function (id) {
 };
 
 /* REALTIME + GRAPH */
-onSnapshot(collection(db, "tasks"), (snap) => {
-  const now = Date.now();
+try {
+  console.log('Registering tasks onSnapshot listener...');
+  onSnapshot(collection(db, "tasks"), (snap) => {
+    const now = Date.now();
   const container = document.getElementById("tasks");
 
   const docs = [];
@@ -798,8 +814,15 @@ onSnapshot(collection(db, "tasks"), (snap) => {
     });
     container.innerHTML = html;
   }
+}, (error) => {
+  console.error('Tasks listener error:', error);
+  const container = document.getElementById("tasks");
+  if (container) {
+    container.innerHTML = "<p style='color: #ef4444; text-align: center;'>Error loading tasks. Check console for details.</p>";
+  }
 });
-
+} catch (error) {
+  console.error('Failed to set up tasks listener:', error);
 }
 
 // Update chart only when analytics is visible and data changed
