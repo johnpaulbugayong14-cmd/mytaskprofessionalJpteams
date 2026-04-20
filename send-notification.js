@@ -1,19 +1,4 @@
-import { initializeApp } from 'firebase/app';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
-
-const firebaseConfig = {
-  apiKey: "AIzaSyBJt3bCDYaqzLe_vGiFqvCMehJedZFvSJs",
-  authDomain: "task-edd4d.firebaseapp.com",
-  projectId: "task-edd4d",
-  storageBucket: "task-edd4d.firebasestorage.app",
-  messagingSenderId: "372695845973",
-  appId: "1:372695845973:web:23b25b0de8ca2b72dfd8dc"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   const origin = req.headers.origin;
   const allowedOrigin = origin === 'https://johnpaulbugayong14-cmd.github.io'
     ? origin
@@ -46,11 +31,14 @@ export default async function handler(req, res) {
 
     const tokens = [];
 
+    // Get FCM tokens for each recipient
     for (const email of userEmails) {
       try {
         const tokenDoc = await getDoc(doc(db, 'fcmTokens', email));
         if (tokenDoc.exists() && tokenDoc.data().token) {
           tokens.push(tokenDoc.data().token);
+        } else {
+          console.log(`No FCM token found for ${email}`);
         }
       } catch (error) {
         console.error(`Error getting token for ${email}:`, error);
@@ -61,6 +49,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: false, message: 'No valid FCM tokens found for recipients' });
     }
 
+    // Send FCM notification using legacy API
     const fcmPayload = {
       registration_ids: tokens,
       notification: {
@@ -87,12 +76,15 @@ export default async function handler(req, res) {
     const fcmResult = await fcmResponse.json();
 
     if (fcmResponse.ok) {
-      return res.status(200).json({ success: true, result: fcmResult });
+      console.log('FCM sent successfully:', fcmResult);
+      res.status(200).json({ success: true, result: fcmResult });
+    } else {
+      console.error('FCM send failed:', fcmResult);
+      res.status(500).json({ success: false, error: fcmResult });
     }
 
-    return res.status(500).json({ success: false, error: fcmResult });
   } catch (error) {
     console.error('Error in send-notification:', error);
-    return res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 }
