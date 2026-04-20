@@ -1,0 +1,207 @@
+name: Send Task Reminders
+
+on:
+  schedule:
+    - cron: '0 9 * * *'  # Every day at 9 AM UTC
+    - cron: '0 14 * * *'  # Every day at 2 PM UTC
+    - cron: '0 20 * * *'  # Every day at 8 PM UTC
+  workflow_dispatch:
+
+jobs:
+  send-reminders:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install firebase-admin nodemailer
+
+      - name: Check task deadlines and send reminders
+        uses: actions/github-script@v7
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_PASSWORD: ${{ secrets.GMAIL_PASSWORD }}
+        with:
+          script: |
+            const admin = require('firebase-admin');
+            const nodemailer = require('nodemailer');
+            
+            // Initialize Firebase
+            const serviceAccount = {
+              type: "service_account",
+              project_id: process.env.FIREBASE_PROJECT_ID,
+              private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+              client_email: process.env.FIREBASE_CLIENT_EMAIL,
+              client_id: process.env.FIREBASE_CLIENT_ID || "",
+              auth_uri: "https://accounts.google.com/o/oauth2/auth",
+              token_uri: "https://oauth2.googleapis.com/token",
+              auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
+              client_x509_cert_url: process.env.FIREBASE_CERT_URL || ""
+            };
+            
+            admin.initializeApp({
+              credential: admin.credential.cert(serviceAccount),
+              databaseURL: "https://task-edd4d.firebaseio.com"
+            });
+            
+            const db = admin.firestore();
+            
+            // Email mapping
+            const emailMapping = {
+              'johnpaulbugayong@gmail.com': 'johnpaulbugayong14@gmail.com',
+              'kingfordnabor@gmail.com': 'kingfordnabor20@gmail.com',
+              'allancorral@gmail.com': 'allancorral084@gmail.com',
+              'phricksborebor@gmail.com': 'boreborpj16@gmail.com',
+              'moezarperez@gmail.com': 'moezarg19@gmail.com',
+              'rogelioledda@gmail.com': 'rogelioledda051506@gmail.com'
+            };
+            
+            // Configure email transporter
+            const transporter = nodemailer.createTransport({
+              service: 'gmail',
+              auth: {
+                user: process.env.GMAIL_USER,
+                pass: process.env.GMAIL_PASSWORD
+              }
+            });
+            
+            // Get all pending tasks
+            const tasksSnapshot = await db.collection('tasks')
+              .where('status', '==', 'pending')
+              .get();
+            
+            console.log(`Checking ${tasksSnapshot.size} pending tasks for deadlines`);
+            
+            const now = new Date();
+            
+            for (const taskDoc of tasksSnapshot.docs) {
+              const task = taskDoc.data();
+              const deadline = new Date(task.deadline);
+              const timeDiff = deadline - now;
+              const daysUntilDue = Math.ceil(timeDiff / (1000 * 3600 * 24));
+              
+              const recipientEmail = emailMapping[task.assignedTo] || task.assignedTo;
+              if (!recipientEmail) continue;
+              
+              // Check if task is overdue
+              if (daysUntilDue < 0) {
+                const daysOverdue = Math.abs(daysUntilDue);
+                
+                // Check if we already sent overdue notification for this task today
+                const lastOverdueNotification = task.lastOverdueNotificationDate ? new Date(task.lastOverdueNotificationDate) : null;
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                if (!lastOverdueNotification || lastOverdueNotification < today) {
+                  const htmlContent = `
+                    <html>
+                      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                        <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9;">
+                          <div style="background-color: #dc2626; color: white; padding: 20px; border-radius: 5px 5px 0 0; text-align: center;">
+                            <h2>⚠️ Task Overdue</h2>
+                          </div>
+                          <div style="padding: 20px; background-color: white;">
+                            <p>Hello ${task.assignedToName || task.assignedTo},</p>
+                            <p>The following task is now overdue:</p>
+                            <div style="background-color: #fef2f2; border-left: 4px solid #dc2626; padding: 15px; margin: 15px 0;">
+                              <strong>Task:</strong> ${task.title}<br>
+                              <strong>Was Due:</strong> ${deadline.toLocaleString()}<br>
+                              <strong>Days Overdue:</strong> ${daysOverdue}
+                            </div>
+                            <p>Please complete this task as soon as possible.</p>
+                            <p>
+                              <a href="https://mytaskprofessional.vercel.app/member.html" style="display: inline-block; background-color: #dc2626; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Update Task Status</a>
+                            </p>
+                          </div>
+                          <div style="background-color: #f0f0f0; padding: 15px; text-align: center; font-size: 12px; color: #666;">
+                            <p>This is an automated email notification. Please do not reply to this email.</p>
+                          </div>
+                        </div>
+                      </body>
+                    </html>
+                  `;
+                  
+                  try {
+                    await transporter.sendMail({
+                      from: `"My Thesis Hub" <${process.env.GMAIL_USER}>`,
+                      to: recipientEmail,
+                      subject: `⚠️ Task Overdue: ${task.title}`,
+                      html: htmlContent
+                    });
+                    
+                    // Update task with last notification date
+                    await db.collection('tasks').doc(taskDoc.id).update({
+                      lastOverdueNotificationDate: new Date()
+                    });
+                    
+                    console.log(`✅ Overdue reminder sent to ${recipientEmail} for task: ${task.title}`);
+                  } catch (error) {
+                    console.error(`❌ Failed to send overdue email:`, error);
+                  }
+                }
+              }
+              // Check if task is due soon (1-3 days)
+              else if (daysUntilDue > 0 && daysUntilDue <= 3) {
+                // Check if we already sent due soon notification for this task today
+                const lastDueSoonNotification = task.lastDueSoonNotificationDate ? new Date(task.lastDueSoonNotificationDate) : null;
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                if (!lastDueSoonNotification || lastDueSoonNotification < today) {
+                  const htmlContent = `
+                    <html>
+                      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                        <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9;">
+                          <div style="background-color: #f59e0b; color: white; padding: 20px; border-radius: 5px 5px 0 0; text-align: center;">
+                            <h2>Task Due Soon Reminder</h2>
+                          </div>
+                          <div style="padding: 20px; background-color: white;">
+                            <p>Hello ${task.assignedToName || task.assignedTo},</p>
+                            <p>A task assigned to you is due soon:</p>
+                            <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 15px 0;">
+                              <strong>Task:</strong> ${task.title}<br>
+                              <strong>Due Date:</strong> ${deadline.toLocaleString()}<br>
+                              <strong>Time Remaining:</strong> ${daysUntilDue} day(s)
+                            </div>
+                            <p>Please make sure to complete this task before the deadline.</p>
+                            <p>
+                              <a href="https://mytaskprofessional.vercel.app/member.html" style="display: inline-block; background-color: #f59e0b; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View Task</a>
+                            </p>
+                          </div>
+                          <div style="background-color: #f0f0f0; padding: 15px; text-align: center; font-size: 12px; color: #666;">
+                            <p>This is an automated email notification. Please do not reply to this email.</p>
+                          </div>
+                        </div>
+                      </body>
+                    </html>
+                  `;
+                  
+                  try {
+                    await transporter.sendMail({
+                      from: `"My Thesis Hub" <${process.env.GMAIL_USER}>`,
+                      to: recipientEmail,
+                      subject: `Task Due Soon: ${task.title} (${daysUntilDue} day(s))`,
+                      html: htmlContent
+                    });
+                    
+                    // Update task with last notification date
+                    await db.collection('tasks').doc(taskDoc.id).update({
+                      lastDueSoonNotificationDate: new Date()
+                    });
+                    
+                    console.log(`✅ Due soon reminder sent to ${recipientEmail} for task: ${task.title}`);
+                  } catch (error) {
+                    console.error(`❌ Failed to send due soon email:`, error);
+                  }
+                }
+              }
+            }

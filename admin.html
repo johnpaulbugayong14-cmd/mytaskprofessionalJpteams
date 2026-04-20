@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Admin Dashboard - My Thesis Hub</title>
+  <meta name="application-name" content="My Thesis Hub">
+  <meta name="apple-mobile-web-app-title" content="My Thesis Hub">
+  <link rel="manifest" href="manifest.json?v=5">
+  <meta name="theme-color" content="#3b82f6">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M20 50l15 15 45-45' stroke='%233b82f6' stroke-width='8' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+  <link rel="stylesheet" href="style.css?v=1">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+
+<!-- Mobile Navigation Toggle -->
+<button class="mobile-nav-toggle" onclick="toggleMobileSidebar()"><i class="fas fa-bars"></i></button>
+
+<!-- Mobile Overlay -->
+<div class="sidebar-overlay" onclick="closeMobileSidebar()"></div>
+
+<div class="app-container">
+  <!-- Sidebar Navigation -->
+  <nav class="sidebar">
+    <div class="sidebar-header">
+      <h2><i class="fas fa-chart-bar"></i> Admin</h2>
+      <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+    </div>
+    <ul class="nav-list">
+      <li><button class="nav-btn active" onclick="showSection('create-task')"><i class="fas fa-plus"></i> Create Task</button></li>
+      <li><button class="nav-btn" onclick="showSection('create-poll')"><i class="fas fa-poll"></i> Create Poll</button></li>
+      <li><button class="nav-btn" onclick="showSection('create-announcement')"><i class="fas fa-bullhorn"></i> Announcement</button></li>
+      <li><button class="nav-btn" onclick="showSection('create-resource')"><i class="fas fa-book"></i> Resource</button></li>
+      <li><button class="nav-btn" onclick="showSection('manage-polls')"><i class="fas fa-poll"></i> Manage Polls</button></li>
+      <li><button class="nav-btn" onclick="showSection('manage-announcements')"><i class="fas fa-bullhorn"></i> Manage Announcements</button></li>
+      <li><button class="nav-btn" onclick="showSection('support-tickets')"><i class="fas fa-ticket-alt"></i> Support Tickets</button></li>
+      <li><button class="nav-btn" onclick="showSection('manage-resources')"><i class="fas fa-book"></i> Manage Resources</button></li>
+      <li><button class="nav-btn" onclick="showSection('progress-report')"><i class="fas fa-chart-line"></i> Progress Report</button></li>
+      <li><button class="nav-btn" onclick="showSection('task-analytics')"><i class="fas fa-chart-bar"></i> Analytics</button></li>
+      <li><button class="nav-btn" onclick="showSection('all-tasks')"><i class="fas fa-clipboard-list"></i> All Tasks</button></li>
+    </ul>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <div class="content-header">
+      <h1 id="page-title"><i class="fas fa-chart-bar"></i> Admin Dashboard</h1>
+      <div class="header-actions">
+        <div id="welcome" class="welcome-header">welcome, boss pi!</div>
+        <button onclick="signOutUser()" class="logout-btn header-logout">Logout</button>
+      </div>
+    </div>
+    
+    <div class="content-sections">
+      <!-- Create New Task Section -->
+      <section id="create-task" class="content-section active">
+        <div class="card">
+          <h2>Create New Task</h2>
+          
+          <form onsubmit="event.preventDefault(); createTask();">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="title">Task Title</label>
+                <input id="title" type="text" placeholder="Enter task title" required>
+              </div>
+              
+              <div class="form-group">
+                <label for="deadline">Deadline</label>
+                <input id="deadline" type="date" required>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label for="description">Description</label>
+              <textarea id="description" placeholder="Enter task description" rows="4"></textarea>
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label for="assignedTo">Assign To</label>
+                <select id="assignedTo" required>
+                  <option value="">Select a member</option>
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label for="linkInput">Link</label>
+                <input id="linkInput" type="url" placeholder="https://example.com/resource" autocomplete="off">
+                <p style="font-size: 0.85rem; color: #94a3b8; margin-top: 0.25rem;">Optional: add a reference link for this task.</p>
+              </div>
+            </div>
+            
+            <button type="submit" class="btn-success"><i class="fas fa-check"></i> Create Task</button>
+          </form>
+        </div>
+      </section>
+      
+      <!-- Create New Poll Section -->
+      <section id="create-poll" class="content-section">
+        <div class="card">
+          <h2>Create New Poll</h2>
+          
+          <form onsubmit="event.preventDefault(); createPoll();">
+            <div class="form-group">
+              <label for="pollQuestion">Poll Question</label>
+              <input id="pollQuestion" type="text" placeholder="Enter poll question" required>
+            </div>
+            
+            <div id="pollOptions">
+              <div class="form-group">
+                <label>Option 1</label>
+                <input type="text" class="poll-option-input" placeholder="Enter option" required>
+              </div>
+              <div class="form-group">
+                <label>Option 2</label>
+                <input type="text" class="poll-option-input" placeholder="Enter option" required>
+              </div>
+            </div>
+            
+            <button type="button" onclick="addPollOption()" style="background: #6b7280; margin-bottom: 1rem;">+ Add Option</button>
+            <button type="submit" class="btn-secondary"><i class="fas fa-poll"></i> Create Poll</button>
+          </form>
+        </div>
+      </section>
+      
+      <!-- Create Announcement Section -->
+      <section id="create-announcement" class="content-section">
+        <div class="card">
+          <h2>Create Announcement</h2>
+    
+    <form onsubmit="event.preventDefault(); createAnnouncement();">
+      <div class="form-group">
+        <label for="announcementTitle">Title</label>
+        <input id="announcementTitle" type="text" placeholder="Enter announcement title" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="announcementContent">Content</label>
+        <textarea id="announcementContent" placeholder="Enter announcement content" rows="6" required></textarea>
+      </div>
+      
+      <div class="form-group">
+        <label>Assign To</label>
+        <div id="announcementAssignTo" style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+          <!-- Checkboxes will be populated by JavaScript -->
+        </div>
+      </div>
+      
+            <button type="submit" class="btn-warning"><i class="fas fa-bullhorn"></i> Create Announcement</button>
+          </form>
+        </div>
+      </section>
+      
+      <!-- Create Resource Section -->
+      <section id="create-resource" class="content-section">
+        <div class="card">
+          <h2>Create Resource</h2>
+    
+    <form onsubmit="event.preventDefault(); createResource();">
+      <div class="form-group">
+        <label for="resourceTitle">Title</label>
+        <input id="resourceTitle" type="text" placeholder="Enter resource title" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="resourceDescription">Description</label>
+        <textarea id="resourceDescription" placeholder="Enter resource description" rows="4" required></textarea>
+      </div>
+      
+      <div class="form-group">
+        <label for="resourceLink">Link</label>
+        <input id="resourceLink" type="url" placeholder="https://example.com/resource" required>
+        <p style="font-size: 0.85rem; color: #94a3b8; margin-top: 0.25rem;">URL of the resource (required).</p>
+      </div>
+      
+          <button type="submit" class="btn-success"><i class="fas fa-book"></i> Create Resource</button>
+        </form>
+      </div>
+      </section>
+      
+      <!-- Manage Polls Section -->
+      <section id="manage-polls" class="content-section">
+        <div class="card">
+          <h2><i class="fas fa-poll"></i> Manage Polls</h2>
+          <div id="pollsList">
+            <p style="color: #94a3b8; text-align: center;">Loading polls...</p>
+          </div>
+        </div>
+      </section>
+      
+      <!-- Manage Announcements Section -->
+      <section id="manage-announcements" class="content-section">
+        <div class="card">
+          <h2><i class="fas fa-bullhorn"></i> Manage Announcements</h2>
+          <div id="announcementsList">
+            <p style="color: #94a3b8; text-align: center;">Loading announcements...</p>
+          </div>
+        </div>
+      </section>
+      
+      <!-- Support Tickets Section -->
+      <section id="support-tickets" class="content-section">
+        <div class="card">
+          <h2><i class="fas fa-ticket-alt"></i> Support Tickets</h2>
+          <div id="ticketsList">
+            <p style="color: #94a3b8; text-align: center;">Loading tickets...</p>
+          </div>
+        </div>
+      </section>
+      
+      <!-- Manage Resources Section -->
+      <section id="manage-resources" class="content-section">
+        <div class="card">
+          <h2><i class="fas fa-book"></i> Manage Resources</h2>
+          <div id="resourcesList">
+            <p style="color: #94a3b8; text-align: center;">Loading resources...</p>
+          </div>
+        </div>
+      </section>
+      
+      <!-- Progress Report Section -->
+      <section id="progress-report" class="content-section">
+        <div class="card">
+          <h2><i class="fas fa-chart-line"></i> Thesis Progress Report</h2>
+          <div id="progressReportPanel">
+            <p style="color: #94a3b8; text-align: center;">Loading thesis progress report...</p>
+          </div>
+          <button type="button" onclick="saveProgressReport()" class="btn-success" style="margin-top: 1rem;"><i class="fas fa-save"></i> Save Progress</button>
+        </div>
+      </section>
+      
+      <!-- Task Analytics Section -->
+      <section id="task-analytics" class="content-section">
+        <div class="card analytics-card">
+          <h2><i class="fas fa-chart-bar"></i> Task Analytics</h2>
+          <div class="chart-container">
+            <canvas id="taskChart"></canvas>
+          </div>
+        </div>
+      </section>
+      
+      <!-- All Tasks Section -->
+      <section id="all-tasks" class="content-section">
+        <div class="card">
+          <h2><i class="fas fa-clipboard-list"></i> All Tasks</h2>
+          <div id="tasks"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<footer style="text-align: center; padding: 1rem; color: #94a3b8; font-size: 0.8rem; margin-top: 2rem;">
+  task assignment system for thesis
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Navigation functions
+function showSection(sectionId) {
+  // Hide all sections
+  const sections = document.querySelectorAll('.content-section');
+  sections.forEach(section => section.classList.remove('active'));
+  
+  // Show selected section
+  const targetSection = document.getElementById(sectionId);
+  if (targetSection) {
+    targetSection.classList.add('active');
+  }
+  
+  // Update active nav button
+  const navButtons = document.querySelectorAll('.nav-btn');
+  navButtons.forEach(btn => btn.classList.remove('active'));
+  
+  // Find and activate the corresponding nav button
+  const activeBtn = document.querySelector(`[onclick="showSection('${sectionId}')"]`);
+  if (activeBtn) {
+    activeBtn.classList.add('active');
+  }
+  
+  // Update page title
+  const titles = {
+    'create-task': '<i class="fas fa-plus"></i> Create Task',
+    'create-poll': '<i class="fas fa-poll"></i> Create Poll',
+    'create-announcement': '<i class="fas fa-bullhorn"></i> Create Announcement',
+    'create-resource': '<i class="fas fa-book"></i> Create Resource',
+    'manage-polls': '<i class="fas fa-poll"></i> Manage Polls',
+    'manage-announcements': '<i class="fas fa-bullhorn"></i> Manage Announcements',
+    'support-tickets': '<i class="fas fa-ticket-alt"></i> Support Tickets',
+    'manage-resources': '<i class="fas fa-book"></i> Manage Resources',
+    'progress-report': '<i class="fas fa-chart-line"></i> Progress Report',
+    'task-analytics': '<i class="fas fa-chart-bar"></i> Task Analytics',
+    'all-tasks': '<i class="fas fa-clipboard-list"></i> All Tasks'
+  };
+  
+  const pageTitle = document.getElementById('page-title');
+  if (pageTitle && titles[sectionId]) {
+    pageTitle.innerHTML = titles[sectionId];
+  }
+  
+  // Trigger chart update when analytics is shown
+  if (sectionId === 'task-analytics') {
+    setTimeout(() => {
+      if (window.updateChart && window.lastMemberProgress !== undefined) {
+        window.updateChart(window.lastMemberProgress);
+      }
+    }, 50); // Faster response when switching tabs
+  }
+  
+  // Close mobile sidebar after selection
+  closeMobileSidebar();
+}
+
+function toggleSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  sidebar.classList.toggle('collapsed');
+  
+  const appContainer = document.querySelector('.app-container');
+  appContainer.classList.toggle('has-collapsed-sidebar');
+}
+
+function toggleMobileSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.querySelector('.sidebar-overlay');
+  
+  sidebar.classList.toggle('open');
+  overlay.classList.toggle('show');
+}
+
+function closeMobileSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.querySelector('.sidebar-overlay');
+  
+  sidebar.classList.remove('open');
+  overlay.classList.remove('show');
+}
+</script>
+<script type="module">
+  import { requireAuth } from "./auth.js?v=3";
+  await requireAuth(['admin']);
+</script>
+<script type="module" src="admin.js?v=3"></script>
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("service-worker.js");
+}
+</script>
+
+</body>
+</html>
