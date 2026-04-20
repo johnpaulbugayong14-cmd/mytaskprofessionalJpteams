@@ -1,5 +1,3 @@
-import { GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO } from "./github-token.js";
-
 // Push Notifications Manager for cross-platform compatibility
 class PushNotificationsManager {
   constructor() {
@@ -85,101 +83,12 @@ import {
   deleteDoc,
   setDoc,
   getDoc,
-  getDocs,
   arrayUnion
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-import { db, auth } from "./firebase.js";
+import { db } from "./firebase.js";
 import { signOutUser, getStoredUserEmail, getStoredUserRole } from "./auth.js";
 import { sendNotificationToUsers, showLocalNotification, initializeNotifications } from "./notifications.js";
-
-console.log('=== admin.js loaded ===');
-console.log('Firestore db object:', db);
-console.log('Firebase auth currentUser:', auth?.currentUser);
-
-window.addEventListener('error', (event) => {
-  console.error('Admin runtime error:', event.error || event.message, event.filename, event.lineno, event.colno);
-});
-window.addEventListener('unhandledrejection', (event) => {
-  console.error('Admin unhandled rejection:', event.reason);
-});
-
-// GitHub Actions Configuration
-const GITHUB_CONFIG = {
-  owner: GITHUB_OWNER,
-  repo: GITHUB_REPO
-};
-
-function getGithubToken() {
-  return localStorage.getItem('github_token') || GITHUB_TOKEN || '';
-}
-
-const EMAIL_BACKEND_CONFIG = {
-  enabled: true,
-  type: 'github' // Use GitHub Actions instead of API endpoint
-};
-
-// User Email Mapping (login email → actual recipient email)
-const USER_EMAIL_MAP = {
-  'kingfordnabor@gmail.com': 'kingfordnabor20@gmail.com',
-  'allancorral@gmail.com': 'allancorral084@gmail.com',
-  'phricksborebor@gmail.com': 'boreborpj16@gmail.com',
-  'moezarperez@gmail.com': 'moezarg19@gmail.com',
-  'rogelioledda@gmail.com': 'rogelioledda051506@gmail.com'
-};
-
-// Get recipient email from user ID
-function getRecipientEmail(userId) {
-  return USER_EMAIL_MAP[userId] || userId;
-}
-
-// Helper function to trigger email notifications via secure backend proxy
-async function triggerEmailNotification(userEmail, userName, type, title) {
-  if (!EMAIL_BACKEND_CONFIG.enabled) {
-    console.log('Email backend not enabled. Skipping email.');
-    return false;
-  }
-
-  try {
-    const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/dispatches`;
-    
-    const token = getGithubToken();
-    if (!token) {
-      console.error('GitHub token missing. Set localStorage.github_token with a valid PAT.');
-      return false;
-    }
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `token ${token}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/vnd.github.v3+json'
-      },
-      body: JSON.stringify({
-        event_type: 'send-email',
-        client_payload: {
-          email: userEmail,
-          name: userName,
-          type: type,
-          title: title
-        }
-      })
-    });
-
-    if (response.ok) {
-      console.log(`Email notification triggered via GitHub Actions`);
-      return true;
-    } else {
-      console.error(`Failed to trigger workflow: ${response.status}`);
-      return false;
-    }
-  } catch (error) {
-    console.error('Error triggering email notification:', error);
-    return false;
-  }
-
 
 window.signOutUser = signOutUser;
 
@@ -219,21 +128,6 @@ let members = [
       await new Promise(resolve => setTimeout(resolve, 200));
     }
   }
-
-  // Verify admin role - redirect if not admin
-  if (!adminEmail || adminRole !== 'admin') {
-    console.error('Access denied: Not an admin user', { email: adminEmail, role: adminRole });
-    alert('Access denied. Admin privileges required.');
-    window.location.href = 'login.html';
-    return;
-  }
-
-  console.log('Admin access verified:', adminEmail, adminRole);
-
-  // Initialize notifications
-  initializeNotifications().catch(err => console.error("Notification initialization failed:", err));
-
-})();
 
 function getDefaultProgressStructure() {
   return [
@@ -440,49 +334,22 @@ loadAnnouncementAssignTo();
     console.log('Push action performed: ', notification);
   });
 
-  // Check task deadlines and send reminders (only once per day)
-  const lastDeadlineCheck = localStorage.getItem('lastDeadlineCheck');
-  const today = new Date().toDateString();
-
-  if (lastDeadlineCheck !== today) {
-    checkTaskDeadlines();
-    localStorage.setItem('lastDeadlineCheck', today);
-  } else {
-    console.log('Deadline check already performed today, skipping...');
-  }
-
   // Set up listeners after authentication
   console.log('=== SETTING UP ADMIN LISTENERS ===');
   console.log('Admin authenticated, email:', adminEmail, 'role:', adminRole);
 
-  // Ensure Firebase auth is initialized
-  try {
-    if (!auth.currentUser) {
-      console.log('Initializing Firebase anonymous auth for admin...');
-      await signInAnonymously(auth);
-      console.log('Firebase auth initialized successfully');
-    }
-  } catch (authError) {
-    console.error('Failed to initialize Firebase auth:', authError);
-    alert('Authentication failed. Please try logging in again.');
-    window.location.href = 'login.html';
-    return;
-  }
-
   /* LOAD TICKETS */
-  try {
-    console.log('Registering tickets onSnapshot listener...');
-    onSnapshot(collection(db, "tickets"), (snap) => {
-        console.log('=== ADMIN TICKETS LISTENER TRIGGERED ===');
-        console.log('Tickets snapshot received, docs count:', snap.size);
-        const container = document.getElementById("ticketsList");
-        if (!container) return;
-        container.innerHTML = "";
+  onSnapshot(collection(db, "tickets"), (snap) => {
+    console.log('=== ADMIN TICKETS LISTENER TRIGGERED ===');
+    console.log('Tickets snapshot received, docs count:', snap.size);
+    const container = document.getElementById("ticketsList");
+    if (!container) return;
+    container.innerHTML = "";
 
-        if (snap.empty) {
-          container.innerHTML = "<p style='color: #94a3b8; text-align: center;'>No support tickets submitted yet.</p>";
-          return;
-        }
+    if (snap.empty) {
+      container.innerHTML = "<p style='color: #94a3b8; text-align: center;'>No support tickets submitted yet.</p>";
+      return;
+    }
 
     const docs = [];
     snap.forEach(docSnap => docs.push(docSnap));
@@ -555,26 +422,16 @@ loadAnnouncementAssignTo();
       `;
       console.log('Generated ticket HTML:', html.substring(0, 200) + '...');
       container.innerHTML += html;
-    }, (error) => {
-      console.error('Tickets listener error:', error);
-      const container = document.getElementById("ticketsList");
-      if (container) {
-        container.innerHTML = "<p style='color: #ef4444; text-align: center;'>Error loading tickets. Check console for details.</p>";
-      }
     });
-  } catch (error) {
-    console.error('Failed to set up tickets listener:', error);
-  }
+  });
 
   /* LOAD RESOURCES */
-  try {
-    console.log('Registering resources onSnapshot listener...');
-    onSnapshot(collection(db, "resources"), (snap) => {
-      console.log('=== ADMIN RESOURCES LISTENER TRIGGERED ===');
-      console.log('Resources snapshot received, docs count:', snap.size);
-      const container = document.getElementById("resourcesList");
-      if (!container) return;
-      container.innerHTML = "";
+  onSnapshot(collection(db, "resources"), (snap) => {
+    console.log('=== ADMIN RESOURCES LISTENER TRIGGERED ===');
+    console.log('Resources snapshot received, docs count:', snap.size);
+    const container = document.getElementById("resourcesList");
+    if (!container) return;
+    container.innerHTML = "";
 
     if (snap.empty) {
       container.innerHTML = "<p style='color: #94a3b8; text-align: center;'>No resources created yet.</p>";
@@ -615,10 +472,8 @@ function loadProgressReport() {
   const progressRef = doc(db, progressReportCollection, progressReportDocId);
   console.log('Progress report reference:', progressRef);
 
-  try {
-    console.log('Registering progress report onSnapshot listener...');
-    onSnapshot(progressRef, (snap) => {
-      console.log('Progress report snapshot received:', snap.exists());
+  onSnapshot(progressRef, (snap) => {
+    console.log('Progress report snapshot received:', snap.exists());
     let sections = getDefaultProgressStructure();
     if (snap.exists()) {
       const data = snap.data();
@@ -640,16 +495,7 @@ function loadProgressReport() {
       setDoc(progressRef, { sections }, { merge: true });
     }
     renderAdminProgressReport(sections);
-    }, (error) => {
-      console.error('Progress report listener error:', error);
-      const container = document.getElementById("progressReportPanel");
-      if (container) {
-        container.innerHTML = "<p style='color: #ef4444; text-align: center;'>Error loading progress report. Check console for details.</p>";
-      }
-    });
-  } catch (error) {
-    console.error('Failed to set up progress report listener:', error);
-  }
+  });
 }
 
 /* CREATE TASK */
@@ -687,11 +533,6 @@ window.createTask = async function () {
       const notificationBody = `You have been assigned a new task: "${title}"`;
       await sendNotificationToUsers([assignedTo], notificationTitle, notificationBody, 'task');
       showLocalNotification(notificationTitle, notificationBody);
-      
-      // Trigger email notification via GitHub Actions
-      const recipientEmail = getRecipientEmail(assignedTo);
-      const member = members.find(m => m.uid === assignedTo);
-      await triggerEmailNotification(recipientEmail, member.name, 'task', title);
     }
 
     document.getElementById("title").value = "";
@@ -747,10 +588,8 @@ window.needAction = async function (id) {
 };
 
 /* REALTIME + GRAPH */
-try {
-  console.log('Registering tasks onSnapshot listener...');
-  onSnapshot(collection(db, "tasks"), (snap) => {
-    const now = Date.now();
+onSnapshot(collection(db, "tasks"), (snap) => {
+  const now = Date.now();
   const container = document.getElementById("tasks");
 
   const docs = [];
@@ -814,16 +653,7 @@ try {
     });
     container.innerHTML = html;
   }
-}, (error) => {
-  console.error('Tasks listener error:', error);
-  const container = document.getElementById("tasks");
-  if (container) {
-    container.innerHTML = "<p style='color: #ef4444; text-align: center;'>Error loading tasks. Check console for details.</p>";
-  }
 });
-} catch (error) {
-  console.error('Failed to set up tasks listener:', error);
-}
 
 // Update chart only when analytics is visible and data changed
 function updateChartIfNeeded() {
@@ -1074,14 +904,6 @@ window.createPoll = async function () {
     await sendNotificationToUsers(allMemberEmails, notificationTitle, notificationBody, 'poll');
     showLocalNotification(notificationTitle, notificationBody);
 
-    // Trigger email notifications via GitHub Actions for each member
-    for (const member of members) {
-      if (member.uid !== "everyone") {
-        const recipientEmail = getRecipientEmail(member.uid);
-        await triggerEmailNotification(recipientEmail, member.name, 'poll', question);
-      }
-    }
-
     document.getElementById("pollQuestion").value = "";
     optionInputs.forEach(input => input.value = "");
     
@@ -1236,14 +1058,6 @@ window.createAnnouncement = async function () {
     const notificationBody = `New announcement: "${title}"`;
     await sendNotificationToUsers(assignedTo, notificationTitle, notificationBody, 'announcement');
     showLocalNotification(notificationTitle, notificationBody);
-
-    // Trigger email notifications via GitHub Actions for each assigned user
-    for (let i = 0; i < assignedTo.length; i++) {
-      const userId = assignedTo[i];
-      const userName = assignedToNames[i];
-      const recipientEmail = getRecipientEmail(userId);
-      await triggerEmailNotification(recipientEmail, userName, 'announcement', title);
-    }
 
     document.getElementById("announcementTitle").value = "";
     document.getElementById("announcementContent").value = "";
@@ -1510,99 +1324,10 @@ window.deleteResource = async function (id) {
   }
 };
 
-/* CHECK TASK DEADLINES AND SEND REMINDERS */
-async function checkTaskDeadlines() {
-  try {
-    console.log('Checking task deadlines...');
-    const tasksSnapshot = await getDocs(collection(db, "tasks"));
-    const now = new Date();
-    const tasksToRemind = [];
-
-    tasksSnapshot.forEach((doc) => {
-      const task = { id: doc.id, ...doc.data() };
-      if (task.status !== 'completed' && task.deadline) {
-        const deadline = new Date(task.deadline);
-        const timeDiff = deadline - now;
-        const hoursDiff = timeDiff / (1000 * 60 * 60);
-
-        // Check if task is overdue or due within 24 hours
-        if (hoursDiff < 0) {
-          // Overdue - check if we sent a reminder today
-          const lastOverdueReminder = task.lastOverdueReminder ? new Date(task.lastOverdueReminder) : null;
-          const shouldSendOverdue = !lastOverdueReminder || (now - lastOverdueReminder) > (24 * 60 * 60 * 1000); // 24 hours
-
-          if (shouldSendOverdue) {
-            tasksToRemind.push({ ...task, type: 'overdue' });
-          }
-        } else if (hoursDiff <= 24) {
-          // Due within 24 hours - check if we sent a reminder today
-          const lastDueSoonReminder = task.lastDueSoonReminder ? new Date(task.lastDueSoonReminder) : null;
-          const shouldSendDueSoon = !lastDueSoonReminder || (now - lastDueSoonReminder) > (24 * 60 * 60 * 1000); // 24 hours
-
-          if (shouldSendDueSoon) {
-            tasksToRemind.push({ ...task, type: 'due_soon' });
-          }
-        }
-      }
-    });
-
-    // Send notifications for tasks that need reminders
-    for (const task of tasksToRemind) {
-      if (task.assignedTo && task.assignedTo !== 'everyone') {
-        const recipientEmail = getRecipientEmail(task.assignedTo);
-        const member = members.find(m => m.uid === task.assignedTo);
-        
-        if (recipientEmail && member) {
-          let notificationType, title, body;
-          
-          if (task.type === 'overdue') {
-            notificationType = 'overdue';
-            title = `Task Overdue: ${task.title}`;
-            body = `Your task "${task.title}" is overdue. Please complete it as soon as possible.`;
-          } else {
-            notificationType = 'due_soon';
-            title = `Task Due Soon: ${task.title}`;
-            body = `Your task "${task.title}" is due within 24 hours. Deadline: ${new Date(task.deadline).toLocaleString()}`;
-          }
-
-          // Send push notification
-          await sendNotificationToUsers([task.assignedTo], title, body, notificationType);
-          
-          // Send email notification
-          await triggerEmailNotification(recipientEmail, member.name, notificationType, task.title);
-          
-          // Update the task with the last reminder timestamp
-          const updateData = {};
-          if (task.type === 'overdue') {
-            updateData.lastOverdueReminder = now.toISOString();
-          } else {
-            updateData.lastDueSoonReminder = now.toISOString();
-          }
-
-          try {
-            await updateDoc(doc(db, "tasks", task.id), updateData);
-            console.log(`Updated reminder timestamp for task "${task.title}"`);
-          } catch (updateError) {
-            console.error('Error updating reminder timestamp:', updateError);
-          }
-
-          console.log(`Sent ${task.type} reminder for task "${task.title}" to ${member.name}`);
-        }
-      }
-    }
-
-    if (tasksToRemind.length > 0) {
-      console.log(`Sent reminders for ${tasksToRemind.length} tasks`);
-    } else {
-      console.log('No tasks need reminders');
-    }
-  } catch (error) {
-    console.error('Error checking task deadlines:', error);
-  }
-}
-
 console.log('=== ADMIN.JS FUNCTIONS LOADED ===');
 console.log('window.respondToTicket:', typeof window.respondToTicket);
 console.log('window.changeTicketStatus:', typeof window.changeTicketStatus);
 console.log('window.deleteTicket:', typeof window.deleteTicket);
 console.log('window.deleteResource:', typeof window.deleteResource);
+
+})();
