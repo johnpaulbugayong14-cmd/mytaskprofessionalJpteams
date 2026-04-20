@@ -90,11 +90,20 @@ jobs:
               const daysUntilDue = Math.ceil(timeDiff / (1000 * 3600 * 24));
               
               const recipientEmail = emailMapping[task.assignedTo] || task.assignedTo;
-              if (!recipientEmail) continue;
+              console.log(`Task check: title=${task.title || 'unknown'} status=${task.status} assignedTo=${task.assignedTo} deadline=${task.deadline} isValidDeadline=${!isNaN(deadline.getTime())} daysUntilDue=${daysUntilDue} recipientEmail=${recipientEmail}`);
+              if (!recipientEmail) {
+                console.log(`Skipping task ${task.title || taskDoc.id} because no recipient email is available.`);
+                continue;
+              }
+              
+              if (isNaN(deadline.getTime())) {
+                console.log(`Skipping task ${task.title || taskDoc.id} because deadline is invalid.`);
+                continue;
+              }
               
               // Check if task is overdue
-              if (daysUntilDue < 0) {
-                const daysOverdue = Math.abs(daysUntilDue);
+              if (timeDiff < 0) {
+                const daysOverdue = Math.ceil(Math.abs(timeDiff) / (1000 * 3600 * 24));
                 
                 // Check if we already sent overdue notification for this task today
                 const lastOverdueNotification = task.lastOverdueNotificationDate ? new Date(task.lastOverdueNotificationDate) : null;
