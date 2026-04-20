@@ -90,74 +90,6 @@ import { db } from "./firebase.js";
 import { signOutUser, getStoredUserEmail, getStoredUserRole } from "./auth.js";
 import { sendNotificationToUsers, showLocalNotification, initializeNotifications } from "./notifications.js";
 
-// GitHub Actions Configuration
-const GITHUB_CONFIG = {
-  owner: 'johnpaulbugayong14-cmd',  // Your GitHub username
-  repo: 'mytaskprofessionalJpteams', // Your repository name
-  token: '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' // Your token
-};
-
-const EMAIL_BACKEND_CONFIG = {
-  enabled: true,
-  type: 'github' // Use GitHub Actions instead of API endpoint
-};
-
-// User Email Mapping (login email → actual recipient email)
-const USER_EMAIL_MAP = {
-  'kingfordnabor@gmail.com': 'kingfordnabor20@gmail.com',
-  'allancorral@gmail.com': 'allancorral084@gmail.com',
-  'phricksborebor@gmail.com': 'boreborpj16@gmail.com',
-  'moezarperez@gmail.com': 'moezarg19@gmail.com',
-  'rogelioledda@gmail.com': 'rogelioledda051506@gmail.com'
-};
-
-// Get recipient email from user ID
-function getRecipientEmail(userId) {
-  return USER_EMAIL_MAP[userId] || userId;
-}
-
-// Helper function to trigger email notifications via secure backend proxy
-async function triggerEmailNotification(userEmail, userName, type, title) {
-  if (!EMAIL_BACKEND_CONFIG.enabled) {
-    console.log('Email backend not enabled. Skipping email.');
-    return false;
-  }
-
-  try {
-    const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/actions/workflows/send-email-notification.yml/dispatches`;
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `token ${GITHUB_CONFIG.token}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/vnd.github.v3+json'
-      },
-      body: JSON.stringify({
-        ref: 'main',
-        inputs: {
-          email: userEmail,
-          name: userName,
-          type: type,
-          title: title,
-          body: `You have a new ${type} notification: ${title}`
-        }
-      })
-    });
-
-    if (response.ok) {
-      console.log(`Email notification triggered via GitHub Actions`);
-      return true;
-    } else {
-      console.error(`Failed to trigger workflow: ${response.status}`);
-      return false;
-    }
-  } catch (error) {
-    console.error('Error triggering email notification:', error);
-    return false;
-  }
-
-
 window.signOutUser = signOutUser;
 
 const pushNotificationsManager = new PushNotificationsManager();
@@ -196,9 +128,6 @@ let members = [
       await new Promise(resolve => setTimeout(resolve, 200));
     }
   }
-
-  // Initialize notifications
-  initializeNotifications().catch(err => console.error("Notification initialization failed:", err));
 
 function getDefaultProgressStructure() {
   return [
@@ -604,11 +533,6 @@ window.createTask = async function () {
       const notificationBody = `You have been assigned a new task: "${title}"`;
       await sendNotificationToUsers([assignedTo], notificationTitle, notificationBody, 'task');
       showLocalNotification(notificationTitle, notificationBody);
-      
-      // Trigger email notification via GitHub Actions
-      const recipientEmail = getRecipientEmail(assignedTo);
-      const member = members.find(m => m.uid === assignedTo);
-      await triggerEmailNotification(recipientEmail, member.name, 'task', title);
     }
 
     document.getElementById("title").value = "";
@@ -980,14 +904,6 @@ window.createPoll = async function () {
     await sendNotificationToUsers(allMemberEmails, notificationTitle, notificationBody, 'poll');
     showLocalNotification(notificationTitle, notificationBody);
 
-    // Trigger email notifications via GitHub Actions for each member
-    for (const member of members) {
-      if (member.uid !== "everyone") {
-        const recipientEmail = getRecipientEmail(member.uid);
-        await triggerEmailNotification(recipientEmail, member.name, 'poll', question);
-      }
-    }
-
     document.getElementById("pollQuestion").value = "";
     optionInputs.forEach(input => input.value = "");
     
@@ -1142,14 +1058,6 @@ window.createAnnouncement = async function () {
     const notificationBody = `New announcement: "${title}"`;
     await sendNotificationToUsers(assignedTo, notificationTitle, notificationBody, 'announcement');
     showLocalNotification(notificationTitle, notificationBody);
-
-    // Trigger email notifications via GitHub Actions for each assigned user
-    for (let i = 0; i < assignedTo.length; i++) {
-      const userId = assignedTo[i];
-      const userName = assignedToNames[i];
-      const recipientEmail = getRecipientEmail(userId);
-      await triggerEmailNotification(recipientEmail, userName, 'announcement', title);
-    }
 
     document.getElementById("announcementTitle").value = "";
     document.getElementById("announcementContent").value = "";

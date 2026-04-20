@@ -4,74 +4,6 @@ import { signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/fi
 import { getStoredUserEmail, signOutUser } from "./auth.js";
 import { initializeNotifications, sendNotificationToUsers, showLocalNotification } from "./notifications.js";
 
-// GitHub Actions Configuration
-const GITHUB_CONFIG = {
-  owner: 'johnpaulbugayong14-cmd',  // Your GitHub username
-  repo: 'mytaskprofessionalJpteams', // Your repository name
-  token: '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' // Your token
-};
-
-const EMAIL_BACKEND_CONFIG = {
-  enabled: true,
-  type: 'github' // Use GitHub Actions instead of API endpoint
-};
-
-// User Email Mapping (login email → actual recipient email)
-const USER_EMAIL_MAP = {
-  'kingfordnabor@gmail.com': 'kingfordnabor20@gmail.com',
-  'allancorral@gmail.com': 'allancorral084@gmail.com',
-  'phricksborebor@gmail.com': 'boreborpj16@gmail.com',
-  'moezarperez@gmail.com': 'moezarg19@gmail.com',
-  'rogelioledda@gmail.com': 'rogelioledda051506@gmail.com'
-};
-
-// Get recipient email from user ID
-function getRecipientEmail(userId) {
-  return USER_EMAIL_MAP[userId] || userId;
-}
-
-// Helper function to trigger email notifications via secure backend proxy
-async function triggerEmailNotification(userEmail, userName, type, title) {
-  if (!EMAIL_BACKEND_CONFIG.enabled) {
-    console.log('Email backend not enabled. Skipping email.');
-    return false;
-  }
-
-  try {
-    const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/actions/workflows/send-email-notification.yml/dispatches`;
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `token ${GITHUB_CONFIG.token}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/vnd.github.v3+json'
-      },
-      body: JSON.stringify({
-        ref: 'main',
-        inputs: {
-          email: userEmail,
-          name: userName,
-          type: type,
-          title: title,
-          body: `You have a new ${type} notification: ${title}`
-        }
-      })
-    });
-
-    if (response.ok) {
-      console.log(`Email notification triggered via GitHub Actions`);
-      return true;
-    } else {
-      console.error(`Failed to trigger workflow: ${response.status}`);
-      return false;
-    }
-  } catch (error) {
-    console.error('Error triggering email notification:', error);
-    return false;
-  }
-}
-
 window.signOutUser = signOutUser;
 
 let userEmail = null;
@@ -304,15 +236,12 @@ window.submitTicket = async function () {
 
     // Send notification to admin (non-blocking)
     try {
-      const adminEmail = "johnpaulbugayong14@gmail.com"; // Admin email
+      const adminEmail = "johnpaulbugayong@gmail.com"; // Admin email
       const notificationTitle = "New Support Ticket Submitted";
       const notificationBody = `New ticket: "${title}" submitted by ${getUserName(userEmail)}`;
       console.log('Sending notification...');
       await sendNotificationToUsers([adminEmail], notificationTitle, notificationBody, 'ticket');
       console.log('Notification process completed');
-      
-      // Trigger email notification via GitHub Actions
-      await triggerEmailNotification(adminEmail, "Admin", 'ticket', title);
     } catch (notificationError) {
       console.warn("Notification process failed:", notificationError);
     }
