@@ -457,17 +457,18 @@ loadAnnouncementAssignTo();
   }
 
   /* LOAD TICKETS */
-  onSnapshot(collection(db, "tickets"), (snap) => {
-      console.log('=== ADMIN TICKETS LISTENER TRIGGERED ===');
-      console.log('Tickets snapshot received, docs count:', snap.size);
-      const container = document.getElementById("ticketsList");
-      if (!container) return;
-      container.innerHTML = "";
+  try {
+    onSnapshot(collection(db, "tickets"), (snap) => {
+        console.log('=== ADMIN TICKETS LISTENER TRIGGERED ===');
+        console.log('Tickets snapshot received, docs count:', snap.size);
+        const container = document.getElementById("ticketsList");
+        if (!container) return;
+        container.innerHTML = "";
 
-      if (snap.empty) {
-        container.innerHTML = "<p style='color: #94a3b8; text-align: center;'>No support tickets submitted yet.</p>";
-        return;
-      }
+        if (snap.empty) {
+          container.innerHTML = "<p style='color: #94a3b8; text-align: center;'>No support tickets submitted yet.</p>";
+          return;
+        }
 
     const docs = [];
     snap.forEach(docSnap => docs.push(docSnap));
@@ -541,7 +542,16 @@ loadAnnouncementAssignTo();
       console.log('Generated ticket HTML:', html.substring(0, 200) + '...');
       container.innerHTML += html;
     });
-  });
+    }, (error) => {
+      console.error('Error loading tickets:', error);
+      const container = document.getElementById("ticketsList");
+      if (container) {
+        container.innerHTML = "<p style='color: #ef4444; text-align: center;'>Error loading tickets. Check console for details.</p>";
+      }
+    });
+  } catch (error) {
+    console.error('Failed to set up tickets listener:', error);
+  }
 
   /* LOAD RESOURCES */
   onSnapshot(collection(db, "resources"), (snap) => {
