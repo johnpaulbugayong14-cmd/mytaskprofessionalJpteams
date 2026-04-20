@@ -1,0 +1,42 @@
+name: Send Email Notification
+
+on:
+  repository_dispatch:
+    types: [send-email]
+
+jobs:
+  send-email:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify secrets exist
+        run: |
+          if [ -z "${{ secrets.GMAIL_USER }}" ]; then
+            echo "ERROR: GMAIL_USER secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.GMAIL_PASS }}" ]; then
+            echo "ERROR: GMAIL_PASS secret is not set"
+            exit 1
+          fi
+          echo "Secrets verified"
+      
+      - name: Send Email via Gmail
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_PASS }}
+          subject: New ${{ github.event.client_payload.type }} assigned to you
+          to: ${{ github.event.client_payload.email }}
+          from: ${{ secrets.GMAIL_USER }}
+          body: |
+            Hello ${{ github.event.client_payload.name }},
+            
+            You have a new ${{ github.event.client_payload.type }}: ${{ github.event.client_payload.title }}
+            
+            Please log in to your account to review the details.
+            
+            Best regards,
+            MyTask Professional System
+          reply_to: noreply@mytaskprofessional.com
