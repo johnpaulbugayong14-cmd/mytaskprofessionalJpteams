@@ -183,7 +183,7 @@ export async function sendNotificationToUsers(userEmails, title, body, type = 'g
     const GITHUB_CONFIG = {
       owner: 'johnpaulbugayong14-cmd',
       repo: 'mytaskprofessionalJpteams',
-      token: localStorage.getItem('github_token') || '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'
+      token: localStorage.getItem('github_token') || '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'
     };
 
     const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/actions/workflows/send-push-notification.yml/dispatches`;
