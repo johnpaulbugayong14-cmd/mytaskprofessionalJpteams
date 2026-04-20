@@ -1,0 +1,144 @@
+name: Send Poll Email Notifications
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'  # Every 5 minutes
+  workflow_dispatch:
+
+jobs:
+  send-poll-emails:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install firebase-admin nodemailer
+
+      - name: Send poll notification emails
+        uses: actions/github-script@v7
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_PASSWORD: ${{ secrets.GMAIL_PASSWORD }}
+        with:
+          script: |
+            const admin = require('firebase-admin');
+            const nodemailer = require('nodemailer');
+            
+            // Initialize Firebase
+            const serviceAccount = {
+              type: "service_account",
+              project_id: process.env.FIREBASE_PROJECT_ID,
+              private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+              client_email: process.env.FIREBASE_CLIENT_EMAIL,
+              client_id: process.env.FIREBASE_CLIENT_ID || "",
+              auth_uri: "https://accounts.google.com/o/oauth2/auth",
+              token_uri: "https://oauth2.googleapis.com/token",
+              auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
+              client_x509_cert_url: process.env.FIREBASE_CERT_URL || ""
+            };
+            
+            admin.initializeApp({
+              credential: admin.credential.cert(serviceAccount),
+              databaseURL: "https://task-edd4d.firebaseio.com"
+            });
+            
+            const db = admin.firestore();
+            
+            // Email mapping
+            const emailMapping = {
+              'johnpaulbugayong@gmail.com': 'johnpaulbugayong14@gmail.com',
+              'kingfordnabor@gmail.com': 'kingfordnabor20@gmail.com',
+              'allancorral@gmail.com': 'allancorral084@gmail.com',
+              'phricksborebor@gmail.com': 'boreborpj16@gmail.com',
+              'moezarperez@gmail.com': 'moezarg19@gmail.com',
+              'rogelioledda@gmail.com': 'rogelioledda051506@gmail.com'
+            };
+            
+            // Configure email transporter
+            const transporter = nodemailer.createTransport({
+              service: 'gmail',
+              auth: {
+                user: process.env.GMAIL_USER,
+                pass: process.env.GMAIL_PASSWORD
+              }
+            });
+            
+            // Get new polls that haven't been notified yet
+            const pollsSnapshot = await db.collection('polls')
+              .where('emailNotificationSent', '!=', true)
+              .get();
+            
+            console.log(`Found ${pollsSnapshot.size} new polls to notify`);
+            
+            // All members to notify for polls
+            const allMembers = [
+              'kingfordnabor@gmail.com',
+              'allancorral@gmail.com',
+              'phricksborebor@gmail.com',
+              'moezarperez@gmail.com',
+              'rogelioledda@gmail.com'
+            ];
+            
+            for (const pollDoc of pollsSnapshot.docs) {
+              const poll = pollDoc.data();
+              
+              for (const recipientEmail of allMembers) {
+                const notificationEmail = emailMapping[recipientEmail] || recipientEmail;
+                
+                if (!notificationEmail) continue;
+                
+                const htmlContent = `
+                  <html>
+                    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                      <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9;">
+                        <div style="background-color: #0ea5e9; color: white; padding: 20px; border-radius: 5px 5px 0 0; text-align: center;">
+                          <h2>New Poll</h2>
+                        </div>
+                        <div style="padding: 20px; background-color: white;">
+                          <p>Hello,</p>
+                          <p>A new poll has been created that needs your response:</p>
+                          <div style="background-color: #f0f7ff; border-left: 4px solid #0ea5e9; padding: 15px; margin: 15px 0;">
+                            <strong>Poll Question:</strong> ${poll.question}
+                          </div>
+                          <p>Please log in to the system to vote on this poll.</p>
+                          <p>
+                            <a href="https://mytaskprofessional.vercel.app/member.html" style="display: inline-block; background-color: #0ea5e9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Vote Now</a>
+                          </p>
+                        </div>
+                        <div style="background-color: #f0f0f0; padding: 15px; text-align: center; font-size: 12px; color: #666;">
+                          <p>This is an automated email notification. Please do not reply to this email.</p>
+                        </div>
+                      </div>
+                    </body>
+                  </html>
+                `;
+                
+                try {
+                  await transporter.sendMail({
+                    from: `"My Thesis Hub" <${process.env.GMAIL_USER}>`,
+                    to: notificationEmail,
+                    subject: `New Poll: ${poll.question}`,
+                    html: htmlContent
+                  });
+                  
+                  console.log(`✅ Email sent to ${notificationEmail} for poll: ${poll.question}`);
+                } catch (error) {
+                  console.error(`❌ Failed to send email to ${notificationEmail}:`, error);
+                }
+              }
+              
+              // Mark poll as notified
+              await db.collection('polls').doc(pollDoc.id).update({
+                emailNotificationSent: true,
+                emailNotificationSentAt: new Date()
+              });
+            }
