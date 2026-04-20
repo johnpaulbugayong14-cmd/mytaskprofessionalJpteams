@@ -134,3 +134,76 @@ jobs:
                 adminEmailNotificationSentAt: new Date()
               });
             }
+
+            const memberTicketsSnapshot = await db.collection('tickets')
+              .where('memberEmailNotificationSent', '!=', true)
+              .get();
+
+            console.log(`Found ${memberTicketsSnapshot.size} member ticket updates to notify`);
+
+            for (const ticketDoc of memberTicketsSnapshot.docs) {
+              const ticket = ticketDoc.data();
+              if (!ticket.memberNotificationReason) continue;
+
+              const recipientEmail = emailMapping[ticket.assignedTo] || ticket.assignedTo || ticket.submittedBy;
+              if (!recipientEmail) continue;
+
+              let subject = `Ticket Update: ${ticket.title}`;
+              let bodyDescription = `There is an update on your ticket.`;
+
+              if (ticket.memberNotificationReason === 'admin_response') {
+                subject = `Admin Replied to Your Ticket: ${ticket.title}`;
+                bodyDescription = `An admin has replied to your ticket. Please log in to view the response.`;
+              } else if (ticket.memberNotificationReason === 'status_changed') {
+                subject = `Ticket Status Updated: ${ticket.title}`;
+                bodyDescription = `Your ticket status has been changed to ${ticket.status}. Please log in to review the update.`;
+              } else if (ticket.memberNotificationTitle) {
+                subject = ticket.memberNotificationTitle;
+                bodyDescription = ticket.memberNotificationMessage || bodyDescription;
+              }
+
+              const htmlContent = `
+                <html>
+                  <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                    <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9;">
+                      <div style="background-color: #0ea5e9; color: white; padding: 20px; border-radius: 5px 5px 0 0; text-align: center;">
+                        <h2>Ticket Update</h2>
+                      </div>
+                      <div style="padding: 20px; background-color: white;">
+                        <p>Hello,</p>
+                        <p>${bodyDescription}</p>
+                        <div style="background-color: #f0f7ff; border-left: 4px solid #0ea5e9; padding: 15px; margin: 15px 0;">
+                          <strong>Ticket Title:</strong> ${ticket.title}<br>
+                          <strong>Status:</strong> ${ticket.status}<br>
+                          ${ticket.memberNotificationMessage ? `<strong>Message:</strong> ${ticket.memberNotificationMessage}<br>` : ''}
+                        </div>
+                        <p>Please log in to the system to see the latest ticket update.</p>
+                        <p>
+                          <a href="http://mytaskprofessional-jpteams.vercel.app/?v=2" style="display: inline-block; background-color: #0ea5e9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View Ticket</a>
+                        </p>
+                      </div>
+                      <div style="background-color: #f0f0f0; padding: 15px; text-align: center; font-size: 12px; color: #666;">
+                        <p>This is an automated email notification. Please do not reply to this email.</p>
+                      </div>
+                    </div>
+                  </body>
+                </html>
+              `;
+
+              try {
+                await transporter.sendMail({
+                  from: `"My Thesis Hub" <${process.env.GMAIL_USER}>`,
+                  to: recipientEmail,
+                  subject,
+                  html: htmlContent
+                });
+                console.log(`✅ Email sent to member for ticket: ${ticket.title}`);
+              } catch (error) {
+                console.error(`❌ Failed to send email to member:`, error);
+              }
+
+              await db.collection('tickets').doc(ticketDoc.id).update({
+                memberEmailNotificationSent: true,
+                memberEmailNotificationSentAt: new Date()
+              });
+            }

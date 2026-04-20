@@ -564,9 +564,30 @@ window.deleteTask = async function (id) {
 /* MARK DONE */
 window.markDone = async function (id) {
   try {
-    await updateDoc(doc(db, "tasks", id), {
-      status: "done"
+    const taskRef = doc(db, "tasks", id);
+    const taskSnap = await getDoc(taskRef);
+    if (!taskSnap.exists()) {
+      alert("Task not found.");
+      return;
+    }
+
+    const task = taskSnap.data();
+    const recipientEmail = task.assignedTo;
+    const notificationTitle = "Task Marked Complete";
+    const notificationBody = `Your task \"${task.title}\" has been marked as done by Admin.`;
+
+    await updateDoc(taskRef, {
+      status: "done",
+      statusEmailNotificationSent: false,
+      statusNotificationReason: "done",
+      statusNotificationTitle: notificationTitle,
+      statusNotificationMessage: notificationBody,
+      statusNotificationAt: new Date()
     });
+
+    if (recipientEmail) {
+      await sendNotificationToUsers([recipientEmail], notificationTitle, notificationBody, 'task');
+    }
   } catch (error) {
     console.error("Error marking done:", error);
     alert("Failed to mark task done. Please try again.");
@@ -577,9 +598,31 @@ window.markDone = async function (id) {
 window.needAction = async function (id) {
   if (confirm("Are you sure you want to mark this task as needing action? This will notify the assigned member(s).")) {
     try {
-      await updateDoc(doc(db, "tasks", id), {
-        status: "needs action"
+      const taskRef = doc(db, "tasks", id);
+      const taskSnap = await getDoc(taskRef);
+      if (!taskSnap.exists()) {
+        alert("Task not found.");
+        return;
+      }
+
+      const task = taskSnap.data();
+      const recipientEmail = task.assignedTo;
+      const notificationTitle = "Task Needs Your Attention";
+      const notificationBody = `Your task \"${task.title}\" has been marked as needing action by Admin.`;
+
+      await updateDoc(taskRef, {
+        status: "needs action",
+        statusEmailNotificationSent: false,
+        statusNotificationReason: "needs_action",
+        statusNotificationTitle: notificationTitle,
+        statusNotificationMessage: notificationBody,
+        statusNotificationAt: new Date()
       });
+
+      if (recipientEmail) {
+        await sendNotificationToUsers([recipientEmail], notificationTitle, notificationBody, 'task');
+      }
+
       alert("Task has been marked as needing action. The member(s) will see the notification in their task list.");
     } catch (error) {
       console.error("Error marking task as needing action:", error);
@@ -1268,17 +1311,38 @@ window.respondToTicket = async function(ticketId) {
   }
 
   try {
-    await updateDoc(doc(db, "tickets", ticketId), {
+    const ticketRef = doc(db, "tickets", ticketId);
+    const ticketSnap = await getDoc(ticketRef);
+    if (!ticketSnap.exists()) {
+      alert("Ticket not found.");
+      return;
+    }
+
+    const ticket = ticketSnap.data();
+    const recipientEmail = ticket.assignedTo || ticket.submittedBy;
+    const notificationTitle = "Admin Replied to Your Ticket";
+    const notificationBody = `Your ticket \"${ticket.title}\" has a new response from Admin.`;
+
+    await updateDoc(ticketRef, {
       responses: arrayUnion({
         author: "Admin",
         email: adminEmail,
         content: responseText,
         createdAt: new Date()
-      })
+      }),
+      memberEmailNotificationSent: false,
+      memberNotificationReason: "admin_response",
+      memberNotificationTitle: notificationTitle,
+      memberNotificationMessage: responseText,
+      memberNotificationAt: new Date()
     });
 
+    if (recipientEmail) {
+      await sendNotificationToUsers([recipientEmail], notificationTitle, notificationBody, 'ticket');
+    }
+
     document.getElementById(`responseInput-${ticketId}`).value = "";
-    alert("Response sent successfully!");
+    alert("Response sent successfully and notification queued.");
   } catch (error) {
     console.error("Error responding to ticket:", error);
     alert("Failed to send response. Please try again.");
@@ -1288,11 +1352,34 @@ window.respondToTicket = async function(ticketId) {
 window.changeTicketStatus = async function(ticketId, newStatus) {
   console.log('=== CHANGE TICKET STATUS CALLED ===');
   console.log('ticketId:', ticketId, 'newStatus:', newStatus);
+
   try {
-    await updateDoc(doc(db, "tickets", ticketId), {
-      status: newStatus
+    const ticketRef = doc(db, "tickets", ticketId);
+    const ticketSnap = await getDoc(ticketRef);
+    if (!ticketSnap.exists()) {
+      alert("Ticket not found.");
+      return;
+    }
+
+    const ticket = ticketSnap.data();
+    const recipientEmail = ticket.assignedTo || ticket.submittedBy;
+    const notificationTitle = "Ticket Status Updated";
+    const notificationBody = `Your ticket \"${ticket.title}\" status has been changed to ${newStatus}.`;
+
+    await updateDoc(ticketRef, {
+      status: newStatus,
+      memberEmailNotificationSent: false,
+      memberNotificationReason: "status_changed",
+      memberNotificationTitle: notificationTitle,
+      memberNotificationMessage: notificationBody,
+      memberNotificationAt: new Date()
     });
-    alert(`Ticket status changed to ${newStatus}!`);
+
+    if (recipientEmail) {
+      await sendNotificationToUsers([recipientEmail], notificationTitle, notificationBody, 'ticket');
+    }
+
+    alert(`Ticket status changed to ${newStatus}! Notification queued.`);
   } catch (error) {
     console.error("Error changing ticket status:", error);
     alert("Failed to change ticket status. Please try again.");
