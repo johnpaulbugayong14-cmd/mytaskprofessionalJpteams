@@ -207,8 +207,20 @@ let members = [
     }
   }
 
+  // Verify admin role - redirect if not admin
+  if (!adminEmail || adminRole !== 'admin') {
+    console.error('Access denied: Not an admin user', { email: adminEmail, role: adminRole });
+    alert('Access denied. Admin privileges required.');
+    window.location.href = 'login.html';
+    return;
+  }
+
+  console.log('Admin access verified:', adminEmail, adminRole);
+
   // Initialize notifications
   initializeNotifications().catch(err => console.error("Notification initialization failed:", err));
+
+})();
 
 function getDefaultProgressStructure() {
   return [
@@ -415,22 +427,47 @@ loadAnnouncementAssignTo();
     console.log('Push action performed: ', notification);
   });
 
+  // Check task deadlines and send reminders (only once per day)
+  const lastDeadlineCheck = localStorage.getItem('lastDeadlineCheck');
+  const today = new Date().toDateString();
+
+  if (lastDeadlineCheck !== today) {
+    checkTaskDeadlines();
+    localStorage.setItem('lastDeadlineCheck', today);
+  } else {
+    console.log('Deadline check already performed today, skipping...');
+  }
+
   // Set up listeners after authentication
   console.log('=== SETTING UP ADMIN LISTENERS ===');
   console.log('Admin authenticated, email:', adminEmail, 'role:', adminRole);
 
+  // Ensure Firebase auth is initialized
+  try {
+    if (!auth.currentUser) {
+      console.log('Initializing Firebase anonymous auth for admin...');
+      await signInAnonymously(auth);
+      console.log('Firebase auth initialized successfully');
+    }
+  } catch (authError) {
+    console.error('Failed to initialize Firebase auth:', authError);
+    alert('Authentication failed. Please try logging in again.');
+    window.location.href = 'login.html';
+    return;
+  }
+
   /* LOAD TICKETS */
   onSnapshot(collection(db, "tickets"), (snap) => {
-    console.log('=== ADMIN TICKETS LISTENER TRIGGERED ===');
-    console.log('Tickets snapshot received, docs count:', snap.size);
-    const container = document.getElementById("ticketsList");
-    if (!container) return;
-    container.innerHTML = "";
+      console.log('=== ADMIN TICKETS LISTENER TRIGGERED ===');
+      console.log('Tickets snapshot received, docs count:', snap.size);
+      const container = document.getElementById("ticketsList");
+      if (!container) return;
+      container.innerHTML = "";
 
-    if (snap.empty) {
-      container.innerHTML = "<p style='color: #94a3b8; text-align: center;'>No support tickets submitted yet.</p>";
-      return;
-    }
+      if (snap.empty) {
+        container.innerHTML = "<p style='color: #94a3b8; text-align: center;'>No support tickets submitted yet.</p>";
+        return;
+      }
 
     const docs = [];
     snap.forEach(docSnap => docs.push(docSnap));
@@ -740,6 +777,8 @@ onSnapshot(collection(db, "tasks"), (snap) => {
     container.innerHTML = html;
   }
 });
+
+}
 
 // Update chart only when analytics is visible and data changed
 function updateChartIfNeeded() {
@@ -1426,10 +1465,99 @@ window.deleteResource = async function (id) {
   }
 };
 
+/* CHECK TASK DEADLINES AND SEND REMINDERS */
+async function checkTaskDeadlines() {
+  try {
+    console.log('Checking task deadlines...');
+    const tasksSnapshot = await getDocs(collection(db, "tasks"));
+    const now = new Date();
+    const tasksToRemind = [];
+
+    tasksSnapshot.forEach((doc) => {
+      const task = { id: doc.id, ...doc.data() };
+      if (task.status !== 'completed' && task.deadline) {
+        const deadline = new Date(task.deadline);
+        const timeDiff = deadline - now;
+        const hoursDiff = timeDiff / (1000 * 60 * 60);
+
+        // Check if task is overdue or due within 24 hours
+        if (hoursDiff < 0) {
+          // Overdue - check if we sent a reminder today
+          const lastOverdueReminder = task.lastOverdueReminder ? new Date(task.lastOverdueReminder) : null;
+          const shouldSendOverdue = !lastOverdueReminder || (now - lastOverdueReminder) > (24 * 60 * 60 * 1000); // 24 hours
+
+          if (shouldSendOverdue) {
+            tasksToRemind.push({ ...task, type: 'overdue' });
+          }
+        } else if (hoursDiff <= 24) {
+          // Due within 24 hours - check if we sent a reminder today
+          const lastDueSoonReminder = task.lastDueSoonReminder ? new Date(task.lastDueSoonReminder) : null;
+          const shouldSendDueSoon = !lastDueSoonReminder || (now - lastDueSoonReminder) > (24 * 60 * 60 * 1000); // 24 hours
+
+          if (shouldSendDueSoon) {
+            tasksToRemind.push({ ...task, type: 'due_soon' });
+          }
+        }
+      }
+    });
+
+    // Send notifications for tasks that need reminders
+    for (const task of tasksToRemind) {
+      if (task.assignedTo && task.assignedTo !== 'everyone') {
+        const recipientEmail = getRecipientEmail(task.assignedTo);
+        const member = members.find(m => m.uid === task.assignedTo);
+        
+        if (recipientEmail && member) {
+          let notificationType, title, body;
+          
+          if (task.type === 'overdue') {
+            notificationType = 'overdue';
+            title = `Task Overdue: ${task.title}`;
+            body = `Your task "${task.title}" is overdue. Please complete it as soon as possible.`;
+          } else {
+            notificationType = 'due_soon';
+            title = `Task Due Soon: ${task.title}`;
+            body = `Your task "${task.title}" is due within 24 hours. Deadline: ${new Date(task.deadline).toLocaleString()}`;
+          }
+
+          // Send push notification
+          await sendNotificationToUsers([task.assignedTo], title, body, notificationType);
+          
+          // Send email notification
+          await triggerEmailNotification(recipientEmail, member.name, notificationType, task.title);
+          
+          // Update the task with the last reminder timestamp
+          const updateData = {};
+          if (task.type === 'overdue') {
+            updateData.lastOverdueReminder = now.toISOString();
+          } else {
+            updateData.lastDueSoonReminder = now.toISOString();
+          }
+
+          try {
+            await updateDoc(doc(db, "tasks", task.id), updateData);
+            console.log(`Updated reminder timestamp for task "${task.title}"`);
+          } catch (updateError) {
+            console.error('Error updating reminder timestamp:', updateError);
+          }
+
+          console.log(`Sent ${task.type} reminder for task "${task.title}" to ${member.name}`);
+        }
+      }
+    }
+
+    if (tasksToRemind.length > 0) {
+      console.log(`Sent reminders for ${tasksToRemind.length} tasks`);
+    } else {
+      console.log('No tasks need reminders');
+    }
+  } catch (error) {
+    console.error('Error checking task deadlines:', error);
+  }
+}
+
 console.log('=== ADMIN.JS FUNCTIONS LOADED ===');
 console.log('window.respondToTicket:', typeof window.respondToTicket);
 console.log('window.changeTicketStatus:', typeof window.changeTicketStatus);
 console.log('window.deleteTicket:', typeof window.deleteTicket);
 console.log('window.deleteResource:', typeof window.deleteResource);
-
-})();
