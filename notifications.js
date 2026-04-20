@@ -186,7 +186,7 @@ export async function sendNotificationToUsers(userEmails, title, body, type = 'g
       token: localStorage.getItem('github_token') || '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'
     };
 
-    const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/actions/workflows/send-push-notification.yml/dispatches`;
+    const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/dispatches`;
     
     const response = await fetch(url, {
       method: 'POST',
@@ -196,9 +196,9 @@ export async function sendNotificationToUsers(userEmails, title, body, type = 'g
         'Accept': 'application/vnd.github.v3+json'
       },
       body: JSON.stringify({
-        ref: 'main',
-        inputs: {
-          userEmails: JSON.stringify(userEmails),
+        event_type: 'send-push',
+        client_payload: {
+          userEmails: userEmails,
           title: title,
           body: body,
           type: type
