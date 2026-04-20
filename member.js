@@ -3,15 +3,16 @@ import { db, auth } from "./firebase.js";
 import { signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getStoredUserEmail, signOutUser } from "./auth.js";
 import { initializeNotifications, sendNotificationToUsers, showLocalNotification } from "./notifications.js";
+import { GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO } from "./github-token.js";
 
 // GitHub Actions Configuration
 const GITHUB_CONFIG = {
-  owner: 'johnpaulbugayong14-cmd',  // Your GitHub username
-  repo: 'mytaskprofessionalJpteams' // Your repository name
+  owner: GITHUB_OWNER,
+  repo: GITHUB_REPO
 };
 
 function getGithubToken() {
-  return localStorage.getItem('github_token') || '';
+  return localStorage.getItem('github_token') || GITHUB_TOKEN || '';
 }
 
 const EMAIL_BACKEND_CONFIG = {
@@ -312,7 +313,7 @@ window.submitTicket = async function () {
 
     // Send notification to admin (non-blocking)
     try {
-      const adminEmail = "johnpaulbugayong14@gmail.com"; // Admin email
+      const adminEmail = "johnpaulbugayong14@gmail.com"; // Admin email for notifications
       const notificationTitle = "New Support Ticket Submitted";
       const notificationBody = `New ticket: "${title}" submitted by ${getUserName(userEmail)}`;
       console.log('Sending notification...');

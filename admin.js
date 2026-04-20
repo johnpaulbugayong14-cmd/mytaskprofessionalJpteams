@@ -1,3 +1,5 @@
+import { GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO } from "./github-token.js";
+
 // Push Notifications Manager for cross-platform compatibility
 class PushNotificationsManager {
   constructor() {
@@ -92,12 +94,12 @@ import { sendNotificationToUsers, showLocalNotification, initializeNotifications
 
 // GitHub Actions Configuration
 const GITHUB_CONFIG = {
-  owner: 'johnpaulbugayong14-cmd',  // Your GitHub username
-  repo: 'mytaskprofessionalJpteams' // Your repository name
+  owner: GITHUB_OWNER,
+  repo: GITHUB_REPO
 };
 
 function getGithubToken() {
-  return localStorage.getItem('github_token') || '';
+  return localStorage.getItem('github_token') || GITHUB_TOKEN || '';
 }
 
 const EMAIL_BACKEND_CONFIG = {

@@ -139,7 +139,7 @@ const PRE_REGISTERED_CREDENTIALS = [
   { email: "moezarperez@gmail.com", password: "moezar005", role: "member" },
   { email: "rogelioledda@gmail.com", password: "rogelio006", role: "member" },
   { email: "test@example.com", password: "test000", role: "member" },
-  { email: "johnpaulbugayong14@gmail.com", password: "johnpaul001", role: "admin" }
+  { email: "johnpaulbugayong@gmail.com", password: "johnpaul001", role: "admin" }
 ];
 
 // Get pre-registered role

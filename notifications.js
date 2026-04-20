@@ -2,8 +2,13 @@ import { db, messaging } from "./firebase.js";
 import { getStoredUserEmail } from "./auth.js";
 import { setDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js";
+import { GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO } from "./github-token.js";
 
 const VAPID_PUBLIC_KEY = 'BBu_m1NKUZO5bp6k5q29DgzYpmjVWe8z1C6KojHrq7RDqOJ0O01txWvzqKWrnLMAGlrm8eOcdTn_O1wDnf5OZB8';
+
+function getGithubToken() {
+  return localStorage.getItem('github_token') || GITHUB_TOKEN || '';
+}
 
 // Robust Capacitor check
 const getCapacitor = () => {
@@ -181,10 +186,15 @@ export async function sendNotificationToUsers(userEmails, title, body, type = 'g
   try {
     // GitHub Actions configuration
     const GITHUB_CONFIG = {
-      owner: 'johnpaulbugayong14-cmd',
-      repo: 'mytaskprofessionalJpteams',
-      token: localStorage.getItem('github_token') || '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'
+      owner: GITHUB_OWNER,
+      repo: GITHUB_REPO,
+      token: getGithubToken()
     };
+
+    if (!GITHUB_CONFIG.token) {
+      console.error('GitHub token missing: store a valid token in localStorage.github_token or update the code with a valid PAT.');
+      return;
+    }
 
     const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/dispatches`;
     
