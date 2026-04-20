@@ -90,10 +90,16 @@ import { db } from "./firebase.js";
 import { signOutUser, getStoredUserEmail, getStoredUserRole } from "./auth.js";
 import { sendNotificationToUsers, showLocalNotification, initializeNotifications } from "./notifications.js";
 
-// Backend Proxy Configuration (Token is hidden on backend server)
+// GitHub Actions Configuration
+const GITHUB_CONFIG = {
+  owner: 'johnpaulbugayong14-cmd',  // Your GitHub username
+  repo: 'mytaskprofessionalJpteams', // Your repository name
+  token: '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' // Replace with your token from https://github.com/settings/tokens
+};
+
 const EMAIL_BACKEND_CONFIG = {
   enabled: true,
-  apiUrl: 'https://mytaskprofessional-jpteams.vercel.app/api/trigger-email' // Backend server endpoint
+  type: 'github' // Use GitHub Actions instead of API endpoint
 };
 
 // User Email Mapping (login email → actual recipient email)
@@ -118,26 +124,32 @@ async function triggerEmailNotification(userEmail, userName, type, title) {
   }
 
   try {
-    const response = await fetch(EMAIL_BACKEND_CONFIG.apiUrl, {
+    const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/actions/workflows/send-email-notification.yml/dispatches`;
+    
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Authorization': `token ${GITHUB_CONFIG.token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/vnd.github.v3+json'
       },
       body: JSON.stringify({
-        email: userEmail,
-        name: userName,
-        type: type,
-        title: title
+        ref: 'main',
+        inputs: {
+          email: userEmail,
+          name: userName,
+          type: type,
+          title: title,
+          body: `You have a new ${type} notification: ${title}`
+        }
       })
     });
 
-    const data = await response.json();
-
-    if (data.success) {
-      console.log(`Email notification queued: ${data.message}`);
+    if (response.ok) {
+      console.log(`Email notification triggered via GitHub Actions`);
       return true;
     } else {
-      console.error(`Failed to trigger email: ${data.error}`);
+      console.error(`Failed to trigger workflow: ${response.status}`);
       return false;
     }
   } catch (error) {
