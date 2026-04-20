@@ -39,7 +39,7 @@ jobs:
         run: |
           node -e "
           const admin = require('firebase-admin');
-          
+
           // Initialize Firebase Admin
           if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
             const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
@@ -49,20 +49,20 @@ jobs:
           } else {
             console.log('No Firebase service account key provided, using FCM server key only');
           }
-          
+
           const userEmails = JSON.parse('${{ github.event.inputs.userEmails }}');
           const title = '${{ github.event.inputs.title }}';
           const body = '${{ github.event.inputs.body }}';
           const type = '${{ github.event.inputs.type }}';
-          
+
           console.log('Sending push notifications to:', userEmails.length, 'users');
           console.log('Title:', title);
           console.log('Body:', body);
-          
+
           // For now, just log the notification details
           // In a real implementation, you would:
           // 1. Query Firestore for FCM tokens of the userEmails
           // 2. Send notifications using Firebase Admin SDK
-          
+
           console.log('Push notification workflow completed successfully');
           "
