@@ -229,7 +229,11 @@ jobs:
                     
                     console.log(`✅ Due soon reminder sent to ${recipientEmail} for task: ${task.title}`);
                   } catch (error) {
-                    console.error(`❌ Failed to send due soon email:`, error);
+                    console.error(`❌ Failed to send reminder to ${recipientEmail}:`, error);
+                  }
+                }
+              }
+            } Failed to send due soon email:`, error);
                   }
                 }
               }
