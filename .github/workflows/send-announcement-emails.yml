@@ -90,25 +90,31 @@ jobs:
                 
                 const htmlContent = `
                   <html>
-                    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                      <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9;">
-                        <div style="background-color: #0ea5e9; color: white; padding: 20px; border-radius: 5px 5px 0 0; text-align: center;">
-                          <h2>New Announcement</h2>
+                    <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #1e3a8a;">
+                      <div style="max-width: 600px; margin: 20px auto; background-color: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); overflow: hidden;">
+                        <div style="background: linear-gradient(135deg, #1e3a8a 0%, #2d5aa8 100%); padding: 30px 20px; text-align: center; color: white;">
+                          <h1 style="margin: 0 0 5px 0; font-size: 28px; font-weight: 700;">📚 My ThesisHub</h1>
+                          <p style="margin: 0; font-size: 14px; opacity: 0.9;">Task Management System</p>
                         </div>
-                        <div style="padding: 20px; background-color: white;">
-                          <p>Hello,</p>
-                          <p>There is a new announcement for you:</p>
-                          <div style="background-color: #f0f7ff; border-left: 4px solid #0ea5e9; padding: 15px; margin: 15px 0;">
-                            <strong>Title:</strong> ${announcement.title}<br><br>
-                            <strong>Content:</strong><br>${announcement.content}
+                        <div style="background-color: #0ea5e9; color: white; padding: 15px 20px; text-align: center;">
+                          <h2 style="margin: 0; font-size: 20px;">📢 New Announcement</h2>
+                        </div>
+                        <div style="padding: 30px 20px; color: #333;">
+                          <p style="margin: 0 0 15px 0; font-size: 16px;">Hello,</p>
+                          <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6;">There is a new announcement for you:</p>
+                          <div style="background-color: #1e3a8a; border-left: 5px solid #0ea5e9; padding: 15px; margin: 20px 0; border-radius: 5px; color: white;">
+                            <p style="margin: 5px 0;"><strong>Title:</strong> ${announcement.title}</p>
+                            <p style="margin: 10px 0 5px 0;"><strong>Content:</strong></p>
+                            <p style="margin: 5px 0;">${announcement.content}</p>
                           </div>
-                          <p>Log in to the system to read the full announcement and any comments.</p>
-                          <p>
-                            <a href="http://mytaskprofessional-jpteams.vercel.app/?v=2" style="display: inline-block; background-color: #0ea5e9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View Announcement</a>
-                          </p>
+                          <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6;">Log in to the system to read the full announcement and view any comments from your team members.</p>
+                          <div style="text-align: center; margin: 25px 0;">
+                            <a href="http://mytaskprofessional-jpteams.vercel.app/?v=2" style="display: inline-block; background-color: #1e3a8a; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: 600; font-size: 15px;">View Announcement</a>
+                          </div>
                         </div>
-                        <div style="background-color: #f0f0f0; padding: 15px; text-align: center; font-size: 12px; color: #666;">
-                          <p>This is an automated email notification. Please do not reply to this email.</p>
+                        <div style="background-color: #f3f4f6; padding: 15px 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+                          <p style="margin: 0; font-size: 12px; color: #6b7280;">This is an automated email notification. Please do not reply to this email.</p>
+                          <p style="margin: 5px 0 0 0; font-size: 11px; color: #9ca3af;">© My ThesisHub - Task Management System</p>
                         </div>
                       </div>
                     </body>
