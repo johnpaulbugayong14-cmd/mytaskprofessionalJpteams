@@ -27,8 +27,10 @@ jobs:
           GMAIL_PASSWORD: ${{ secrets.GMAIL_PASSWORD }}
         with:
           script: |
+            console.log('Starting send-ticket-emails workflow...');
             const admin = require('firebase-admin');
             const nodemailer = require('nodemailer');
+            console.log('Dependencies loaded');
             const serviceAccount = {
               type: "service_account",
               project_id: process.env.FIREBASE_PROJECT_ID,
@@ -53,6 +55,7 @@ jobs:
               auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_PASSWORD }
             });
             const snap = await db.collection('tickets').where('adminEmailNotificationSent', '!=', true).get();
+            console.log(`Found ${snap.size} new tickets to notify`);
             for (const doc of snap.docs) {
               const ticket = doc.data();
               const adminEmail = emailMapping['johnpaulbugayong@gmail.com'] || 'johnpaulbugayong@gmail.com';
@@ -68,3 +71,7 @@ jobs:
             for (const doc of snap.docs) {
               await db.collection('tickets').doc(doc.id).update({ adminEmailNotificationSent: true });
             }
+            console.log('✓ Workflow complete');
+          }catch(err){
+            console.error('✗ Workflow failed:', err.message);
+            throw err;

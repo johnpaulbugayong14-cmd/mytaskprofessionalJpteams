@@ -27,8 +27,10 @@ jobs:
           GMAIL_PASSWORD: ${{ secrets.GMAIL_PASSWORD }}
         with:
           script: |
+            console.log('Starting send-poll-emails workflow...');
             const admin = require('firebase-admin');
             const nodemailer = require('nodemailer');
+            console.log('Dependencies loaded');
             const serviceAccount = {
               type: "service_account",
               project_id: process.env.FIREBASE_PROJECT_ID,
@@ -53,6 +55,7 @@ jobs:
               auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_PASSWORD }
             });
             const snap = await db.collection('polls').where('emailNotificationSent', '!=', true).get();
+            console.log(`Found ${snap.size} new polls`);
             for (const doc of snap.docs) {
               const poll = doc.data();
               const recipients = ['johnpaulbugayong@gmail.com', 'kingfordnabor@gmail.com', 'allancorral@gmail.com', 'phricksborebor@gmail.com', 'moezarperez@gmail.com', 'rogelioledda@gmail.com'];
