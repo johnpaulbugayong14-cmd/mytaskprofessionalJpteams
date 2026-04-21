@@ -74,9 +74,9 @@ jobs:
               }
             });
             
-            // Get all pending tasks
+            // Get all pending/incomplete tasks
             const tasksSnapshot = await db.collection('tasks')
-              .where('status', '==', 'pending')
+              .where('status', 'in', ['pending', 'pending validation', 'Not Started'])
               .get();
             
             console.log(`Checking ${tasksSnapshot.size} pending tasks for deadlines`);
