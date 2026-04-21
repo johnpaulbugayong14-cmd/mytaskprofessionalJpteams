@@ -205,6 +205,22 @@ jobs:
               try {
                 await transporter.sendMail({
                   from: `"My Thesis Hub" <${process.env.GMAIL_USER}>`,
+                  to: adminNotificationEmail,
+                  subject: `New Support Ticket: ${ticket.subject}`,
+                  html: htmlContent
+                });
+                
+                console.log(`✅ Admin email sent to ${adminNotificationEmail} for ticket: ${ticket.subject}`);
+              } catch (error) {
+                console.error(`❌ Failed to send admin email:`, error);
+              }
+              
+              // Mark ticket as notified
+              await db.collection('tickets').doc(ticketDoc.id).update({
+                adminEmailNotificationSent: true,
+                adminEmailNotificationSentAt: new Date()
+              });
+            }
                   to: recipientEmail,
                   subject,
                   html: htmlContent

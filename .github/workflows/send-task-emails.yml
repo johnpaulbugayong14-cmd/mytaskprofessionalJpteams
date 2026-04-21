@@ -207,6 +207,22 @@ jobs:
                 await transporter.sendMail({
                   from: `"My Thesis Hub" <${process.env.GMAIL_USER}>`,
                   to: recipientEmail,
+                  subject: `New Task Assigned: ${task.title}`,
+                  html: htmlContent
+                });
+                
+                console.log(`✅ Email sent to ${recipientEmail} for task: ${task.title}`);
+              } catch (error) {
+                console.error(`❌ Failed to send email to ${recipientEmail}:`, error);
+              }
+              
+              // Mark task as notified
+              await db.collection('tasks').doc(taskDoc.id).update({
+                emailNotificationSent: true,
+                emailNotificationSentAt: new Date()
+              });
+            }
+                  to: recipientEmail,
                   subject,
                   html: htmlContent
                 });
