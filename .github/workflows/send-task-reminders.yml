@@ -62,6 +62,16 @@ jobs:
               if (!task.deadline) continue;
               const deadline = new Date(task.deadline);
               if (isNaN(deadline.getTime())) continue;
+              
+              // Check if reminder was already sent today (limit to 1 per day)
+              const lastReminderDate = task.lastReminderSentDate ? new Date(task.lastReminderSentDate) : null;
+              const todayStart = new Date(now);
+              todayStart.setHours(0, 0, 0, 0);
+              if (lastReminderDate && lastReminderDate > todayStart) {
+                console.log(`⏭ Skipping ${task.title} - already sent today`);
+                continue;
+              }
+              
               const daysUntil = Math.ceil((deadline - now) / (1000 * 3600 * 24));
               const email = emailMapping[task.assignedTo] || task.assignedTo;
               if (!email) continue;
@@ -73,5 +83,9 @@ jobs:
                   subject: `Reminder: ${task.title} due in ${daysUntil} days`,
                   html: html
                 });
+                await db.collection('tasks').doc(doc.id).update({
+                  lastReminderSentDate: new Date()
+                });
+                console.log(`✓ Sent reminder to ${email}`);
               } catch (e) { console.error('Error:', e); }
             }
