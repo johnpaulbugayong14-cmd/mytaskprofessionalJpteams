@@ -2,7 +2,7 @@ name: Send Ticket Email Notifications
 
 on:
   schedule:
-    - cron: '3,8,13,18,23,28,33,38,43,48,53,58 * * * *'  # Every 5 minutes, staggered +3 min
+    - cron: '3,8,13,18,23,28,33,38,43,48,53,58 * * * *'
   workflow_dispatch:
 
 jobs:
@@ -11,16 +11,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-
       - name: Install dependencies
         run: npm install firebase-admin nodemailer
-
-      - name: Send ticket notification emails
+      - name: Send ticket emails
         uses: actions/github-script@v7
         env:
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
@@ -32,28 +29,17 @@ jobs:
           script: |
             const admin = require('firebase-admin');
             const nodemailer = require('nodemailer');
-            
-            // Initialize Firebase
             const serviceAccount = {
               type: "service_account",
               project_id: process.env.FIREBASE_PROJECT_ID,
               private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-              client_email: process.env.FIREBASE_CLIENT_EMAIL,
-              client_id: process.env.FIREBASE_CLIENT_ID || "",
-              auth_uri: "https://accounts.google.com/o/oauth2/auth",
-              token_uri: "https://oauth2.googleapis.com/token",
-              auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
-              client_x509_cert_url: process.env.FIREBASE_CERT_URL || ""
+              client_email: process.env.FIREBASE_CLIENT_EMAIL
             };
-            
             admin.initializeApp({
               credential: admin.credential.cert(serviceAccount),
               databaseURL: "https://task-edd4d.firebaseio.com"
             });
-            
             const db = admin.firestore();
-            
-            // Email mapping
             const emailMapping = {
               'johnpaulbugayong@gmail.com': 'johnpaulbugayong14@gmail.com',
               'kingfordnabor@gmail.com': 'kingfordnabor20@gmail.com',
@@ -62,176 +48,23 @@ jobs:
               'moezarperez@gmail.com': 'moezarg19@gmail.com',
               'rogelioledda@gmail.com': 'rogelioledda051506@gmail.com'
             };
-            
-            // Configure email transporter
             const transporter = nodemailer.createTransport({
               service: 'gmail',
-              auth: {
-                user: process.env.GMAIL_USER,
-                pass: process.env.GMAIL_PASSWORD
-              }
+              auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_PASSWORD }
             });
-            
-            // Get new tickets that haven't been notified yet
-            const ticketsSnapshot = await db.collection('tickets')
-              .where('adminEmailNotificationSent', '!=', true)
-              .get();
-            
-            console.log(`Found ${ticketsSnapshot.size} new tickets to notify`);
-            
-            // Admin email
-            const adminEmail = 'johnpaulbugayong@gmail.com';
-            const adminNotificationEmail = emailMapping[adminEmail] || adminEmail;
-            
-            for (const ticketDoc of ticketsSnapshot.docs) {
-              const ticket = ticketDoc.data();
-              
-              const htmlContent = `
-                <html>
-                  <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #1e3a8a;">
-                    <div style="max-width: 600px; margin: 20px auto; background-color: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); overflow: hidden;">
-                      <div style="background: linear-gradient(135deg, #1e3a8a 0%, #2d5aa8 100%); padding: 30px 20px; text-align: center; color: white;">
-                        <div style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 10px;">
-                          <svg width="40" height="40" viewBox="0 0 100 100" style="background: white; border-radius: 50%;">
-                            <circle cx="50" cy="50" r="45" fill="#1e3a8a"/>
-                            <path d="M30 50 L45 65 L70 35" stroke="white" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-                          </svg>
-                          <h1 style="margin: 0; font-size: 28px; font-weight: 700;">My Thesis Hub</h1>
-                        </div>
-                        <p style="margin: 0; font-size: 14px; opacity: 0.9;">Task Management System</p>
-                      </div>
-                      <div style="background-color: #ef4444; color: white; padding: 15px 20px; text-align: center;">
-                        <h2 style="margin: 0; font-size: 20px;">🎫 New Support Ticket</h2>
-                      </div>
-                      <div style="padding: 30px 20px; color: #333;">
-                        <p style="margin: 0 0 15px 0; font-size: 16px;">Hello Admin,</p>
-                        <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6;">A new support ticket has been submitted and requires your attention:</p>
-                        <div style="background-color: #fef2f2; border-left: 5px solid #ef4444; padding: 15px; margin: 20px 0; border-radius: 5px; color: #333;">
-                          <p style="margin: 5px 0;"><strong>Ticket Title:</strong> ${ticket.title}</p>
-                          <p style="margin: 5px 0;"><strong>Submitted By:</strong> ${ticket.submittedByName} (${ticket.submittedBy})</p>
-                          <p style="margin: 5px 0;"><strong>Time:</strong> ${new Date(ticket.createdAt.toDate()).toLocaleString()}</p>
-                          <p style="margin: 10px 0 5px 0;"><strong>Description:</strong></p>
-                          <p style="margin: 5px 0;">${ticket.description}</p>
-                        </div>
-                        <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6;\">Please log in to the admin panel to review and respond to this ticket promptly.</p>
-                        <div style="text-align: center; margin: 25px 0;">
-                          <a href="http://mytaskprofessional-jpteams.vercel.app/?v=2" style="display: inline-block; background-color: #1e3a8a; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: 600; font-size: 15px;">View Ticket</a>
-                        </div>
-                      </div>
-                      <div style="background-color: #f3f4f6; padding: 15px 20px; text-align: center; border-top: 1px solid #e5e7eb;">
-                        <p style="margin: 0; font-size: 12px; color: #6b7280;">This is an automated email notification. Please do not reply to this email.</p>
-                        <p style="margin: 5px 0 0 0; font-size: 11px; color: #9ca3af;">© My ThesisHub - Task Management System</p>
-                      </div>
-                    </div>
-                  </body>
-                </html>
-              `;
-              
+            const snap = await db.collection('tickets').where('adminEmailNotificationSent', '!=', true).get();
+            for (const doc of snap.docs) {
+              const ticket = doc.data();
+              const adminEmail = emailMapping['johnpaulbugayong@gmail.com'] || 'johnpaulbugayong@gmail.com';
               try {
                 await transporter.sendMail({
-                  from: `"My Thesis Hub" <${process.env.GMAIL_USER}>`,
-                  to: adminNotificationEmail,
-                  subject: `New Support Ticket: ${ticket.title}`,
-                  html: htmlContent
+                  from: "My Thesis Hub" <>,
+                  to: adminEmail,
+                  subject: New Ticket: ,
+                  html: <html><body style="font-family: Arial; color: #333;"><div style="background: linear-gradient(135deg, #1e3a8a 0%, #2d5aa8 100%); color: white; padding: 20px; border-radius: 5px;"><h1>My Thesis Hub</h1><h2>New Support Ticket</h2></div><div style="padding: 20px;"><p><strong></strong></p><p></p><a href="http://mytaskprofessional-jpteams.vercel.app/?v=2" style="background-color: #1e3a8a; color: white; padding: 10px 20px; text-decoration: none;">View</a></div></body></html>
                 });
-                
-                console.log(`✅ Email sent to admin for ticket: ${ticket.title}`);
-              } catch (error) {
-                console.error(`❌ Failed to send email to admin:`, error);
-              }
-              
-              // Mark ticket as notified
-              await db.collection('tickets').doc(ticketDoc.id).update({
-                adminEmailNotificationSent: true,
-                adminEmailNotificationSentAt: new Date()
-              });
+              } catch (e) { console.error('Error:', e); }
             }
-
-            const memberTicketsSnapshot = await db.collection('tickets')
-              .where('memberEmailNotificationSent', '!=', true)
-              .get();
-
-            console.log(`Found ${memberTicketsSnapshot.size} member ticket updates to notify`);
-
-            for (const ticketDoc of memberTicketsSnapshot.docs) {
-              const ticket = ticketDoc.data();
-              if (!ticket.memberNotificationReason) continue;
-
-              const recipientEmail = emailMapping[ticket.assignedTo] || ticket.assignedTo || ticket.submittedBy;
-              if (!recipientEmail) continue;
-
-              let subject = `Ticket Update: ${ticket.title}`;
-              let bodyDescription = `There is an update on your ticket.`;
-
-              if (ticket.memberNotificationReason === 'admin_response') {
-                subject = `Admin Replied to Your Ticket: ${ticket.title}`;
-                bodyDescription = `An admin has replied to your ticket. Please log in to view the response.`;
-              } else if (ticket.memberNotificationReason === 'status_changed') {
-                subject = `Ticket Status Updated: ${ticket.title}`;
-                bodyDescription = `Your ticket status has been changed to ${ticket.status}. Please log in to review the update.`;
-              } else if (ticket.memberNotificationTitle) {
-                subject = ticket.memberNotificationTitle;
-                bodyDescription = ticket.memberNotificationMessage || bodyDescription;
-              }
-
-              const htmlContent = `
-                <html>
-                  <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                    <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9;">
-                      <div style="background-color: #0ea5e9; color: white; padding: 20px; border-radius: 5px 5px 0 0; text-align: center;">
-                        <h2>Ticket Update</h2>
-                      </div>
-                      <div style="padding: 20px; background-color: white;">
-                        <p>Hello,</p>
-                        <p>${bodyDescription}</p>
-                        <div style="background-color: #f0f7ff; border-left: 4px solid #0ea5e9; padding: 15px; margin: 15px 0;">
-                          <strong>Ticket Title:</strong> ${ticket.title}<br>
-                          <strong>Status:</strong> ${ticket.status}<br>
-                          ${ticket.memberNotificationMessage ? `<strong>Message:</strong> ${ticket.memberNotificationMessage}<br>` : ''}
-                        </div>
-                        <p>Please log in to the system to see the latest ticket update.</p>
-                        <p>
-                          <a href="http://mytaskprofessional-jpteams.vercel.app/?v=2" style="display: inline-block; background-color: #0ea5e9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View Ticket</a>
-                        </p>
-                      </div>
-                      <div style="background-color: #f0f0f0; padding: 15px; text-align: center; font-size: 12px; color: #666;">
-                        <p>This is an automated email notification. Please do not reply to this email.</p>
-                      </div>
-                    </div>
-                  </body>
-                </html>
-              `;
-
-              try {
-                await transporter.sendMail({
-                  from: `"My Thesis Hub" <${process.env.GMAIL_USER}>`,
-                  to: adminNotificationEmail,
-                  subject: `New Support Ticket: ${ticket.subject}`,
-                  html: htmlContent
-                });
-                
-                console.log(`✅ Admin email sent to ${adminNotificationEmail} for ticket: ${ticket.subject}`);
-              } catch (error) {
-                console.error(`❌ Failed to send admin email:`, error);
-              }
-              
-              // Mark ticket as notified
-              await db.collection('tickets').doc(ticketDoc.id).update({
-                adminEmailNotificationSent: true,
-                adminEmailNotificationSentAt: new Date()
-              });
-            }
-                  to: recipientEmail,
-                  subject,
-                  html: htmlContent
-                });
-                console.log(`✅ Email sent to member for ticket: ${ticket.title}`);
-              } catch (error) {
-                console.error(`❌ Failed to send email to member:`, error);
-              }
-
-              await db.collection('tickets').doc(ticketDoc.id).update({
-                memberEmailNotificationSent: true,
-                memberEmailNotificationSentAt: new Date()
-              });
+            for (const doc of snap.docs) {
+              await db.collection('tickets').doc(doc.id).update({ adminEmailNotificationSent: true });
             }

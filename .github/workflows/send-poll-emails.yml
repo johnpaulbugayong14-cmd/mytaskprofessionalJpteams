@@ -2,7 +2,7 @@ name: Send Poll Email Notifications
 
 on:
   schedule:
-    - cron: '2,7,12,17,22,27,32,37,42,47,52,57 * * * *'  # Every 5 minutes, staggered +2 min
+    - cron: '2,7,12,17,22,27,32,37,42,47,52,57 * * * *'
   workflow_dispatch:
 
 jobs:
@@ -11,16 +11,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-
       - name: Install dependencies
         run: npm install firebase-admin nodemailer
-
-      - name: Send poll notification emails
+      - name: Send poll emails
         uses: actions/github-script@v7
         env:
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
@@ -32,28 +29,17 @@ jobs:
           script: |
             const admin = require('firebase-admin');
             const nodemailer = require('nodemailer');
-            
-            // Initialize Firebase
             const serviceAccount = {
               type: "service_account",
               project_id: process.env.FIREBASE_PROJECT_ID,
               private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-              client_email: process.env.FIREBASE_CLIENT_EMAIL,
-              client_id: process.env.FIREBASE_CLIENT_ID || "",
-              auth_uri: "https://accounts.google.com/o/oauth2/auth",
-              token_uri: "https://oauth2.googleapis.com/token",
-              auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
-              client_x509_cert_url: process.env.FIREBASE_CERT_URL || ""
+              client_email: process.env.FIREBASE_CLIENT_EMAIL
             };
-            
             admin.initializeApp({
               credential: admin.credential.cert(serviceAccount),
               databaseURL: "https://task-edd4d.firebaseio.com"
             });
-            
             const db = admin.firestore();
-            
-            // Email mapping
             const emailMapping = {
               'johnpaulbugayong@gmail.com': 'johnpaulbugayong14@gmail.com',
               'kingfordnabor@gmail.com': 'kingfordnabor20@gmail.com',
@@ -62,99 +48,26 @@ jobs:
               'moezarperez@gmail.com': 'moezarg19@gmail.com',
               'rogelioledda@gmail.com': 'rogelioledda051506@gmail.com'
             };
-            
-            // Configure email transporter
             const transporter = nodemailer.createTransport({
               service: 'gmail',
-              auth: {
-                user: process.env.GMAIL_USER,
-                pass: process.env.GMAIL_PASSWORD
-              }
+              auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_PASSWORD }
             });
-            
-            // Get new polls that haven't been notified yet
-            const pollsSnapshot = await db.collection('polls')
-              .where('emailNotificationSent', '!=', true)
-              .get();
-            
-            console.log(`Found ${pollsSnapshot.size} new polls to notify`);
-            
-            // All members to notify for polls
-            const allMembers = [
-              'kingfordnabor@gmail.com',
-              'allancorral@gmail.com',
-              'phricksborebor@gmail.com',
-              'moezarperez@gmail.com',
-              'rogelioledda@gmail.com'
-            ];
-            
-            for (const pollDoc of pollsSnapshot.docs) {
-              const poll = pollDoc.data();
-              
-              for (const recipientEmail of allMembers) {
-                const notificationEmail = emailMapping[recipientEmail] || recipientEmail;
-                
-                if (!notificationEmail) continue;
-                
-                const htmlContent = `
-                  <html>
-                    <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #1e3a8a;">
-                      <div style="max-width: 600px; margin: 20px auto; background-color: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); overflow: hidden;">
-                        <div style="background: linear-gradient(135deg, #1e3a8a 0%, #2d5aa8 100%); padding: 30px 20px; text-align: center; color: white;">
-                          <div style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 10px;">
-                            <svg width="40" height="40" viewBox="0 0 100 100" style="background: white; border-radius: 50%;">
-                              <circle cx="50" cy="50" r="45" fill="#1e3a8a"/>
-                              <path d="M30 50 L45 65 L70 35" stroke="white" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                            <h1 style="margin: 0; font-size: 28px; font-weight: 700;">My Thesis Hub</h1>
-                          </div>
-                          <p style="margin: 0; font-size: 14px; opacity: 0.9;">Task Management System</p>
-                        </div>
-                        <div style="background-color: #8b5cf6; color: white; padding: 15px 20px; text-align: center;">
-                          <h2 style="margin: 0; font-size: 20px;">📊 New Poll</h2>
-                        </div>
-                        <div style="padding: 30px 20px; color: #333;">
-                          <p style="margin: 0 0 15px 0; font-size: 16px;">Hello,</p>
-                          <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6;">A new poll has been created that needs your response:</p>
-                          <div style="background-color: #f5f3ff; border-left: 5px solid #8b5cf6; padding: 15px; margin: 20px 0; border-radius: 5px; color: #333;">
-                            <p style="margin: 5px 0;"><strong>Poll Question:</strong> ${poll.question}</p>
-                          </div>
-                          <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6;\">Please log in to the system to review the poll options and cast your vote.</p>
-                          <div style="text-align: center; margin: 25px 0;">
-                            <a href="http://mytaskprofessional-jpteams.vercel.app/?v=2" style="display: inline-block; background-color: #1e3a8a; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: 600; font-size: 15px;">Vote Now</a>
-                          </div>
-                        </div>
-                        <div style="background-color: #f3f4f6; padding: 15px 20px; text-align: center; border-top: 1px solid #e5e7eb;">
-                          <p style="margin: 0; font-size: 12px; color: #6b7280;">This is an automated email notification. Please do not reply to this email.</p>
-                          <p style="margin: 5px 0 0 0; font-size: 11px; color: #9ca3af;">© My ThesisHub - Task Management System</p>
-                        </div>
-                      </div>
-                    </body>
-                  </html>
-                `;
-                
+            const snap = await db.collection('polls').where('emailNotificationSent', '!=', true).get();
+            for (const doc of snap.docs) {
+              const poll = doc.data();
+              const recipients = ['johnpaulbugayong@gmail.com', 'kingfordnabor@gmail.com', 'allancorral@gmail.com', 'phricksborebor@gmail.com', 'moezarperez@gmail.com', 'rogelioledda@gmail.com'];
+              for (const email of recipients) {
+                const notifEmail = emailMapping[email] || email;
                 try {
                   await transporter.sendMail({
-                    from: `"My Thesis Hub" <${process.env.GMAIL_USER}>`,
-                    to: notificationEmail,
-                    subject: `New Poll: ${poll.question}`,
-                    html: htmlContent
+                    from: "My Thesis Hub" <>,
+                    to: notifEmail,
+                    subject: New Poll: ,
+                    html: <html><body style="font-family: Arial; color: #333;"><div style="background: linear-gradient(135deg, #1e3a8a 0%, #2d5aa8 100%); color: white; padding: 20px; border-radius: 5px;"><h1>My Thesis Hub</h1><h2>New Poll</h2></div><div style="padding: 20px;"><p><strong></strong></p><a href="http://mytaskprofessional-jpteams.vercel.app/?v=2" style="background-color: #1e3a8a; color: white; padding: 10px 20px; text-decoration: none;">Vote</a></div></body></html>
                   });
-                  
-                  console.log(`✅ Email sent to ${notificationEmail} for poll: ${poll.question}`);
-                } catch (error) {
-                  console.error(`❌ Failed to send email to ${notificationEmail}:`, error);
-                }
+                } catch (e) { console.error('Error:', e); }
               }
-              
-              // Mark poll as notified
-              await db.collection('polls').doc(pollDoc.id).update({
-                emailNotificationSent: true,
-                emailNotificationSentAt: new Date()
-              });
             }
-              await db.collection('polls').doc(pollDoc.id).update({
-                emailNotificationSent: true,
-                emailNotificationSentAt: new Date()
-              });
+            for (const doc of snap.docs) {
+              await db.collection('polls').doc(doc.id).update({ emailNotificationSent: true });
             }
