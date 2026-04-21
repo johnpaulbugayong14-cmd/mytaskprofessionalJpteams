@@ -2,7 +2,7 @@ name: Send Task Reminders
 
 on:
   schedule:
-    - cron: '*/5 * * * *'  # Every 5 minutes
+    - cron: '4,9,14,19,24,29,34,39,44,49,54,59 * * * *'  # Every 5 minutes, staggered +4 min
   workflow_dispatch:
 
 jobs:

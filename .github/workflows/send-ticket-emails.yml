@@ -2,7 +2,7 @@ name: Send Ticket Email Notifications
 
 on:
   schedule:
-    - cron: '*/5 * * * *'  # Every 5 minutes
+    - cron: '3,8,13,18,23,28,33,38,43,48,53,58 * * * *'  # Every 5 minutes, staggered +3 min
   workflow_dispatch:
 
 jobs:
