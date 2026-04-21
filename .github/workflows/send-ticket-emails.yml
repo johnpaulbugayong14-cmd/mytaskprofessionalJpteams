@@ -72,6 +72,3 @@ jobs:
               await db.collection('tickets').doc(doc.id).update({ adminEmailNotificationSent: true });
             }
             console.log('✓ Workflow complete');
-          }catch(err){
-            console.error('✗ Workflow failed:', err.message);
-            throw err;
