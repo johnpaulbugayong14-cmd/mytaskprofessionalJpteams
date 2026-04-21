@@ -62,12 +62,12 @@ jobs:
               const daysUntil = Math.ceil((deadline - now) / (1000 * 3600 * 24));
               const email = emailMapping[task.assignedTo] || task.assignedTo;
               if (!email) continue;
-              const html = <html><body style="font-family: Arial; color: #333;"><div style="background: linear-gradient(135deg, #1e3a8a 0%, #2d5aa8 100%); color: white; padding: 20px; border-radius: 5px;"><h1>My Thesis Hub</h1><h2>Task Reminder</h2></div><div style="padding: 20px;"><p><strong></strong></p><p>Status: </p><p>Due in:  days</p><a href="http://mytaskprofessional-jpteams.vercel.app/?v=2" style="background-color: #1e3a8a; color: white; padding: 10px 20px; text-decoration: none;">View Task</a></div></body></html>;
+              const html = `<html><body style="font-family: Arial; color: #333;"><div style="background: linear-gradient(135deg, #1e3a8a 0%, #2d5aa8 100%); color: white; padding: 20px; border-radius: 5px;"><h1>My Thesis Hub</h1><h2>Task Reminder</h2></div><div style="padding: 20px;"><p><strong>${task.title}</strong></p><p>Status: ${task.status}</p><p>Due in: ${daysUntil} days</p><a href="http://mytaskprofessional-jpteams.vercel.app/?v=2" style="background-color: #1e3a8a; color: white; padding: 10px 20px; text-decoration: none;">View Task</a></div></body></html>`;
               try {
                 await transporter.sendMail({
-                  from: "My Thesis Hub" <>,
+                  from: `"My Thesis Hub" <${process.env.GMAIL_USER}>`,
                   to: email,
-                  subject: Reminder:  due in  days,
+                  subject: `Reminder: ${task.title} due in ${daysUntil} days`,
                   html: html
                 });
               } catch (e) { console.error('Error:', e); }

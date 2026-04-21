@@ -58,10 +58,10 @@ jobs:
               const adminEmail = emailMapping['johnpaulbugayong@gmail.com'] || 'johnpaulbugayong@gmail.com';
               try {
                 await transporter.sendMail({
-                  from: "My Thesis Hub" <>,
+                  from: `"My Thesis Hub" <${process.env.GMAIL_USER}>`,
                   to: adminEmail,
-                  subject: New Ticket: ,
-                  html: <html><body style="font-family: Arial; color: #333;"><div style="background: linear-gradient(135deg, #1e3a8a 0%, #2d5aa8 100%); color: white; padding: 20px; border-radius: 5px;"><h1>My Thesis Hub</h1><h2>New Support Ticket</h2></div><div style="padding: 20px;"><p><strong></strong></p><p></p><a href="http://mytaskprofessional-jpteams.vercel.app/?v=2" style="background-color: #1e3a8a; color: white; padding: 10px 20px; text-decoration: none;">View</a></div></body></html>
+                  subject: `New Ticket: ${ticket.subject}`,
+                  html: `<html><body style="font-family: Arial; color: #333;"><div style="background: linear-gradient(135deg, #1e3a8a 0%, #2d5aa8 100%); color: white; padding: 20px; border-radius: 5px;"><h1>My Thesis Hub</h1><h2>New Support Ticket</h2></div><div style="padding: 20px;"><p><strong>${ticket.subject}</strong></p><p>${ticket.message}</p><a href="http://mytaskprofessional-jpteams.vercel.app/?v=2" style="background-color: #1e3a8a; color: white; padding: 10px 20px; text-decoration: none;">View</a></div></body></html>`
                 });
               } catch (e) { console.error('Error:', e); }
             }
