@@ -106,7 +106,7 @@ jobs:
                       <div style="padding: 30px 20px; color: #333;">
                         <p style="margin: 0 0 15px 0; font-size: 16px;">Hello <strong>${task.assignedToName || task.assignedTo}</strong>,</p>
                         <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6;">You have been assigned a new task. Please review the details below:</p>
-                        <div style="background-color: #1e3a8a; border-left: 5px solid #0ea5e9; padding: 15px; margin: 20px 0; border-radius: 5px; color: white;">
+                        <div style="background-color: #f0f7ff; border-left: 5px solid #0ea5e9; padding: 15px; margin: 20px 0; border-radius: 5px; color: #333;">
                           <p style="margin: 5px 0;"><strong>Task Title:</strong> ${task.title}</p>
                           <p style="margin: 5px 0;"><strong>Deadline:</strong> ${new Date(task.deadline).toLocaleString()}</p>
                           ${task.description ? `<p style="margin: 5px 0;"><strong>Description:</strong> ${task.description}</p>` : ''}

@@ -106,7 +106,7 @@ jobs:
                       <div style="padding: 30px 20px; color: #333;">
                         <p style="margin: 0 0 15px 0; font-size: 16px;">Hello Admin,</p>
                         <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6;">A new support ticket has been submitted and requires your attention:</p>
-                        <div style="background-color: #1e3a8a; border-left: 5px solid #ef4444; padding: 15px; margin: 20px 0; border-radius: 5px; color: white;">
+                        <div style="background-color: #fef2f2; border-left: 5px solid #ef4444; padding: 15px; margin: 20px 0; border-radius: 5px; color: #333;">
                           <p style="margin: 5px 0;"><strong>Ticket Title:</strong> ${ticket.title}</p>
                           <p style="margin: 5px 0;"><strong>Submitted By:</strong> ${ticket.submittedByName} (${ticket.submittedBy})</p>
                           <p style="margin: 5px 0;"><strong>Time:</strong> ${new Date(ticket.createdAt.toDate()).toLocaleString()}</p>
