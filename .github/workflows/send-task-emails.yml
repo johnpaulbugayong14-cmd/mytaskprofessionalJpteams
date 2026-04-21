@@ -91,7 +91,13 @@ jobs:
                   <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #1e3a8a;">
                     <div style="max-width: 600px; margin: 20px auto; background-color: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); overflow: hidden;">
                       <div style="background: linear-gradient(135deg, #1e3a8a 0%, #2d5aa8 100%); padding: 30px 20px; text-align: center; color: white;">
-                        <h1 style="margin: 0 0 5px 0; font-size: 28px; font-weight: 700;">📚 My ThesisHub</h1>
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 10px;">
+                          <svg width="40" height="40" viewBox="0 0 100 100" style="background: white; border-radius: 50%;">
+                            <circle cx="50" cy="50" r="45" fill="#1e3a8a"/>
+                            <path d="M30 50 L45 65 L70 35" stroke="white" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                          </svg>
+                          <h1 style="margin: 0; font-size: 28px; font-weight: 700;">My Thesis Hub</h1>
+                        </div>
                         <p style="margin: 0; font-size: 14px; opacity: 0.9;">Task Management System</p>
                       </div>
                       <div style="background-color: #0ea5e9; color: white; padding: 15px 20px; text-align: center;">
