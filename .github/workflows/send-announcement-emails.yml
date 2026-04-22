@@ -72,8 +72,8 @@ jobs:
                   await transporter.sendMail({
                     from: `"My Thesis Hub" <${process.env.GMAIL_USER}>`,
                     to: notifEmail,
-                    subject: `Announcement: ${ann.title}`,
-                    html: `<html><body style="font-family: Arial; color: #333;"><div style="background: linear-gradient(135deg, #1e3a8a 0%, #2d5aa8 100%); color: white; padding: 20px; border-radius: 5px;"><h1>My Thesis Hub</h1><h2>New Announcement</h2></div><div style="padding: 20px;"><p><strong>${ann.title}</strong></p><p>${ann.content}</p><a href="http://mytaskprofessional-jpteams.vercel.app/?v=2" style="background-color: #1e3a8a; color: white; padding: 10px 20px; text-decoration: none;">View</a></div></body></html>`
+                    subject: `New Announcement`,
+                    html: `<html><body style="font-family: Arial; color: #333;"><div style="background: linear-gradient(135deg, #1e3a8a 0%, #2d5aa8 100%); color: white; padding: 20px; border-radius: 5px;"><h1>My Thesis Hub</h1><h2>New Announcement</h2></div><div style="padding: 20px;"><p>A new announcement has been posted.</p><a href="http://mytaskprofessional-jpteams.vercel.app/?v=2" style="background-color: #1e3a8a; color: white; padding: 10px 20px; text-decoration: none; display: inline-block;">View Announcement</a></div></body></html>`
                   });
                   console.log(`✓ Email sent to ${notifEmail}`);
                 } catch (e) { console.error('Error:', e); }
