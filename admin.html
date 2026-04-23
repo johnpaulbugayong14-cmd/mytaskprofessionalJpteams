@@ -42,6 +42,7 @@
       <li><button class="nav-btn" onclick="showSection('progress-report')"><i class="fas fa-chart-line"></i> Progress Report</button></li>
       <li><button class="nav-btn" onclick="showSection('task-analytics')"><i class="fas fa-chart-bar"></i> Analytics</button></li>
       <li><button class="nav-btn" onclick="showSection('all-tasks')"><i class="fas fa-clipboard-list"></i> All Tasks</button></li>
+      <li><button class="nav-btn" onclick="showSection('video-conference')"><i class="fas fa-video"></i> Video Conference</button></li>
     </ul>
   </nav>
 
@@ -250,6 +251,29 @@
           <div id="tasks"></div>
         </div>
       </section>
+
+      <!-- Video Conference Section -->
+      <section id="video-conference" class="content-section">
+        <div class="card">
+          <h2 style="margin-bottom: 1rem;"><i class="fas fa-video"></i> Video Conference</h2>
+          <p style="color: #cbd5e1; margin-bottom: 1.5rem;">
+            Start a new video conference or join an existing one with team members.
+          </p>
+          <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+            <button onclick="window.location.href='video-room.html'" style="background: #3b82f6; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 0.375rem; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 0.5rem; transition: background 0.2s;">
+              <i class="fas fa-video"></i> Start Video Conference
+            </button>
+            <div style="color: #94a3b8; font-size: 0.9rem; padding: 0.75rem 0;">
+              Create a new room or join an existing conference
+            </div>
+          </div>
+          <div style="background: #1e293b; padding: 1rem; border-radius: 0.375rem; margin-top: 1.5rem; border-left: 4px solid #3b82f6;">
+            <p style="font-size: 0.9rem; color: #cbd5e1; margin: 0;">
+              <i class="fas fa-info-circle"></i> <strong>Note:</strong> Conferences are powered by Jitsi Meet. Generate unique room IDs and share them with participants. All sessions are tracked in Firestore for reference and analytics.
+            </p>
+          </div>
+        </div>
+      </section>
     </div>
   </main>
 </div>
@@ -294,7 +318,8 @@ function showSection(sectionId) {
     'manage-resources': '<i class="fas fa-book"></i> Manage Resources',
     'progress-report': '<i class="fas fa-chart-line"></i> Progress Report',
     'task-analytics': '<i class="fas fa-chart-bar"></i> Task Analytics',
-    'all-tasks': '<i class="fas fa-clipboard-list"></i> All Tasks'
+    'all-tasks': '<i class="fas fa-clipboard-list"></i> All Tasks',
+    'video-conference': '<i class="fas fa-video"></i> Video Conference'
   };
   
   const pageTitle = document.getElementById('page-title');
