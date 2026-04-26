@@ -385,18 +385,29 @@ function initializeJitsiConference() {
       prejoinPageEnabled: false,
       disableDeepLinking: true,
       startWithAudioMuted: true,
-      startWithVideoMuted: true
+      startWithVideoMuted: true,
+      disableInitialGUM: true, // Prevent automatic media access to avoid autoplay errors
+      enableClosePage: false,
+      disableThirdPartyRequests: false,
+      analytics: {
+        disabled: true
+      }
     },
     interfaceConfigOverwrite: {
       TOOLBAR_BUTTONS: [
         'microphone', 'camera', 'desktop', 'fullscreen',
-        'fodeviceselection', 'hangup', 'profile', 'chat',
-        'recording', 'livestreaming', 'etherpad', 'sharedvideo',
-        'settings', 'raisehand', 'videoquality', 'filmstrip',
-        'invite', 'feedback', 'stats', 'shortcuts',
-        'tileview', 'videobackgroundblur', 'download', 'help'
-      ]
+        'hangup', 'profile', 'chat', 'settings',
+        'raisehand', 'videoquality', 'filmstrip',
+        'tileview', 'help'
+      ],
+      DISABLE_VIDEO_BACKGROUND: true,
+      HIDE_INVITE_MORE_HEADER: true
     }
+  });
+
+  // Add error handling for Jitsi
+  jaasApi.addEventListener('errorOccurred', (error) => {
+    console.error('Jitsi conference error:', error);
   });
 
   jaasApi.addEventListener('readyToClose', () => {
