@@ -646,9 +646,43 @@ function initializeAdminMeetingForm() {
       createdAt: Date.now()
     };
 
-    await saveAdminMeeting(meeting);
+    const docRef = await saveAdminMeeting(meeting);
     loadAdminMeetings();
     meetingForm.reset();
+
+    // Send notification emails to all members
+    try {
+      const memberEmails = [
+        'kingfordnabor@gmail.com',
+        'allancorral@gmail.com',
+        'phricksborebor@gmail.com',
+        'moezarperez@gmail.com',
+        'rogelioledda@gmail.com'
+      ];
+
+      for (const email of memberEmails) {
+        const member = members.find(m => m.uid === email);
+        const name = member ? member.name : email;
+
+        // Trigger email via server
+        await fetch('https://mytaskprofessional-jpteams.vercel.app/api/trigger-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            email,
+            name,
+            type: 'meeting',
+            title,
+            meetingDate: date,
+            meetingTime: time
+          })
+        });
+      }
+    } catch (error) {
+      console.error('Failed to send meeting notifications:', error);
+    }
   });
 
   meetingForm.dataset.isBound = 'true';
@@ -670,6 +704,41 @@ async function startInstantMeeting() {
 
   const docRef = await saveAdminMeeting(meeting);
   currentMeetingId = docRef.id;
+
+  // Send notification emails to all members
+  try {
+    const memberEmails = [
+      'kingfordnabor@gmail.com',
+      'allancorral@gmail.com',
+      'phricksborebor@gmail.com',
+      'moezarperez@gmail.com',
+      'rogelioledda@gmail.com'
+    ];
+
+    for (const email of memberEmails) {
+      const member = members.find(m => m.uid === email);
+      const name = member ? member.name : email;
+
+      // Trigger email via server
+      await fetch('https://mytaskprofessional-jpteams.vercel.app/api/trigger-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email,
+          name,
+          type: 'meeting',
+          title: meeting.title,
+          meetingDate: meeting.date,
+          meetingTime: meeting.time
+        })
+      });
+    }
+  } catch (error) {
+    console.error('Failed to send instant meeting notifications:', error);
+  }
+
   startMeeting(docRef.id, roomName);
 }
 
