@@ -14,6 +14,7 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M20 50l15 15 45-45' stroke='%233b82f6' stroke-width='8' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <link rel="stylesheet" href="style.css?v=1">
+  <script src='https://8x8.vc/vpaas-magic-cookie-31c887a17ea34701a28e22e5178164e3/external_api.js' async></script>
 </head>
 <body>
 
@@ -124,21 +125,9 @@
         <div class="card">
           <h2 style="margin-bottom: 1rem;"><i class="fas fa-video"></i> Video Conference</h2>
           <p style="color: #cbd5e1; margin-bottom: 1.5rem;">
-            Start a new video conference or join an existing one with colleagues and team members.
+            Join or start a video conference with team members using JaaS.
           </p>
-          <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-            <button onclick="window.location.href='video-room.html'" style="background: #3b82f6; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 0.375rem; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 0.5rem; transition: background 0.2s;">
-              <i class="fas fa-video"></i> Start Video Conference
-            </button>
-            <div style="color: #94a3b8; font-size: 0.9rem; padding: 0.75rem 0;">
-              Create a new room or join an existing conference
-            </div>
-          </div>
-          <div style="background: #1e293b; padding: 1rem; border-radius: 0.375rem; margin-top: 1.5rem; border-left: 4px solid #3b82f6;">
-            <p style="font-size: 0.9rem; color: #cbd5e1; margin: 0;">
-              <i class="fas fa-info-circle"></i> <strong>Note:</strong> Conferences are powered by Jitsi Meet. Generate unique room IDs and share them with participants. Sessions are tracked in the database for reference.
-            </p>
-          </div>
+          <div id="jaas-container" style="height: 600px; border-radius: 8px; overflow: hidden; border: 1px solid #374151;"></div>
         </div>
       </section>
 
@@ -185,6 +174,14 @@ function showSection(sectionId) {
   const targetSection = document.getElementById(sectionId);
   if (targetSection) {
     targetSection.classList.add('active');
+    
+    // Handle video conference section
+    if (sectionId === 'video-conference') {
+      const container = document.getElementById('jaas-container');
+      const meetingsList = document.getElementById('memberMeetingsList');
+      if (container) container.style.display = 'none';
+      if (meetingsList) meetingsList.style.display = 'block';
+    }
   }
   
   // Update active nav button
@@ -251,6 +248,105 @@ function closeMobileSidebar() {
 <script>
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("service-worker.js");
+}
+</script>
+
+<script>
+let jaasApi = null;
+let currentMeetingRoom = "vpaas-magic-cookie-31c887a17ea34701a28e22e5178164e3/SampleAppCapablePunksPlungeAny";
+
+function initializeJitsiConference(roomName = null) {
+  if (jaasApi) {
+    jaasApi.dispose();
+  }
+
+  const container = document.querySelector('#jaas-container');
+  if (!container) return;
+
+  const room = roomName || currentMeetingRoom;
+
+  jaasApi = new JitsiMeetExternalAPI("8x8.vc", {
+    roomName: room,
+    parentNode: container,
+    width: '100%',
+    height: '100%',
+    configOverwrite: {
+      prejoinPageEnabled: false,
+      disableDeepLinking: true,
+      startWithAudioMuted: true,
+      startWithVideoMuted: true
+    },
+    interfaceConfigOverwrite: {
+      TOOLBAR_BUTTONS: [
+        'microphone', 'camera', 'desktop', 'fullscreen',
+        'fodeviceselection', 'hangup', 'profile', 'chat',
+        'recording', 'livestreaming', 'etherpad', 'sharedvideo',
+        'settings', 'raisehand', 'videoquality', 'filmstrip',
+        'invite', 'feedback', 'stats', 'shortcuts',
+        'tileview', 'videobackgroundblur', 'download', 'help'
+      ]
+    }
+  });
+
+  jaasApi.addEventListener('readyToClose', () => {
+    if (jaasApi) {
+      jaasApi.dispose();
+      jaasApi = null;
+    }
+    // Hide conference container and show meetings list when conference ends
+    const container = document.getElementById('jaas-container');
+    const meetingsList = document.getElementById('memberMeetingsList');
+    if (container) container.style.display = 'none';
+    if (meetingsList) meetingsList.style.display = 'block';
+  });
+}
+
+// Initialize Jitsi when video conference section becomes active
+function showSection(sectionId) {
+  // Hide all sections
+  const sections = document.querySelectorAll('.content-section');
+  sections.forEach(section => section.classList.remove('active'));
+  
+  // Show selected section
+  const targetSection = document.getElementById(sectionId);
+  if (targetSection) {
+    targetSection.classList.add('active');
+    
+    // Initialize Jitsi conference when video conference section is shown
+    if (sectionId === 'video-conference') {
+      setTimeout(initializeJitsiConference, 100);
+    }
+  }
+  
+  // Update active nav button
+  const navButtons = document.querySelectorAll('.nav-btn');
+  navButtons.forEach(btn => btn.classList.remove('active'));
+  
+  // Find and activate the corresponding nav button
+  const activeBtn = document.querySelector(`[onclick="showSection('${sectionId}')"]`);
+  if (activeBtn) {
+    activeBtn.classList.add('active');
+  }
+  
+  // Update page title
+  const titles = {
+    'my-tasks': '<i class="fas fa-check-circle"></i> My Tasks',
+    'ticket-history': '<i class="fas fa-ticket-alt"></i> Ticket History',
+    'active-polls': '<i class="fas fa-chart-bar"></i> Active Polls',
+    'announcements': '<i class="fas fa-bullhorn"></i> Announcements',
+    'submit-ticket': '<i class="fas fa-headset"></i> Submit Ticket',
+    'video-conference': '<i class="fas fa-video"></i> Video Conference',
+    'resources': '<i class="fas fa-book"></i> Resources',
+    'progress-report': '<i class="fas fa-file-alt"></i> Progress Report'
+  };
+  
+  const pageTitle = document.getElementById('page-title');
+  if (pageTitle && titles[sectionId]) {
+    pageTitle.innerHTML = titles[sectionId];
+  }
+  
+  // Close mobile sidebar after selection
+  closeMobileSidebar();
 }
 </script>
 

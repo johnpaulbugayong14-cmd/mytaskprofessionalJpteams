@@ -548,6 +548,126 @@ function loadResources() {
   });
 }
 
+/* LOAD MEETINGS FOR MEMBER */
+onSnapshot(collection(db, "meetings"), (snap) => {
+  const container = document.getElementById("memberMeetingsList");
+  if (!container) return;
+
+  // Clear existing content except header
+  const header = container.querySelector('h3');
+  container.innerHTML = '';
+  if (header) container.appendChild(header);
+
+  if (snap.empty) {
+    container.innerHTML += '<p style="color: #94a3b8; text-align: center;">No meetings scheduled yet.</p>';
+    return;
+  }
+
+  let hasMeetings = false;
+  snap.docs.forEach((docSnap) => {
+    const meeting = { id: docSnap.id, ...docSnap.data() };
+
+    // Only show meetings where current user is invited
+    if (meeting.invitedMembers.includes(userEmail)) {
+      hasMeetings = true;
+      const meetingElement = createMemberMeetingElement(meeting);
+      container.appendChild(meetingElement);
+    }
+  });
+
+  if (!hasMeetings) {
+    container.innerHTML += '<p style="color: #94a3b8; text-align: center;">No meetings scheduled for you.</p>';
+  }
+});
+
+function createMemberMeetingElement(meeting) {
+  const div = document.createElement('div');
+  div.className = 'meeting-item';
+  div.style.cssText = `
+    border: 1px solid #374151;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background: #1e293b;
+  `;
+
+  const scheduledDate = new Date(meeting.scheduledTime);
+  const now = Date.now();
+  const isUpcoming = meeting.scheduledTime > now;
+  const isActive = meeting.status === 'active';
+  const canJoin = isActive || (isUpcoming && (meeting.scheduledTime - now) < (15 * 60 * 1000)); // Can join 15 min before
+
+  div.innerHTML = `
+    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+      <h4 style="margin: 0; color: #f8fafc;">${meeting.title}</h4>
+      <span style="background: ${isActive ? '#10b981' : isUpcoming ? '#3b82f6' : '#6b7280'}; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem;">
+        ${meeting.status}
+      </span>
+    </div>
+    ${meeting.description ? `<p style="color: #cbd5e1; margin: 0.5rem 0; font-size: 0.9rem;">${meeting.description}</p>` : ''}
+    <div style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 0.5rem;">
+      <i class="fas fa-calendar"></i> ${scheduledDate.toLocaleDateString()} at ${scheduledDate.toLocaleTimeString()}
+      <br>
+      <i class="fas fa-clock"></i> ${meeting.duration} minutes
+    </div>
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+      ${canJoin ? `<button onclick="joinMeeting('${meeting.id}', '${meeting.roomName}')" style="background: #10b981; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.85rem;">
+        <i class="fas fa-sign-in-alt"></i> ${isActive ? 'Join Meeting' : 'Join Early'}
+      </button>` : ''}
+      ${!isUpcoming && !isActive ? '<span style="color: #6b7280; font-size: 0.85rem; padding: 0.5rem 0;">Meeting has ended</span>' : ''}
+    </div>
+  `;
+
+  return div;
+}
+
+/* JOIN MEETING */
+window.joinMeeting = async function (meetingId, roomName) {
+  try {
+    // Update meeting participants if not already included
+    const meetingRef = doc(db, "meetings", meetingId);
+    const meetingSnap = await getDoc(meetingRef);
+
+    if (meetingSnap.exists()) {
+      const meeting = meetingSnap.data();
+      if (!meeting.participants.includes(userEmail)) {
+        await updateDoc(meetingRef, {
+          participants: arrayUnion(userEmail)
+        });
+      }
+    }
+
+    // Show conference container and initialize Jitsi
+    const container = document.getElementById('jaas-container');
+    const meetingsList = document.getElementById('memberMeetingsList');
+
+    if (container) container.style.display = 'block';
+    if (meetingsList) meetingsList.style.display = 'none';
+
+    // Initialize conference with specific room
+    initializeJitsiConference(roomName);
+
+  } catch (error) {
+    console.error("Error joining meeting:", error);
+    alert("Failed to join meeting. Please try again.");
+  }
+};
+
+/* START INSTANT CONFERENCE */
+window.startInstantConference = function () {
+  const roomName = `instant_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+  // Show conference container
+  const container = document.getElementById('jaas-container');
+  const meetingsList = document.getElementById('memberMeetingsList');
+
+  if (container) container.style.display = 'block';
+  if (meetingsList) meetingsList.style.display = 'none';
+
+  // Initialize conference
+  initializeJitsiConference(roomName);
+};
+
 (async () => {
   console.log('=== MEMBER.JS INITIALIZATION STARTED ===');
   
