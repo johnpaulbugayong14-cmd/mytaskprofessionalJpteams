@@ -14,7 +14,7 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M20 50l15 15 45-45' stroke='%233b82f6' stroke-width='8' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
   <link rel="stylesheet" href="style.css?v=1">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-  <script src='https://8x8.vc/vpaas-magic-cookie-31c887a17ea34701a28e22e5178164e3/external_api.js' async></script>
+  <script src="https://8x8.vc/vpaas-magic-cookie-31c887a17ea34701a28e22e5178164e3/external_api.js" async></script>
 </head>
 <body>
 
@@ -271,7 +271,7 @@
             </form>
           </div>
 
-          <div style="margin-bottom: 2rem; text-align: center;">
+                  <div style="margin-bottom: 2rem; text-align: center;">
             <button onclick="startInstantMeeting()" style="padding: 0.75rem 1.5rem; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem;">
               <i class="fas fa-bolt"></i> Start Instant Meeting
             </button>
@@ -392,7 +392,14 @@ if ("serviceWorker" in navigator) {
 import { collection, addDoc, onSnapshot, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { db } from "./firebase.js";
 
+const JAASTOKEN_ROOM_PREFIX = 'vpaas-magic-cookie-31c887a17ea34701a28e22e5178164e3/';
+const PROJECT_DISCUSSION_ROOM = 'ProjectDiscussion';
 let jaasApi = null;
+
+function buildJaasRoomName(roomName) {
+  if (!roomName) return roomName;
+  return roomName.startsWith(JAASTOKEN_ROOM_PREFIX) ? roomName : `${JAASTOKEN_ROOM_PREFIX}${roomName}`;
+}
 
 function initializeJitsiConference(roomName = null) {
   if (jaasApi) {
@@ -402,9 +409,9 @@ function initializeJitsiConference(roomName = null) {
   const container = document.querySelector('#jaas-container');
   if (!container) return;
 
-  const room = roomName || "vpaas-magic-cookie-31c887a17ea34701a28e22e5178164e3/ProjectDiscussionRoom";
+  const room = buildJaasRoomName(roomName || PROJECT_DISCUSSION_ROOM);
 
-  jaasApi = new JitsiMeetExternalAPI("8x8.vc", {
+  const apiOptions = {
     roomName: room,
     parentNode: container,
     width: '100%',
@@ -431,7 +438,9 @@ function initializeJitsiConference(roomName = null) {
       DISABLE_VIDEO_BACKGROUND: true,
       HIDE_INVITE_MORE_HEADER: true
     }
-  });
+  };
+
+  jaasApi = new JitsiMeetExternalAPI("8x8.vc", apiOptions);
 
   // Add error handling for Jitsi
   jaasApi.addEventListener('errorOccurred', (error) => {
@@ -570,7 +579,7 @@ function initializeAdminMeetingForm() {
     const title = document.getElementById('adminMeetingTitle').value;
     const date = document.getElementById('adminMeetingDate').value;
     const time = document.getElementById('adminMeetingTime').value;
-    const roomName = `meeting-${Date.now()}`;
+    const roomName = buildJaasRoomName(PROJECT_DISCUSSION_ROOM);
 
     const meeting = {
       title,
@@ -591,7 +600,7 @@ function initializeAdminMeetingForm() {
 
 async function startInstantMeeting() {
   const now = new Date();
-  const roomName = `instant-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const roomName = buildJaasRoomName(PROJECT_DISCUSSION_ROOM);
   const meeting = {
     title: 'Instant Meeting',
     date: now.toISOString().slice(0, 10),
