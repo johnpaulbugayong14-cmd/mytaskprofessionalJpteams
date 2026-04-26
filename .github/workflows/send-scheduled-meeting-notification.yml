@@ -79,17 +79,17 @@ jobs:
             subject: `Scheduled Meeting Notification: ${meetingTitle}`,
             text: `Hello ${name},
 
-A new scheduled meeting has been created.
+            A new scheduled meeting has been created.
 
-Title: ${meetingTitle}
-Date: ${meetingDate}
-Time: ${meetingTime}
+            Title: ${meetingTitle}
+            Date: ${meetingDate}
+            Time: ${meetingTime}
 
-Please log in to your account to join the meeting.
+            Please log in to your account to join the meeting.
 
-Update your app to access the latest meeting feature: https://drive.google.com/drive/folders/1tUwf_vpw0RWlOWHvZEUIWA6pPlGDohAT?usp=drive_link
+            Update your app to access the latest meeting feature: https://drive.google.com/drive/folders/1tUwf_vpw0RWlOWHvZEUIWA6pPlGDohAT?usp=drive_link
 
-— MyTask Professional Automated Notification`,
+            — MyTask Professional Automated Notification`,
           };
 
           transporter.sendMail(mailOptions, (error, info) => {
