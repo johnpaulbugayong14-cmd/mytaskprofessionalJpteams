@@ -412,6 +412,8 @@ function initializeJitsiConference() {
       jaasApi.dispose();
       jaasApi = null;
     }
+    // Reload the page to ensure fresh state when conference ends
+    window.location.reload();
   });
 }
 
