@@ -1,4 +1,4 @@
-import { collection, onSnapshot, doc, updateDoc, addDoc, getDoc, setDoc, arrayUnion, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { collection, onSnapshot, doc, updateDoc, addDoc, getDoc, setDoc, arrayUnion, getDocs, query, orderBy, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { db, auth } from "./firebase.js";
 import { signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getStoredUserEmail, signOutUser } from "./auth.js";
@@ -554,11 +554,13 @@ function loadResources() {
 /* MEETING SCHEDULE VIEW ONLY */
 
 function loadMeetings() {
+  if (!userEmail) return;
+  
   if (meetingsUnsubscribe) {
     meetingsUnsubscribe();
   }
 
-  const meetingsQuery = query(collection(db, 'meetings'));
+  const meetingsQuery = query(collection(db, 'meetings'), where('assignedTo', 'in', [userEmail, 'everyone']));
   meetingsUnsubscribe = onSnapshot(meetingsQuery, (snapshot) => {
     const meetings = [];
     snapshot.forEach(docSnap => {
@@ -583,14 +585,22 @@ function renderMeetings(meetings) {
   const container = document.getElementById('meetingsContainer');
   if (!container) return;
 
-  if (meetings.length === 0) {
+  const activeMeetings = meetings.filter(meeting => {
+    const status = (meeting.status || 'Active').toLowerCase();
+    const meetingDateTime = new Date(`${meeting.date}T${meeting.time}`);
+    const now = new Date();
+    const isFinished = now - meetingDateTime > (2 * 60 * 60 * 1000);
+    return status !== 'completed' && status !== 'cancelled' && !isFinished;
+  });
+
+  if (activeMeetings.length === 0) {
     container.innerHTML = '<p style="color: #94a3b8; text-align: center;">No meetings scheduled yet.</p>';
     return;
   }
 
   container.innerHTML = '';
 
-  meetings.forEach((meeting) => {
+  activeMeetings.forEach((meeting) => {
     const meetingDiv = document.createElement('div');
     meetingDiv.style.cssText = `
       border: 1px solid #374151;
@@ -703,6 +713,9 @@ window.joinScheduledMeeting = function(roomName) {
     // Update date and time every second
     updateDateTime();
     setInterval(updateDateTime, 1000);
+    
+    // Load meetings
+    loadMeetings();
     
     // Load tasks
     console.log('Setting up tasks listener...');
