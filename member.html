@@ -124,7 +124,14 @@
       <section id="video-conference" class="content-section">
         <div class="card">
           <h2 style="margin-bottom: 1rem;"><i class="fas fa-video"></i> Video Conference</h2>
-          <div id="jaas-container" style="height: 600px; border-radius: 8px; overflow: hidden; border: 1px solid #374151;"></div>
+
+          <!-- Scheduled Meetings List -->
+          <div id="meetings-list" style="margin-bottom: 2rem;">
+            <h3 style="margin-bottom: 1rem; color: #f8fafc;">Scheduled Meetings</h3>
+            <div id="meetingsContainer"></div>
+          </div>
+
+          <div id="jaas-container" style="height: 600px; border-radius: 8px; overflow: hidden; border: 1px solid #374151; display: none;"></div>
         </div>
       </section>
 
@@ -174,8 +181,7 @@ function showSection(sectionId) {
     
     // Handle video conference section
     if (sectionId === 'video-conference') {
-      // Immediately initialize conference with default room
-      initializeJitsiConference();
+      loadMeetings();
     }
   }
   
@@ -299,12 +305,17 @@ function initializeJitsiConference(roomName = null) {
       jaasApi.dispose();
       jaasApi = null;
     }
-    // Hide conference container and reload page to return to join window
+    // Hide conference container and show scheduling interface
     const container = document.getElementById('jaas-container');
+    const scheduleForm = document.getElementById('schedule-form');
+    const meetingsList = document.getElementById('meetings-list');
+
     if (container) container.style.display = 'none';
-    
-    // Reload the page to ensure fresh state and return to join window
-    window.location.reload();
+    if (scheduleForm) scheduleForm.style.display = 'block';
+    if (meetingsList) meetingsList.style.display = 'block';
+
+    // Reload meetings to update status
+    loadMeetings();
   });
 }
 

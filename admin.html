@@ -257,6 +257,32 @@
       <section id="video-conference" class="content-section">
         <div class="card">
           <h2><i class="fas fa-video"></i> Video Conference</h2>
+
+          <!-- Admin schedule form -->
+          <div id="admin-schedule-panel" style="margin-bottom: 2rem; padding: 1rem; border: 1px solid #374151; border-radius: 8px; background: #1e293b;">
+            <h3 style="margin-bottom: 1rem; color: #f8fafc;">Schedule a Meeting</h3>
+            <form id="adminMeetingForm" style="display: flex; flex-direction: column; gap: 1rem;">
+              <input type="text" id="adminMeetingTitle" placeholder="Meeting Title" required style="padding: 0.5rem; border: 1px solid #374151; border-radius: 4px; background: #0f172a; color: #f8fafc;">
+              <div style="display: flex; gap: 1rem;">
+                <input type="date" id="adminMeetingDate" required style="padding: 0.5rem; border: 1px solid #374151; border-radius: 4px; background: #0f172a; color: #f8fafc; flex: 1;">
+                <input type="time" id="adminMeetingTime" required style="padding: 0.5rem; border: 1px solid #374151; border-radius: 4px; background: #0f172a; color: #f8fafc; flex: 1;">
+              </div>
+              <button type="submit" style="padding: 0.5rem 1rem; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer;">Schedule Meeting</button>
+            </form>
+          </div>
+
+          <div style="margin-bottom: 2rem; text-align: center;">
+            <button onclick="startInstantMeeting()" style="padding: 0.75rem 1.5rem; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem;">
+              <i class="fas fa-bolt"></i> Start Instant Meeting
+            </button>
+          </div>
+
+          <!-- Scheduled Meetings List -->
+          <div id="adminMeetingsList" style="margin-bottom: 2rem;">
+            <h3 style="margin-bottom: 1rem; color: #f8fafc;">Scheduled Meetings</h3>
+            <div id="adminMeetingsContainer"></div>
+          </div>
+
           <div id="jaas-container" style="height: 600px; border-radius: 8px; overflow: hidden; border: 1px solid #374151;"></div>
         </div>
       </section>
@@ -362,10 +388,13 @@ if ("serviceWorker" in navigator) {
 }
 </script>
 
-<script>
+<script type="module">
+import { collection, addDoc, onSnapshot, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { db } from "./firebase.js";
+
 let jaasApi = null;
 
-function initializeJitsiConference() {
+function initializeJitsiConference(roomName = null) {
   if (jaasApi) {
     jaasApi.dispose();
   }
@@ -373,8 +402,10 @@ function initializeJitsiConference() {
   const container = document.querySelector('#jaas-container');
   if (!container) return;
 
+  const room = roomName || "vpaas-magic-cookie-31c887a17ea34701a28e22e5178164e3/ProjectDiscussionRoom";
+
   jaasApi = new JitsiMeetExternalAPI("8x8.vc", {
-    roomName: "vpaas-magic-cookie-31c887a17ea34701a28e22e5178164e3/ProjectDiscussionRoom",
+    roomName: room,
     parentNode: container,
     width: '100%',
     height: '100%',
@@ -417,6 +448,177 @@ function initializeJitsiConference() {
   });
 }
 
+function startMeeting(roomName) {
+  const schedulePanel = document.getElementById('admin-schedule-panel');
+  const meetingsList = document.getElementById('adminMeetingsList');
+  const container = document.getElementById('jaas-container');
+
+  if (schedulePanel) schedulePanel.style.display = 'none';
+  if (meetingsList) meetingsList.style.display = 'none';
+  if (container) container.style.display = 'block';
+
+  initializeJitsiConference(roomName);
+}
+
+let adminMeetingsUnsubscribe = null;
+
+async function saveAdminMeeting(meeting) {
+  await addDoc(collection(db, 'meetings'), meeting);
+}
+
+function loadAdminMeetings() {
+  if (adminMeetingsUnsubscribe) {
+    adminMeetingsUnsubscribe();
+  }
+
+  adminMeetingsUnsubscribe = onSnapshot(collection(db, 'meetings'), (snapshot) => {
+    const meetings = [];
+    snapshot.forEach(docSnap => {
+      meetings.push({ id: docSnap.id, ...docSnap.data() });
+    });
+
+    meetings.sort((a, b) => {
+      const aDate = new Date(`${a.date}T${a.time}`);
+      const bDate = new Date(`${b.date}T${b.time}`);
+      return aDate - bDate;
+    });
+
+    renderAdminMeetings(meetings);
+  }, (error) => {
+    console.error('Admin meetings listener error:', error);
+  });
+}
+
+function renderAdminMeetings(meetings) {
+  const container = document.getElementById('adminMeetingsContainer');
+  if (!container) return;
+
+  if (meetings.length === 0) {
+    container.innerHTML = '<p style="color: #94a3b8; text-align: center;">No meetings scheduled yet.</p>';
+    return;
+  }
+
+  container.innerHTML = '';
+
+  meetings.forEach((meeting) => {
+    const meetingDiv = document.createElement('div');
+    meetingDiv.style.cssText = `
+      border: 1px solid #374151;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      background: #1e293b;
+    `;
+
+    const meetingDateTime = new Date(`${meeting.date}T${meeting.time}`);
+    const now = new Date();
+    const isUpcoming = meetingDateTime > now;
+    const isToday = meetingDateTime.toDateString() === now.toDateString();
+    const isOngoing = isToday && meetingDateTime <= now && (now - meetingDateTime) < (2 * 60 * 60 * 1000);
+    const isFinished = !isUpcoming && !isOngoing;
+
+    let status = 'Upcoming';
+    let statusColor = '#3b82f6';
+    let canJoin = false;
+
+    if (isOngoing) {
+      status = 'Ongoing';
+      statusColor = '#10b981';
+      canJoin = true;
+    } else if (isFinished) {
+      status = 'Finished';
+      statusColor = '#6b7280';
+      canJoin = true;
+    }
+
+    meetingDiv.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+        <h4 style="margin: 0; color: #f8fafc;">${meeting.title}</h4>
+        <span style="background: ${statusColor}; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem;">
+          ${status}
+        </span>
+      </div>
+      <div style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 0.5rem;">
+        <i class="fas fa-calendar"></i> ${meetingDateTime.toLocaleDateString()} at ${meetingDateTime.toLocaleTimeString()}
+      </div>
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <button ${canJoin ? '' : 'disabled'} onclick="startMeeting('${meeting.roomName}')" style="background: ${canJoin ? '#10b981' : '#6b7280'}; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: ${canJoin ? 'pointer' : 'not-allowed'}; font-size: 0.85rem;">
+          <i class="fas fa-sign-in-alt"></i> ${canJoin ? 'Join Meeting' : 'Not Started'}
+        </button>
+        <button onclick="deleteAdminMeeting('${meeting.id}')" style="background: #dc2626; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.85rem;">
+          <i class="fas fa-trash"></i> Delete
+        </button>
+      </div>
+    `;
+
+    container.appendChild(meetingDiv);
+  });
+}
+
+async function deleteAdminMeeting(meetingId) {
+  await deleteDoc(doc(db, 'meetings', meetingId));
+  loadAdminMeetings();
+}
+
+function initializeAdminMeetingForm() {
+  const meetingForm = document.getElementById('adminMeetingForm');
+  if (!meetingForm || meetingForm.dataset.isBound) return;
+
+  meetingForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const title = document.getElementById('adminMeetingTitle').value;
+    const date = document.getElementById('adminMeetingDate').value;
+    const time = document.getElementById('adminMeetingTime').value;
+    const roomName = `meeting-${Date.now()}`;
+
+    const meeting = {
+      title,
+      date,
+      time,
+      roomName,
+      type: 'scheduled',
+      createdAt: Date.now()
+    };
+
+    await saveAdminMeeting(meeting);
+    loadAdminMeetings();
+    meetingForm.reset();
+  });
+
+  meetingForm.dataset.isBound = 'true';
+}
+
+async function startInstantMeeting() {
+  const now = new Date();
+  const roomName = `instant-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const meeting = {
+    title: 'Instant Meeting',
+    date: now.toISOString().slice(0, 10),
+    time: now.toTimeString().slice(0, 5),
+    roomName,
+    type: 'instant',
+    createdAt: Date.now()
+  };
+
+  await saveAdminMeeting(meeting);
+  startMeeting(roomName);
+}
+
+window.loadMeetings = loadMeetings;
+window.initializeAdminMeetingForm = initializeAdminMeetingForm;
+window.startMeeting = startMeeting;
+window.startInstantMeeting = startInstantMeeting;
+window.deleteAdminMeeting = deleteAdminMeeting;
+
+function loadMeetings() {
+  loadAdminMeetings();
+}
+
+function renderMeetings(meetings) {
+  renderAdminMeetings(meetings);
+}
+
 // Initialize Jitsi when video conference section becomes active
 function showSection(sectionId) {
   // Hide all sections
@@ -430,6 +632,8 @@ function showSection(sectionId) {
     
     // Initialize Jitsi conference when video conference section is shown
     if (sectionId === 'video-conference') {
+      loadMeetings();
+      initializeAdminMeetingForm();
       setTimeout(initializeJitsiConference, 100);
     }
   }
