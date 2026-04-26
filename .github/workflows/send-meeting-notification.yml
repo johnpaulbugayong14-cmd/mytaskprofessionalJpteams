@@ -71,27 +71,31 @@ jobs:
                 const meeting = doc.data();
                 const meetingId = doc.id;
 
-                let meetingDate = null;
+                let createdDate = null;
                 if (meeting.createdAt) {
-                  meetingDate = new Date(meeting.createdAt.toDate ? meeting.createdAt.toDate() : meeting.createdAt);
-                } else if (meeting.date) {
-                  meetingDate = new Date(meeting.date);
+                  createdDate = new Date(meeting.createdAt.toDate ? meeting.createdAt.toDate() : meeting.createdAt);
                 }
 
-                if (!meetingDate) {
-                  console.log(`Meeting ${meetingId}: No date found`);
+                if (!createdDate) {
+                  console.log(`Meeting ${meetingId}: No createdAt found, skipping`);
                   return;
                 }
 
-                let notifiedToday = false;
-                if (meeting.notified_dates && Array.isArray(meeting.notified_dates)) {
-                  const todayString = today.toISOString().split('T')[0];
-                  notifiedToday = meeting.notified_dates.includes(todayString);
+                let meetingDate = null;
+                if (meeting.date) {
+                  meetingDate = new Date(meeting.date);
                 }
 
-                const isRecentOrUpcoming = meetingDate >= today || meetingDate.toISOString().split('T')[0] === today.toISOString().split('T')[0];
+                // Only notify if meeting was created today (new meeting)
+                const createdToday = createdDate.toISOString().split('T')[0] === today.toISOString().split('T')[0];
 
-                if (isRecentOrUpcoming && !notifiedToday && meeting.title) {
+                // Check if already notified
+                let hasBeenNotified = false;
+                if (meeting.notified_dates && Array.isArray(meeting.notified_dates) && meeting.notified_dates.length > 0) {
+                  hasBeenNotified = true;
+                }
+
+                if (createdToday && !hasBeenNotified && meeting.title) {
                   notificationsToSend.push({ meetingId, meeting, meetingDate });
                 }
               });
@@ -130,15 +134,14 @@ jobs:
                 }
 
                 const meetingTime = meeting.time || 'TBD';
-                const meetingDateStr = meetingDate.toLocaleDateString();
-                const emailText = 'Hello ' + recipient.name + ',\\n\\nA new scheduled meeting has been created.\\n\\nTitle: ' + meeting.title + '\\nDate: ' + meetingDateStr + '\\nTime: ' + meetingTime + '\\nType: ' + (meeting.type === 'scheduled' ? 'Scheduled' : 'Instant') + '\\n\\nPlease log in to your account to join the meeting.\\n\\nUpdate your app to access the latest meeting feature: https://drive.google.com/drive/folders/1tUwf_vpw0RWlOWHvZEUIWA6pPlGDohAT?usp=drive_link\\n\\n— MyTask Professional Automated Notification';
+                const meetingDateStr = meetingDate ? meetingDate.toLocaleDateString() : meeting.date || 'TBD';
 
                 for (const recipient of recipients) {
                   const mailOptions = {
                     from: process.env.GMAIL_USER,
                     to: recipient.email,
                     subject: 'Scheduled Meeting: ' + meeting.title,
-                    text: 'Hello ' + recipient.name + ',\\n\\nA new scheduled meeting has been created.\\n\\nTitle: ' + meeting.title + '\\nDate: ' + meetingDateStr + '\\nTime: ' + meetingTime + '\\nType: ' + (meeting.type === 'scheduled' ? 'Scheduled' : 'Instant') + '\\n\\nPlease log in to your account to join the meeting.\\n\\nUpdate your app to access the latest meeting feature: https://drive.google.com/drive/folders/1tUwf_vpw0RWlOWHvZEUIWA6pPlGDohAT?usp=drive_link\\n\\n— MyTask Professional Automated Notification',
+                    text: 'Hello ' + recipient.name + ',\n\nA new scheduled meeting has been created.\n\nTitle: ' + meeting.title + '\nDate: ' + meetingDateStr + '\nTime: ' + meetingTime + '\nType: ' + (meeting.type === 'scheduled' ? 'Scheduled' : 'Instant') + '\n\nPlease log in to your account to join the meeting.\n\nUpdate your app to access the latest meeting feature: https://drive.google.com/drive/folders/1tUwf_vpw0RWlOWHvZEUIWA6pPlGDohAT?usp=drive_link\n\n— MyTask Professional Automated Notification',
                   };
 
                   try {
