@@ -124,11 +124,7 @@
       <section id="video-conference" class="content-section">
         <div class="card">
           <h2 style="margin-bottom: 1rem;"><i class="fas fa-video"></i> Video Conference</h2>
-          <div id="memberMeetingsList">
-            <h3 style="margin-bottom: 1rem; color: #f8fafc;">Scheduled Meetings</h3>
-            <!-- Meetings will be loaded here by member.js -->
-          </div>
-          <div id="jaas-container" style="height: 600px; border-radius: 8px; overflow: hidden; border: 1px solid #374151; display: none;"></div>
+          <div id="jaas-container" style="height: 600px; border-radius: 8px; overflow: hidden; border: 1px solid #374151;"></div>
         </div>
       </section>
 
@@ -178,10 +174,8 @@ function showSection(sectionId) {
     
     // Handle video conference section
     if (sectionId === 'video-conference') {
-      const container = document.getElementById('jaas-container');
-      const meetingsList = document.getElementById('memberMeetingsList');
-      if (container) container.style.display = 'none';
-      if (meetingsList) meetingsList.style.display = 'block';
+      // Immediately initialize conference with default room
+      initializeJitsiConference();
     }
   }
   
