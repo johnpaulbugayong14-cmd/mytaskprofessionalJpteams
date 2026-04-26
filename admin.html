@@ -683,6 +683,13 @@ window.updateMeetingStatus = updateMeetingStatus;
 window.deleteMeeting = deleteMeeting;
 window.joinMeeting = joinMeeting;
 
+// Ensure scheduled meeting form is initialized on page load
+if (document.readyState !== 'loading') {
+  initializeAdminMeetingForm();
+} else {
+  document.addEventListener('DOMContentLoaded', initializeAdminMeetingForm);
+}
+
 function loadMeetingHistory() {
   const q = query(collection(db, 'meetings'), orderBy('createdAt', 'desc'));
   onSnapshot(q, (querySnapshot) => {
