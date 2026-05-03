@@ -1513,19 +1513,6 @@ window.createMeeting = async function() {
   }
 };
 
-// Start meeting (change status to active)
-window.startMeeting = async function(meetingId) {
-  try {
-    await updateDoc(doc(db, "meetings", meetingId), {
-      status: 'active'
-    });
-    alert('Meeting started!');
-  } catch (error) {
-    console.error('Error starting meeting:', error);
-    alert('Failed to start meeting.');
-  }
-};
-
 // Change meeting status to any value
 window.changeMeetingStatus = async function(meetingId, newStatus) {
   try {
