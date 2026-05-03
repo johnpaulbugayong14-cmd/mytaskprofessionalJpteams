@@ -1552,14 +1552,33 @@ function createAdminMeetingElement(meeting) {
   const scheduledDate = new Date(meeting.scheduledTime);
   const now = Date.now();
   const isUpcoming = meeting.scheduledTime > now;
-  const isActive = meeting.status === 'active';
+  const currentStatus = meeting.status || 'scheduled';
+  
+  // Status color mapping
+  const statusColors = {
+    'scheduled': '#3b82f6', // blue
+    'active': '#10b981',   // green
+    'completed': '#6b7280', // gray
+    'cancelled': '#ef4444'  // red
+  };
+  
+  const statusColor = statusColors[currentStatus] || '#6b7280';
 
   div.innerHTML = `
     <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
       <h4 style="margin: 0; color: #f8fafc;">${meeting.title}</h4>
-      <span style="background: ${isActive ? '#10b981' : isUpcoming ? '#3b82f6' : '#6b7280'}; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem;">
-        ${meeting.status}
-      </span>
+      <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <select id="status-${meeting.id}" onchange="changeMeetingStatus('${meeting.id}', this.value)" 
+                style="background: #374151; color: #f8fafc; border: 1px solid #4b5563; border-radius: 0.25rem; padding: 0.25rem; font-size: 0.8rem;">
+          <option value="scheduled" ${currentStatus === 'scheduled' ? 'selected' : ''}>Scheduled</option>
+          <option value="active" ${currentStatus === 'active' ? 'selected' : ''}>Active</option>
+          <option value="completed" ${currentStatus === 'completed' ? 'selected' : ''}>Completed</option>
+          <option value="cancelled" ${currentStatus === 'cancelled' ? 'selected' : ''}>Cancelled</option>
+        </select>
+        <span style="background: ${statusColor}; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: bold;">
+          ${currentStatus.charAt(0).toUpperCase() + currentStatus.slice(1)}
+        </span>
+      </div>
     </div>
     ${meeting.description ? `<p style="color: #cbd5e1; margin: 0.5rem 0; font-size: 0.9rem;">${meeting.description}</p>` : ''}
     <div style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 0.5rem;">
@@ -1572,9 +1591,6 @@ function createAdminMeetingElement(meeting) {
       <i class="fas fa-door-open"></i> Room: ${meeting.roomName}
     </div>
     <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-      <button onclick="startMeeting('${meeting.id}')" style="background: #10b981; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.85rem;">
-        <i class="fas fa-play"></i> Start Meeting
-      </button>
       <button onclick="editMeeting('${meeting.id}')" style="background: #3b82f6; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.85rem;">
         <i class="fas fa-edit"></i> Edit
       </button>
@@ -1600,21 +1616,43 @@ window.startMeeting = async function(meetingId) {
   }
 };
 
+// Change meeting status to any value
+window.changeMeetingStatus = async function(meetingId, newStatus) {
+  try {
+    await updateDoc(doc(db, "meetings", meetingId), {
+      status: newStatus
+    });
+    // Status will be updated via onSnapshot listener
+  } catch (error) {
+    console.error('Error changing meeting status:', error);
+    alert('Failed to change meeting status.');
+  }
+};
+
 // Edit meeting (placeholder - could implement modal)
 window.editMeeting = function(meetingId) {
   alert('Edit functionality not implemented yet. Meeting ID: ' + meetingId);
 };
 
-// Delete meeting
+// Delete meeting with enhanced confirmation
 window.deleteMeeting = async function(meetingId) {
-  if (confirm('Are you sure you want to delete this meeting?')) {
-    try {
-      await deleteDoc(doc(db, "meetings", meetingId));
-      alert('Meeting deleted successfully!');
-    } catch (error) {
-      console.error('Error deleting meeting:', error);
-      alert('Failed to delete meeting.');
+  // Get meeting details for better confirmation message
+  try {
+    const meetingDoc = await getDoc(doc(db, "meetings", meetingId));
+    if (meetingDoc.exists()) {
+      const meeting = meetingDoc.data();
+      const confirmMessage = `Are you sure you want to delete the meeting "${meeting.title}"?\n\nThis action cannot be undone.`;
+      
+      if (confirm(confirmMessage)) {
+        await deleteDoc(doc(db, "meetings", meetingId));
+        alert('Meeting deleted successfully!');
+      }
+    } else {
+      alert('Meeting not found.');
     }
+  } catch (error) {
+    console.error('Error deleting meeting:', error);
+    alert('Failed to delete meeting.');
   }
 };
 

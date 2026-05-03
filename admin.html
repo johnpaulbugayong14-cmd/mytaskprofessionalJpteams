@@ -858,20 +858,22 @@ function renderMeetingHistory(meetings) {
     const isOngoing = isToday && meetingDateTime <= now && (now - meetingDateTime) < (2 * 60 * 60 * 1000);
     const isFinished = !isUpcoming && !isOngoing;
 
-    let status = meeting.status || 'Active';
-    let statusColor = '#10b981'; // green for active
+    let status = meeting.status || 'scheduled';
+    let statusColor = '#3b82f6'; // blue for scheduled
 
-    if (status === 'Cancelled') statusColor = '#ef4444'; // red
-    else if (status === 'Completed') statusColor = '#6b7280'; // gray
+    if (status === 'active') statusColor = '#10b981'; // green
+    else if (status === 'completed') statusColor = '#6b7280'; // gray
+    else if (status === 'cancelled') statusColor = '#ef4444'; // red
 
     meetingDiv.innerHTML = `
       <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
         <h4 style="margin: 0; color: #f8fafc;">${meeting.title}</h4>
         <div style="display: flex; gap: 0.5rem; align-items: center;">
           <select id="status-${meeting.id}" style="background: #374151; color: #f8fafc; border: 1px solid #4b5563; border-radius: 0.25rem; padding: 0.25rem;">
-            <option value="Active" ${status === 'Active' ? 'selected' : ''}>Active</option>
-            <option value="Cancelled" ${status === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
-            <option value="Completed" ${status === 'Completed' ? 'selected' : ''}>Completed</option>
+            <option value="scheduled" ${status === 'scheduled' ? 'selected' : ''}>Scheduled</option>
+            <option value="active" ${status === 'active' ? 'selected' : ''}>Active</option>
+            <option value="completed" ${status === 'completed' ? 'selected' : ''}>Completed</option>
+            <option value="cancelled" ${status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
           </select>
           <button onclick="updateMeetingStatus('${meeting.id}')" style="background: #3b82f6; color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 0.25rem; cursor: pointer;">Update</button>
           <button onclick="deleteMeeting('${meeting.id}')" style="background: #ef4444; color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 0.25rem; cursor: pointer;">Delete</button>
@@ -906,9 +908,23 @@ async function updateMeetingStatus(meetingId) {
 }
 
 async function deleteMeeting(meetingId) {
-  if (confirm('Are you sure you want to delete this meeting?')) {
-    await deleteDoc(doc(db, 'meetings', meetingId));
-    // Meeting will be removed via onSnapshot listener
+  // Get meeting details for better confirmation message
+  try {
+    const meetingDoc = await getDoc(doc(db, 'meetings', meetingId));
+    if (meetingDoc.exists()) {
+      const meeting = meetingDoc.data();
+      const confirmMessage = `Are you sure you want to delete the meeting "${meeting.title}"?\n\nThis action cannot be undone.`;
+      
+      if (confirm(confirmMessage)) {
+        await deleteDoc(doc(db, 'meetings', meetingId));
+        // Meeting will be removed via onSnapshot listener
+      }
+    } else {
+      alert('Meeting not found.');
+    }
+  } catch (error) {
+    console.error('Error deleting meeting:', error);
+    alert('Failed to delete meeting.');
   }
 }
 
