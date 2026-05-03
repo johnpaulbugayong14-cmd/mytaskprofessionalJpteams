@@ -1627,8 +1627,6 @@ onSnapshot(collection(db, "meetings"), (snap) => {
         <br>
         <i class="fas fa-clock"></i> ${meeting.duration} minutes
         <br>
-        <i class="fas fa-users"></i> Invited: ${meeting.invitedMembers ? meeting.invitedMembers.length : 0}
-        <br>
         <i class="fas fa-door-open"></i> Room: ${meeting.roomName}
       </div>
       <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
