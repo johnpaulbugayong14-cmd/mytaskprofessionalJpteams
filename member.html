@@ -265,6 +265,11 @@ function buildJaasRoomName(roomName) {
 }
 
 function initializeJitsiConference(roomName = null) {
+  if (typeof JitsiMeetExternalAPI === 'undefined') {
+    alert('Video conference system is still loading. Please try again in a moment.');
+    return;
+  }
+
   if (jaasApi) {
     jaasApi.dispose();
   }
