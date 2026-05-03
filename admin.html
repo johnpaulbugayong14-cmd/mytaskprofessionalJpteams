@@ -584,9 +584,21 @@ function renderAdminMeetings(meetings) {
     const showEndButton = currentStatus === 'Active';
 
     meetingDiv.innerHTML = `
-      <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
-        <h4 style="margin: 0; color: #f8fafc;">${meeting.title}</h4>
-        <span style="background: ${statusColor}; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem;">
+      <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem; gap: 1rem; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 220px;">
+          <h4 style="margin: 0; color: #f8fafc;">${meeting.title}</h4>
+          <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.5rem;">
+            <label for="status-${meeting.id}" style="color: #cbd5e1; font-size: 0.85rem; white-space: nowrap;">Status:</label>
+            <select id="status-${meeting.id}" style="background: #0f172a; color: #f8fafc; border: 1px solid #4b5563; border-radius: 0.25rem; padding: 0.35rem 0.5rem; font-size: 0.85rem;">
+              <option value="Scheduled" ${currentStatus === 'Scheduled' ? 'selected' : ''}>Scheduled</option>
+              <option value="Active" ${currentStatus === 'Active' ? 'selected' : ''}>Active</option>
+              <option value="Completed" ${currentStatus === 'Completed' ? 'selected' : ''}>Completed</option>
+              <option value="Cancelled" ${currentStatus === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
+            </select>
+            <button onclick="updateMeetingStatus('${meeting.id}')" style="background: #3b82f6; color: white; border: none; padding: 0.4rem 0.75rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.85rem;">Update</button>
+          </div>
+        </div>
+        <span style="background: ${statusColor}; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; min-width: 92px; text-align: center;">
           ${currentStatus}
         </span>
       </div>
