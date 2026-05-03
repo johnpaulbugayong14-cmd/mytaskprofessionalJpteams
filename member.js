@@ -650,14 +650,14 @@ function renderMeetings(meetings) {
   });
 }
 
-window.joinScheduledMeeting = async function(roomName) {
+window.joinScheduledMeeting = function(roomName) {
   const container = document.getElementById('jaas-container');
   const meetingsList = document.getElementById('meetings-list');
 
   if (container) container.style.display = 'block';
   if (meetingsList) meetingsList.style.display = 'none';
 
-  await initializeJitsiConference(roomName);
+  initializeJitsiConference(roomName);
 };
 
 // No scheduling controls on member page
