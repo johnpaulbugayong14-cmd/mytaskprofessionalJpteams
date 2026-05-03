@@ -1473,17 +1473,27 @@ window.createMeeting = async function() {
   const selectedMembers = Array.from(document.querySelectorAll('.member-invite-checkbox:checked')).map(cb => cb.value);
   
   try {
+    // Convert scheduledTime to separate date and time for email notifications
+    const scheduledDate = new Date(scheduledTime);
+    const date = scheduledDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+    const time = scheduledDate.toTimeString().split(' ')[0]; // HH:MM:SS format
+    
     const meetingData = {
       title,
       description,
       scheduledTime,
+      date, // For email notifications
+      time, // For email notifications
       duration,
       roomName,
-      invitedMembers: selectedMembers,
+      invitedMembers: selectedMembers, // Array of email addresses
+      assignedTo: selectedMembers, // For email notifications (expects user IDs, but we'll use emails)
       participants: [], // Will be populated when members join
       status: 'scheduled', // scheduled, active, ended
+      type: 'scheduled', // For email notifications
       createdBy: adminEmail,
-      createdAt: serverTimestamp()
+      createdAt: serverTimestamp(),
+      emailNotificationSent: false // For email notifications
     };
     
     await addDoc(collection(db, "meetings"), meetingData);

@@ -57,121 +57,73 @@ jobs:
               const today = new Date();
               today.setHours(0, 0, 0, 0);
 
+              const emailMapping = {
+                'johnpaulbugayong@gmail.com': 'johnpaulbugayong14@gmail.com',
+                'kingfordnabor@gmail.com': 'kingfordnabor20@gmail.com',
+                'allancorral@gmail.com': 'allancorral084@gmail.com',
+                'phricksborebor@gmail.com': 'boreborpj16@gmail.com',
+                'moezarperez@gmail.com': 'moezarg19@gmail.com',
+                'rogelioledda@gmail.com': 'rogelioledda051506@gmail.com'
+              };
+
               const meetingsRef = db.collection('meetings');
-              const snapshot = await meetingsRef.get();
+              const snapshot = await meetingsRef.where('emailNotificationSent', '!=', true).get();
 
               if (snapshot.empty) {
-                console.log('No meetings found');
+                console.log('No new meetings to notify');
                 return;
               }
 
-              const notificationsToSend = [];
+              console.log(`Found ${snapshot.size} new meeting(s) to notify`);
 
-              snapshot.forEach((doc) => {
+              for (const doc of snapshot.docs) {
                 const meeting = doc.data();
                 const meetingId = doc.id;
 
-                let createdDate = null;
-                if (meeting.createdAt) {
-                  createdDate = new Date(meeting.createdAt.toDate ? meeting.createdAt.toDate() : meeting.createdAt);
-                }
-
-                if (!createdDate) {
-                  console.log(`Meeting ${meetingId}: No createdAt found, skipping`);
-                  return;
-                }
-
-                let meetingDate = null;
-                if (meeting.date) {
-                  meetingDate = new Date(meeting.date);
-                }
-
-                // Only notify if meeting was created today (new meeting)
-                const createdToday = createdDate.toISOString().split('T')[0] === today.toISOString().split('T')[0];
-
-                // Check if already notified
-                let hasBeenNotified = false;
-                if (meeting.notified_dates && Array.isArray(meeting.notified_dates) && meeting.notified_dates.length > 0) {
-                  hasBeenNotified = true;
-                }
-
-                if (createdToday && !hasBeenNotified && meeting.title) {
-                  notificationsToSend.push({ meetingId, meeting, meetingDate });
-                }
-              });
-
-              console.log(`Found ${notificationsToSend.length} meeting(s) to notify`);
-
-              const usersRef = db.collection('users');
-              const usersSnapshot = await usersRef.get();
-              const userMap = {};
-
-              usersSnapshot.forEach((doc) => {
-                userMap[doc.id] = doc.data();
-              });
-
-              for (const notification of notificationsToSend) {
-                const { meetingId, meeting, meetingDate } = notification;
-                const assignedTo = meeting.assignedTo || 'everyone';
-
                 let recipients = [];
-                if (assignedTo === 'everyone') {
-                  recipients = Object.keys(userMap).map((uid) => ({
-                    uid,
-                    email: userMap[uid].email,
-                    name: userMap[uid].name || 'User',
-                  }));
-                } else if (typeof assignedTo === 'string') {
-                  const user = userMap[assignedTo];
-                  if (user && user.email) {
-                    recipients = [{ uid: assignedTo, email: user.email, name: user.name || 'User' }];
-                  }
-                } else if (Array.isArray(assignedTo)) {
-                  recipients = assignedTo
-                    .map((uid) => userMap[uid])
-                    .filter((user) => user && user.email)
-                    .map((user) => ({ uid: user.uid, email: user.email, name: user.name || 'User' }));
+                if (meeting.assignedTo === 'everyone') {
+                  recipients = Object.values(emailMapping);
+                } else if (Array.isArray(meeting.assignedTo)) {
+                  recipients = meeting.assignedTo
+                    .map(email => emailMapping[email] || email)
+                    .filter(email => email);
+                } else if (typeof meeting.assignedTo === 'string') {
+                  const email = emailMapping[meeting.assignedTo] || meeting.assignedTo;
+                  if (email) recipients = [email];
                 }
 
                 const meetingTime = meeting.time || 'TBD';
-                const meetingDateStr = meetingDate ? meetingDate.toLocaleDateString() : meeting.date || 'TBD';
+                const meetingDateStr = meeting.date || 'TBD';
 
-                for (const recipient of recipients) {
-                  const mailOptions = {
-                    from: process.env.GMAIL_USER,
-                    to: recipient.email,
-                    subject: 'Scheduled Meeting: ' + meeting.title,
-                    text: 'Hello ' + recipient.name + ',\n\nA new scheduled meeting has been created.\n\nTitle: ' + meeting.title + '\nDate: ' + meetingDateStr + '\nTime: ' + meetingTime + '\nType: ' + (meeting.type === 'scheduled' ? 'Scheduled' : 'Instant') + '\n\nPlease log in to your account to join the meeting.\n\nUpdate your app to access the latest meeting feature: https://drive.google.com/drive/folders/1tUwf_vpw0RWlOWHvZEUIWA6pPlGDohAT?usp=drive_link\n\n— MyTask Professional Automated Notification',
-                  };
-
+                for (const notifEmail of recipients) {
                   try {
-                    await transporter.sendMail(mailOptions);
-                    console.log('Email sent to ' + recipient.email + ' for meeting ' + meetingId);
+                    await transporter.sendMail({
+                      from: `"My Thesis Hub" <${process.env.GMAIL_USER}>`,
+                      to: notifEmail,
+                      subject: `Scheduled Meeting: ${meeting.title}`,
+                      html: `<html><body style="font-family: Arial, sans-serif; background-color: #f5f5f5; margin: 0; padding: 20px;"><div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 5px; overflow: hidden;"><div style="background: linear-gradient(135deg, #1e3a8a 0%, #2d5aa8 100%); color: white; padding: 30px; text-align: center;"><h1 style="margin: 0; font-size: 28px;">My Thesis Hub</h1><p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">Meeting Management System</p></div><div style="background-color: #4ade80; color: white; padding: 15px 20px; text-align: center; font-size: 18px; font-weight: bold;">📅 Scheduled Meeting</div><div style="padding: 30px; color: #333;"><p>Hello,</p><p>A new meeting has been scheduled:</p><div style="background-color: #f0fdf4; border-left: 4px solid #4ade80; padding: 15px; margin: 20px 0;"><p style="margin: 5px 0;"><strong>Meeting Title:</strong> ${meeting.title}</p><p style="margin: 5px 0;"><strong>Date:</strong> ${meetingDateStr}</p><p style="margin: 5px 0;"><strong>Time:</strong> ${meetingTime}</p><p style="margin: 5px 0;"><strong>Duration:</strong> ${meeting.duration || 'N/A'} minutes</p><p style="margin: 5px 0;"><strong>Room:</strong> ${meeting.roomName || 'TBD'}</p></div><p>Please log in to the app to join the meeting when it starts.</p><div style="text-align: center; margin: 30px 0;"><a href="http://mytaskprofessional-jpteams.vercel.app/?v=2" style="background-color: #1e3a8a; color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; display: inline-block; font-weight: bold;">View Meeting</a></div></div><div style="background-color: #f9f9f9; padding: 20px; text-align: center; font-size: 12px; color: #666; border-top: 1px solid #eee;"><p style="margin: 5px 0;">This is an automated email notification. Please do not reply to this email.</p><p style="margin: 5px 0;">© My Thesis Hub - Meeting Management System</p></div></div></body></html>`
+                    });
+                    console.log(`✓ Meeting notification sent to ${notifEmail}`);
                   } catch (error) {
-                    console.error('Failed to send email:', error.message);
+                    console.error('Failed to send meeting email:', error.message);
                   }
                 }
 
-                const todayString = today.toISOString().split('T')[0];
-                const notifiedDates = meeting.notified_dates || [];
-                if (!notifiedDates.includes(todayString)) {
-                  notifiedDates.push(todayString);
-                }
-
+                // Mark as notified
                 try {
                   await meetingsRef.doc(meetingId).update({
-                    notified_dates: notifiedDates,
-                    last_notified: new Date(),
+                    emailNotificationSent: true,
+                    last_notified: new Date()
                   });
-                  console.log('Meeting ' + meetingId + ' marked as notified');
+                  console.log(`Meeting ${meetingId} marked as notified`);
                 } catch (error) {
-                  console.error('Failed to update meeting:', error.message);
+                  console.error('Failed to update meeting notification status:', error.message);
                 }
               }
 
               console.log('Meeting notification check completed');
             } catch (error) {
-              console.error('Error:', error);
+              console.error('Error in sendMeetingNotifications:', error);
               process.exit(1);
             }
           }
