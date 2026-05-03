@@ -83,7 +83,8 @@ import {
   deleteDoc,
   setDoc,
   getDoc,
-  arrayUnion
+  arrayUnion,
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 import { db } from "./firebase.js";
@@ -1419,5 +1420,198 @@ console.log('window.respondToTicket:', typeof window.respondToTicket);
 console.log('window.changeTicketStatus:', typeof window.changeTicketStatus);
 console.log('window.deleteTicket:', typeof window.deleteTicket);
 console.log('window.deleteResource:', typeof window.deleteResource);
+
+/* MEETING MANAGEMENT FUNCTIONS */
+
+// Load and populate invite members checkboxes
+function populateInviteMembers() {
+  const container = document.getElementById('meetingInviteMembers');
+  if (!container) return;
+
+  container.innerHTML = '';
+  members.forEach(member => {
+    const label = document.createElement('label');
+    label.style.cssText = 'display: flex; align-items: center; gap: 0.5rem; background: #374151; padding: 0.5rem; border-radius: 0.375rem; cursor: pointer;';
+    
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.value = member.uid;
+    checkbox.className = 'member-invite-checkbox';
+    
+    const span = document.createElement('span');
+    span.textContent = member.name;
+    span.style.color = '#f8fafc';
+    
+    label.appendChild(checkbox);
+    label.appendChild(span);
+    container.appendChild(label);
+  });
+}
+
+// Create new meeting
+window.createMeeting = async function() {
+  console.log('=== CREATE MEETING CALLED ===');
+  
+  const title = document.getElementById('meetingTitle').value.trim();
+  const dateTime = document.getElementById('meetingDate').value;
+  const duration = parseInt(document.getElementById('meetingDuration').value);
+  const roomName = document.getElementById('meetingRoom').value.trim();
+  const description = document.getElementById('meetingDescription').value.trim();
+  
+  if (!title || !dateTime || !duration || !roomName) {
+    alert('Please fill in all required fields.');
+    return;
+  }
+  
+  const scheduledTime = new Date(dateTime).getTime();
+  if (isNaN(scheduledTime)) {
+    alert('Invalid date/time format.');
+    return;
+  }
+  
+  // Get selected members
+  const selectedMembers = Array.from(document.querySelectorAll('.member-invite-checkbox:checked')).map(cb => cb.value);
+  
+  try {
+    const meetingData = {
+      title,
+      description,
+      scheduledTime,
+      duration,
+      roomName,
+      invitedMembers: selectedMembers,
+      participants: [], // Will be populated when members join
+      status: 'scheduled', // scheduled, active, ended
+      createdBy: adminEmail,
+      createdAt: serverTimestamp()
+    };
+    
+    await addDoc(collection(db, "meetings"), meetingData);
+    
+    // Clear form
+    document.getElementById('meetingTitle').value = '';
+    document.getElementById('meetingDate').value = '';
+    document.getElementById('meetingDuration').value = '';
+    document.getElementById('meetingRoom').value = '';
+    document.getElementById('meetingDescription').value = '';
+    document.querySelectorAll('.member-invite-checkbox').forEach(cb => cb.checked = false);
+    
+    alert('Meeting created successfully!');
+  } catch (error) {
+    console.error('Error creating meeting:', error);
+    alert('Failed to create meeting. Please try again.');
+  }
+};
+
+// Load meetings for admin
+onSnapshot(collection(db, "meetings"), (snap) => {
+  const container = document.getElementById("adminMeetingsList");
+  if (!container) return;
+
+  // Populate invite members if not already done
+  populateInviteMembers();
+
+  // Clear existing content except header
+  const header = container.querySelector('h3');
+  container.innerHTML = '';
+  if (header) container.appendChild(header);
+
+  if (snap.empty) {
+    container.innerHTML += '<p style="color: #94a3b8; text-align: center;">No meetings scheduled yet.</p>';
+    return;
+  }
+
+  snap.docs.forEach((docSnap) => {
+    const meeting = { id: docSnap.id, ...docSnap.data() };
+    const meetingElement = createAdminMeetingElement(meeting);
+    container.appendChild(meetingElement);
+  });
+});
+
+function createAdminMeetingElement(meeting) {
+  const div = document.createElement('div');
+  div.className = 'meeting-item';
+  div.style.cssText = `
+    border: 1px solid #374151;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background: #1e293b;
+  `;
+
+  const scheduledDate = new Date(meeting.scheduledTime);
+  const now = Date.now();
+  const isUpcoming = meeting.scheduledTime > now;
+  const isActive = meeting.status === 'active';
+
+  div.innerHTML = `
+    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+      <h4 style="margin: 0; color: #f8fafc;">${meeting.title}</h4>
+      <span style="background: ${isActive ? '#10b981' : isUpcoming ? '#3b82f6' : '#6b7280'}; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem;">
+        ${meeting.status}
+      </span>
+    </div>
+    ${meeting.description ? `<p style="color: #cbd5e1; margin: 0.5rem 0; font-size: 0.9rem;">${meeting.description}</p>` : ''}
+    <div style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 0.5rem;">
+      <i class="fas fa-calendar"></i> ${scheduledDate.toLocaleDateString()} at ${scheduledDate.toLocaleTimeString()}
+      <br>
+      <i class="fas fa-clock"></i> ${meeting.duration} minutes
+      <br>
+      <i class="fas fa-users"></i> Invited: ${meeting.invitedMembers.length} | Joined: ${meeting.participants ? meeting.participants.length : 0}
+      <br>
+      <i class="fas fa-door-open"></i> Room: ${meeting.roomName}
+    </div>
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+      <button onclick="startMeeting('${meeting.id}')" style="background: #10b981; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.85rem;">
+        <i class="fas fa-play"></i> Start Meeting
+      </button>
+      <button onclick="editMeeting('${meeting.id}')" style="background: #3b82f6; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.85rem;">
+        <i class="fas fa-edit"></i> Edit
+      </button>
+      <button onclick="deleteMeeting('${meeting.id}')" style="background: #dc2626; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.85rem;">
+        <i class="fas fa-trash"></i> Delete
+      </button>
+    </div>
+  `;
+
+  return div;
+}
+
+// Start meeting (change status to active)
+window.startMeeting = async function(meetingId) {
+  try {
+    await updateDoc(doc(db, "meetings", meetingId), {
+      status: 'active'
+    });
+    alert('Meeting started!');
+  } catch (error) {
+    console.error('Error starting meeting:', error);
+    alert('Failed to start meeting.');
+  }
+};
+
+// Edit meeting (placeholder - could implement modal)
+window.editMeeting = function(meetingId) {
+  alert('Edit functionality not implemented yet. Meeting ID: ' + meetingId);
+};
+
+// Delete meeting
+window.deleteMeeting = async function(meetingId) {
+  if (confirm('Are you sure you want to delete this meeting?')) {
+    try {
+      await deleteDoc(doc(db, "meetings", meetingId));
+      alert('Meeting deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting meeting:', error);
+      alert('Failed to delete meeting.');
+    }
+  }
+};
+
+// Initialize invite members when scheduled meetings section is shown
+document.addEventListener('DOMContentLoaded', function() {
+  // This will be called when the page loads
+  populateInviteMembers();
+});
 
 })();
