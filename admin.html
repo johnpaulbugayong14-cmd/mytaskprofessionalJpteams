@@ -43,7 +43,6 @@
       <li><button class="nav-btn" onclick="showSection('progress-report')"><i class="fas fa-chart-line"></i> Progress Report</button></li>
       <li><button class="nav-btn" onclick="showSection('task-analytics')"><i class="fas fa-chart-bar"></i> Analytics</button></li>
       <li><button class="nav-btn" onclick="showSection('all-tasks')"><i class="fas fa-clipboard-list"></i> All Tasks</button></li>
-      <li><button class="nav-btn" onclick="showSection('scheduled-meetings')"><i class="fas fa-calendar"></i> Scheduled Meetings</button></li>
       <li><button class="nav-btn" onclick="showSection('video-conference')"><i class="fas fa-video"></i> Video Conference</button></li>
       <li><button class="nav-btn" onclick="showSection('meeting-history')"><i class="fas fa-history"></i> Meeting History</button></li>
     </ul>
@@ -252,62 +251,6 @@
         <div class="card">
           <h2><i class="fas fa-clipboard-list"></i> All Tasks</h2>
           <div id="tasks"></div>
-        </div>
-      </section>
-
-      <!-- Scheduled Meetings Section -->
-      <section id="scheduled-meetings" class="content-section">
-        <div class="card">
-          <h2><i class="fas fa-calendar"></i> Scheduled Meetings</h2>
-          
-          <!-- Create Meeting Form -->
-          <div style="margin-bottom: 2rem; padding: 1rem; border: 1px solid #374151; border-radius: 8px; background: #1e293b;">
-            <h3 style="margin-top: 0; color: #f8fafc;">Create New Meeting</h3>
-            <form onsubmit="event.preventDefault(); createMeeting();">
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="meetingTitle">Meeting Title</label>
-                  <input id="meetingTitle" type="text" placeholder="Enter meeting title" required>
-                </div>
-                
-                <div class="form-group">
-                  <label for="meetingDate">Date & Time</label>
-                  <input id="meetingDate" type="datetime-local" required>
-                </div>
-              </div>
-              
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="meetingDuration">Duration (minutes)</label>
-                  <input id="meetingDuration" type="number" placeholder="60" min="15" max="480" required>
-                </div>
-                
-                <div class="form-group">
-                  <label for="meetingRoom">Room Name</label>
-                  <input id="meetingRoom" type="text" placeholder="meeting-room-001" required>
-                </div>
-              </div>
-              
-              <div class="form-group">
-                <label for="meetingDescription">Description</label>
-                <textarea id="meetingDescription" placeholder="Enter meeting description" rows="3"></textarea>
-              </div>
-              
-              <div class="form-group">
-                <label>Invite Members</label>
-                <div id="meetingInviteMembers" style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
-                  <!-- Members will be populated here -->
-                </div>
-              </div>
-              
-              <button type="submit" class="btn-success"><i class="fas fa-plus"></i> Create Meeting</button>
-            </form>
-          </div>
-          
-          <!-- Meetings List -->
-          <div id="adminMeetingsList">
-            <p style="color: #94a3b8; text-align: center;">Loading meetings...</p>
-          </div>
         </div>
       </section>
 
