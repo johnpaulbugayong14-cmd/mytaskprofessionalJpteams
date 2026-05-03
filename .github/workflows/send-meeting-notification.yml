@@ -1,0 +1,182 @@
+name: Send Meeting Notification
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'  # Every 5 minutes
+
+jobs:
+  check-and-send-meeting-notifications:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install firebase-admin nodemailer
+
+      - name: Check Firestore and send meeting notifications
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_PASS: ${{ secrets.GMAIL_PASS }}
+        run: |
+          node <<'SCRIPT'
+          const admin = require('firebase-admin');
+          const nodemailer = require('nodemailer');
+
+          const firebaseConfig = {
+            type: 'service_account',
+            project_id: process.env.FIREBASE_PROJECT_ID,
+            private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+            client_email: process.env.FIREBASE_CLIENT_EMAIL,
+          };
+
+          admin.initializeApp({
+            credential: admin.credential.cert(firebaseConfig),
+          });
+
+          const db = admin.firestore();
+          const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+              user: process.env.GMAIL_USER,
+              pass: process.env.GMAIL_PASS,
+            },
+          });
+
+          async function sendMeetingNotifications() {
+            try {
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+
+              const meetingsRef = db.collection('meetings');
+              const snapshot = await meetingsRef.get();
+
+              if (snapshot.empty) {
+                console.log('No meetings found');
+                return;
+              }
+
+              const notificationsToSend = [];
+
+              snapshot.forEach((doc) => {
+                const meeting = doc.data();
+                const meetingId = doc.id;
+
+                let createdDate = null;
+                if (meeting.createdAt) {
+                  createdDate = new Date(meeting.createdAt.toDate ? meeting.createdAt.toDate() : meeting.createdAt);
+                }
+
+                if (!createdDate) {
+                  console.log(`Meeting ${meetingId}: No createdAt found, skipping`);
+                  return;
+                }
+
+                let meetingDate = null;
+                if (meeting.date) {
+                  meetingDate = new Date(meeting.date);
+                }
+
+                // Only notify if meeting was created today (new meeting)
+                const createdToday = createdDate.toISOString().split('T')[0] === today.toISOString().split('T')[0];
+
+                // Check if already notified
+                let hasBeenNotified = false;
+                if (meeting.notified_dates && Array.isArray(meeting.notified_dates) && meeting.notified_dates.length > 0) {
+                  hasBeenNotified = true;
+                }
+
+                if (createdToday && !hasBeenNotified && meeting.title) {
+                  notificationsToSend.push({ meetingId, meeting, meetingDate });
+                }
+              });
+
+              console.log(`Found ${notificationsToSend.length} meeting(s) to notify`);
+
+              const usersRef = db.collection('users');
+              const usersSnapshot = await usersRef.get();
+              const userMap = {};
+
+              usersSnapshot.forEach((doc) => {
+                userMap[doc.id] = doc.data();
+              });
+
+              for (const notification of notificationsToSend) {
+                const { meetingId, meeting, meetingDate } = notification;
+                const assignedTo = meeting.assignedTo || 'everyone';
+
+                let recipients = [];
+                if (assignedTo === 'everyone') {
+                  recipients = Object.keys(userMap).map((uid) => ({
+                    uid,
+                    email: userMap[uid].email,
+                    name: userMap[uid].name || 'User',
+                  }));
+                } else if (typeof assignedTo === 'string') {
+                  const user = userMap[assignedTo];
+                  if (user && user.email) {
+                    recipients = [{ uid: assignedTo, email: user.email, name: user.name || 'User' }];
+                  }
+                } else if (Array.isArray(assignedTo)) {
+                  recipients = assignedTo
+                    .map((uid) => userMap[uid])
+                    .filter((user) => user && user.email)
+                    .map((user) => ({ uid: user.uid, email: user.email, name: user.name || 'User' }));
+                }
+
+                const meetingTime = meeting.time || 'TBD';
+                const meetingDateStr = meetingDate ? meetingDate.toLocaleDateString() : meeting.date || 'TBD';
+
+                for (const recipient of recipients) {
+                  const mailOptions = {
+                    from: process.env.GMAIL_USER,
+                    to: recipient.email,
+                    subject: 'Scheduled Meeting: ' + meeting.title,
+                    text: 'Hello ' + recipient.name + ',\n\nA new scheduled meeting has been created.\n\nTitle: ' + meeting.title + '\nDate: ' + meetingDateStr + '\nTime: ' + meetingTime + '\nType: ' + (meeting.type === 'scheduled' ? 'Scheduled' : 'Instant') + '\n\nPlease log in to your account to join the meeting.\n\nUpdate your app to access the latest meeting feature: https://drive.google.com/drive/folders/1tUwf_vpw0RWlOWHvZEUIWA6pPlGDohAT?usp=drive_link\n\n— MyTask Professional Automated Notification',
+                  };
+
+                  try {
+                    await transporter.sendMail(mailOptions);
+                    console.log('Email sent to ' + recipient.email + ' for meeting ' + meetingId);
+                  } catch (error) {
+                    console.error('Failed to send email:', error.message);
+                  }
+                }
+
+                const todayString = today.toISOString().split('T')[0];
+                const notifiedDates = meeting.notified_dates || [];
+                if (!notifiedDates.includes(todayString)) {
+                  notifiedDates.push(todayString);
+                }
+
+                try {
+                  await meetingsRef.doc(meetingId).update({
+                    notified_dates: notifiedDates,
+                    last_notified: new Date(),
+                  });
+                  console.log('Meeting ' + meetingId + ' marked as notified');
+                } catch (error) {
+                  console.error('Failed to update meeting:', error.message);
+                }
+              }
+
+              console.log('Meeting notification check completed');
+            } catch (error) {
+              console.error('Error:', error);
+              process.exit(1);
+            }
+          }
+
+          sendMeetingNotifications().then(() => {
+            process.exit(0);
+          });
+          SCRIPT

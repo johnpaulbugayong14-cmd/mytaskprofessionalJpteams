@@ -1,4 +1,4 @@
-import { collection, onSnapshot, doc, updateDoc, addDoc, getDoc, setDoc, arrayUnion, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { collection, onSnapshot, doc, updateDoc, addDoc, getDoc, setDoc, arrayUnion, getDocs, query, orderBy, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { db, auth } from "./firebase.js";
 import { signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getStoredUserEmail, signOutUser } from "./auth.js";
@@ -7,6 +7,7 @@ import { initializeNotifications, sendNotificationToUsers, showLocalNotification
 window.signOutUser = signOutUser;
 
 let userEmail = null;
+let meetingsUnsubscribe = null;
 const container = document.getElementById("tasks");
 const emptyState = document.getElementById("emptyState");
 const welcomeEl = document.getElementById("welcome");
@@ -548,125 +549,119 @@ function loadResources() {
   });
 }
 
-/* LOAD MEETINGS FOR MEMBER */
-onSnapshot(collection(db, "meetings"), (snap) => {
-  const container = document.getElementById("memberMeetingsList");
+
+
+/* MEETING SCHEDULE VIEW ONLY */
+
+function loadMeetings() {
+  if (!userEmail) return;
+  
+  if (meetingsUnsubscribe) {
+    meetingsUnsubscribe();
+  }
+
+  const meetingsQuery = query(collection(db, 'meetings'), where('assignedTo', 'in', [userEmail, 'everyone']));
+  meetingsUnsubscribe = onSnapshot(meetingsQuery, (snapshot) => {
+    const meetings = [];
+    snapshot.forEach(docSnap => {
+      meetings.push({ id: docSnap.id, ...docSnap.data() });
+    });
+
+    meetings.sort((a, b) => {
+      const aDate = new Date(`${a.date}T${a.time}`);
+      const bDate = new Date(`${b.date}T${b.time}`);
+      return aDate - bDate;
+    });
+
+    renderMeetings(meetings);
+  }, (error) => {
+    console.error('Meetings listener error:', error);
+  });
+}
+
+window.loadMeetings = loadMeetings;
+
+function renderMeetings(meetings) {
+  const container = document.getElementById('meetingsContainer');
   if (!container) return;
 
-  // Clear existing content except header
-  const header = container.querySelector('h3');
-  container.innerHTML = '';
-  if (header) container.appendChild(header);
+  const activeMeetings = meetings.filter(meeting => {
+    const status = (meeting.status || 'Active').toLowerCase();
+    const meetingDateTime = new Date(`${meeting.date}T${meeting.time}`);
+    const now = new Date();
+    const isFinished = now - meetingDateTime > (2 * 60 * 60 * 1000);
+    return status !== 'completed' && status !== 'cancelled' && !isFinished;
+  });
 
-  if (snap.empty) {
-    container.innerHTML += '<p style="color: #94a3b8; text-align: center;">No meetings scheduled yet.</p>';
+  if (activeMeetings.length === 0) {
+    container.innerHTML = '<p style="color: #94a3b8; text-align: center;">No meetings scheduled yet.</p>';
     return;
   }
 
-  let hasMeetings = false;
-  snap.docs.forEach((docSnap) => {
-    const meeting = { id: docSnap.id, ...docSnap.data() };
+  container.innerHTML = '';
 
-    // Only show meetings where current user is invited
-    if (meeting.invitedMembers.includes(userEmail)) {
-      hasMeetings = true;
-      const meetingElement = createMemberMeetingElement(meeting);
-      container.appendChild(meetingElement);
+  activeMeetings.forEach((meeting) => {
+    const meetingDiv = document.createElement('div');
+    meetingDiv.style.cssText = `
+      border: 1px solid #374151;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      background: #1e293b;
+    `;
+
+    const meetingDateTime = new Date(`${meeting.date}T${meeting.time}`);
+    const now = new Date();
+    const isUpcoming = meetingDateTime > now;
+    const isToday = meetingDateTime.toDateString() === now.toDateString();
+    const isOngoing = isToday && meetingDateTime <= now && (now - meetingDateTime) < (2 * 60 * 60 * 1000);
+    const isFinished = !isUpcoming && !isOngoing;
+    const canJoin = !isUpcoming;
+
+    let status = 'Upcoming';
+    let statusColor = '#3b82f6';
+
+    if (isOngoing) {
+      status = 'Ongoing';
+      statusColor = '#10b981';
+    } else if (isFinished) {
+      status = 'Finished';
+      statusColor = '#6b7280';
     }
+
+    meetingDiv.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+        <h4 style="margin: 0; color: #f8fafc;">${meeting.title}</h4>
+        <span style="background: ${statusColor}; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem;">
+          ${status}
+        </span>
+      </div>
+      <div style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 0.5rem;">
+        <i class="fas fa-calendar"></i> ${meetingDateTime.toLocaleDateString()} at ${meetingDateTime.toLocaleTimeString()}
+      </div>
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <button ${canJoin ? '' : 'disabled'} onclick="joinScheduledMeeting('${meeting.roomName}')" style="background: ${canJoin ? '#10b981' : '#6b7280'}; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: ${canJoin ? 'pointer' : 'not-allowed'}; font-size: 0.85rem;">
+          <i class="fas fa-sign-in-alt"></i> ${canJoin ? 'Join Meeting' : 'Not Started'}
+        </button>
+      </div>
+    `;
+
+    container.appendChild(meetingDiv);
   });
-
-  if (!hasMeetings) {
-    container.innerHTML += '<p style="color: #94a3b8; text-align: center;">No meetings scheduled for you.</p>';
-  }
-});
-
-function createMemberMeetingElement(meeting) {
-  const div = document.createElement('div');
-  div.className = 'meeting-item';
-  div.style.cssText = `
-    border: 1px solid #374151;
-    border-radius: 8px;
-    padding: 1rem;
-    margin-bottom: 1rem;
-    background: #1e293b;
-  `;
-
-  const scheduledDate = new Date(meeting.scheduledTime);
-  const now = Date.now();
-  const isUpcoming = meeting.scheduledTime > now;
-  const isActive = meeting.status === 'active';
-  const canJoin = isActive || (isUpcoming && (meeting.scheduledTime - now) < (15 * 60 * 1000)); // Can join 15 min before
-
-  div.innerHTML = `
-    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
-      <h4 style="margin: 0; color: #f8fafc;">${meeting.title}</h4>
-      <span style="background: ${isActive ? '#10b981' : isUpcoming ? '#3b82f6' : '#6b7280'}; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem;">
-        ${meeting.status}
-      </span>
-    </div>
-    ${meeting.description ? `<p style="color: #cbd5e1; margin: 0.5rem 0; font-size: 0.9rem;">${meeting.description}</p>` : ''}
-    <div style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 0.5rem;">
-      <i class="fas fa-calendar"></i> ${scheduledDate.toLocaleDateString()} at ${scheduledDate.toLocaleTimeString()}
-      <br>
-      <i class="fas fa-clock"></i> ${meeting.duration} minutes
-    </div>
-    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-      ${canJoin ? `<button onclick="joinMeeting('${meeting.id}', '${meeting.roomName}')" style="background: #10b981; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.85rem;">
-        <i class="fas fa-sign-in-alt"></i> ${isActive ? 'Join Meeting' : 'Join Early'}
-      </button>` : ''}
-      ${!isUpcoming && !isActive ? '<span style="color: #6b7280; font-size: 0.85rem; padding: 0.5rem 0;">Meeting has ended</span>' : ''}
-    </div>
-  `;
-
-  return div;
 }
 
-/* JOIN MEETING */
-window.joinMeeting = async function (meetingId, roomName) {
-  try {
-    // Update meeting participants if not already included
-    const meetingRef = doc(db, "meetings", meetingId);
-    const meetingSnap = await getDoc(meetingRef);
-
-    if (meetingSnap.exists()) {
-      const meeting = meetingSnap.data();
-      if (!meeting.participants.includes(userEmail)) {
-        await updateDoc(meetingRef, {
-          participants: arrayUnion(userEmail)
-        });
-      }
-    }
-
-    // Show conference container and initialize Jitsi
-    const container = document.getElementById('jaas-container');
-    const meetingsList = document.getElementById('memberMeetingsList');
-
-    if (container) container.style.display = 'block';
-    if (meetingsList) meetingsList.style.display = 'none';
-
-    // Initialize conference with specific room
-    initializeJitsiConference(roomName);
-
-  } catch (error) {
-    console.error("Error joining meeting:", error);
-    alert("Failed to join meeting. Please try again.");
-  }
-};
-
-/* START INSTANT CONFERENCE */
-window.startInstantConference = function () {
-  const roomName = `instant_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-  // Show conference container
+window.joinScheduledMeeting = function(roomName) {
   const container = document.getElementById('jaas-container');
-  const meetingsList = document.getElementById('memberMeetingsList');
+  const meetingsList = document.getElementById('meetings-list');
 
   if (container) container.style.display = 'block';
   if (meetingsList) meetingsList.style.display = 'none';
 
-  // Initialize conference
   initializeJitsiConference(roomName);
 };
+
+// No scheduling controls on member page
+
 
 (async () => {
   console.log('=== MEMBER.JS INITIALIZATION STARTED ===');
@@ -718,6 +713,9 @@ window.startInstantConference = function () {
     // Update date and time every second
     updateDateTime();
     setInterval(updateDateTime, 1000);
+    
+    // Load meetings
+    loadMeetings();
     
     // Load tasks
     console.log('Setting up tasks listener...');

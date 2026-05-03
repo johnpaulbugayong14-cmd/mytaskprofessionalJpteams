@@ -37,7 +37,8 @@ const GITHUB_CONFIG = {
   token: process.env.GITHUB_TOKEN,
   owner: process.env.GITHUB_REPO_OWNER,
   repo: process.env.GITHUB_REPO_NAME,
-  eventType: 'send-email'
+  eventType: 'send-email',
+  meetingEventType: 'meeting-created'
 };
 
 // Validate GitHub configuration
@@ -55,13 +56,15 @@ if (!GITHUB_CONFIG.token || !GITHUB_CONFIG.owner || !GITHUB_CONFIG.repo) {
  * {
  *   email: string,      // Recipient email
  *   name: string,       // Recipient name
- *   type: string,       // task, announcement, poll, ticket, thesisProgress
- *   title: string       // Document title
+ *   type: string,       // task, announcement, poll, ticket, thesisProgress, meeting
+ *   title: string,      // Document title
+ *   meetingDate?: string, // For meeting type
+ *   meetingTime?: string  // For meeting type
  * }
  */
 app.post('/api/trigger-email', async (req, res) => {
   try {
-    const { email, name, type, title } = req.body;
+    const { email, name, type, title, meetingDate, meetingTime } = req.body;
 
     // Validate required fields
     if (!email || !name || !type || !title) {
@@ -81,12 +84,35 @@ app.post('/api/trigger-email', async (req, res) => {
     }
 
     // Validate type
-    const validTypes = ['task', 'announcement', 'poll', 'ticket', 'thesisProgress'];
+    const validTypes = ['task', 'announcement', 'poll', 'ticket', 'thesisProgress', 'meeting'];
     if (!validTypes.includes(type)) {
       return res.status(400).json({
         success: false,
         error: `Invalid type. Must be one of: ${validTypes.join(', ')}`
       });
+    }
+
+    // Determine event type
+    const eventType = type === 'meeting' ? GITHUB_CONFIG.meetingEventType : GITHUB_CONFIG.eventType;
+
+    // Prepare payload
+    const clientPayload = {
+      email: email,
+      name: name,
+      type: type,
+      title: title
+    };
+
+    if (type === 'meeting') {
+      if (!meetingDate || !meetingTime) {
+        return res.status(400).json({
+          success: false,
+          error: 'meetingDate and meetingTime are required for meeting type'
+        });
+      }
+      clientPayload.meetingDate = meetingDate;
+      clientPayload.meetingTime = meetingTime;
+      clientPayload.meetingTitle = title;
     }
 
     // Call GitHub API to trigger workflow
@@ -101,13 +127,8 @@ app.post('/api/trigger-email', async (req, res) => {
           'User-Agent': 'MyThesisHub-Email-Backend'
         },
         body: JSON.stringify({
-          event_type: GITHUB_CONFIG.eventType,
-          client_payload: {
-            email: email,
-            name: name,
-            type: type,
-            title: title
-          }
+          event_type: eventType,
+          client_payload: clientPayload
         })
       }
     );
