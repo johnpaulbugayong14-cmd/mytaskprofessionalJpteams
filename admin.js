@@ -1592,13 +1592,33 @@ onSnapshot(collection(db, "meetings"), (snap) => {
     const scheduledDate = new Date(meeting.scheduledTime || (meeting.date + 'T' + meeting.time));
     const now = Date.now();
     const isUpcoming = (meeting.scheduledTime || new Date(meeting.date + 'T' + meeting.time).getTime()) > now;
-    const isActive = meeting.status === 'active';
+    const currentStatus = meeting.status || 'scheduled';
+
+    const statusColors = {
+      scheduled: '#3b82f6',
+      active: '#10b981',
+      completed: '#6b7280',
+      cancelled: '#ef4444'
+    };
+    const statusColor = statusColors[currentStatus] || '#6b7280';
 
     meetingDiv.innerHTML = `
-      <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
-        <h4 style="margin: 0; color: #f8fafc;">${meeting.title}</h4>
-        <span style="background: ${isActive ? '#10b981' : isUpcoming ? '#3b82f6' : '#6b7280'}; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem;">
-          ${meeting.status || 'scheduled'}
+      <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem; gap: 1rem; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 220px;">
+          <h4 style="margin: 0; color: #f8fafc;">${meeting.title}</h4>
+          <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.5rem; flex-wrap: wrap;">
+            <label for="status-${meeting.id}" style="color: #cbd5e1; font-size: 0.85rem; white-space: nowrap;">Status:</label>
+            <select id="status-${meeting.id}" style="background: #0f172a; color: #f8fafc; border: 1px solid #4b5563; border-radius: 0.25rem; padding: 0.35rem 0.5rem; font-size: 0.85rem;">
+              <option value="scheduled" ${currentStatus === 'scheduled' ? 'selected' : ''}>Scheduled</option>
+              <option value="active" ${currentStatus === 'active' ? 'selected' : ''}>Active</option>
+              <option value="completed" ${currentStatus === 'completed' ? 'selected' : ''}>Completed</option>
+              <option value="cancelled" ${currentStatus === 'cancelled' ? 'selected' : ''}>Cancelled</option>
+            </select>
+            <button onclick="changeMeetingStatus('${meeting.id}', document.getElementById('status-${meeting.id}').value)" style="background: #3b82f6; color: white; border: none; padding: 0.4rem 0.75rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.85rem;">Update</button>
+          </div>
+        </div>
+        <span style="background: ${statusColor}; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; min-width: 92px; text-align: center;">
+          ${currentStatus}
         </span>
       </div>
       ${meeting.description ? `<p style="color: #cbd5e1; margin: 0.5rem 0; font-size: 0.9rem;">${meeting.description}</p>` : ''}
@@ -1611,9 +1631,12 @@ onSnapshot(collection(db, "meetings"), (snap) => {
         <br>
         <i class="fas fa-door-open"></i> Room: ${meeting.roomName}
       </div>
-      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
         <button onclick="startMeeting('${meeting.id}')" style="background: #10b981; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.85rem;">
           <i class="fas fa-play"></i> Start
+        </button>
+        <button onclick="deleteMeeting('${meeting.id}')" style="background: #dc2626; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.85rem;">
+          <i class="fas fa-trash"></i> Delete
         </button>
       </div>
     `;
