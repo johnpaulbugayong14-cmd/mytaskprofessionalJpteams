@@ -44,7 +44,6 @@
       <li><button class="nav-btn" onclick="showSection('task-analytics')"><i class="fas fa-chart-bar"></i> Analytics</button></li>
       <li><button class="nav-btn" onclick="showSection('all-tasks')"><i class="fas fa-clipboard-list"></i> All Tasks</button></li>
       <li><button class="nav-btn" onclick="showSection('video-conference')"><i class="fas fa-video"></i> Video Conference</button></li>
-      <li><button class="nav-btn" onclick="showSection('meeting-history')"><i class="fas fa-history"></i> Meeting History</button></li>
     </ul>
   </nav>
 
@@ -288,15 +287,6 @@
         </div>
       </section>
 
-      <!-- Meeting History Section -->
-      <section id="meeting-history" class="content-section">
-        <div class="card">
-          <h2><i class="fas fa-history"></i> Meeting History</h2>
-          <p style="color: #94a3b8; margin-bottom: 1rem;">View and manage all scheduled and instant meetings</p>
-          <div id="meetingHistoryContainer"></div>
-        </div>
-      </section>
-
     </div>
   </main>
 </div>
@@ -342,8 +332,7 @@ function showSection(sectionId) {
     'progress-report': '<i class="fas fa-chart-line"></i> Progress Report',
     'task-analytics': '<i class="fas fa-chart-bar"></i> Task Analytics',
     'all-tasks': '<i class="fas fa-clipboard-list"></i> All Tasks',
-    'video-conference': '<i class="fas fa-video"></i> Video Conference',
-    'meeting-history': '<i class="fas fa-history"></i> Meeting History'
+    'video-conference': '<i class="fas fa-video"></i> Video Conference'
   };
   
   const pageTitle = document.getElementById('page-title');
@@ -358,11 +347,6 @@ function showSection(sectionId) {
         window.updateChart(window.lastMemberProgress);
       }
     }, 50); // Faster response when switching tabs
-  }
-  
-  // Load meeting history when section is shown
-  if (sectionId === 'meeting-history') {
-    loadMeetingHistory();
   }
   
   // Close mobile sidebar after selection
@@ -937,33 +921,4 @@ function showSection(sectionId) {
     'progress-report': '<i class="fas fa-chart-line"></i> Progress Report',
     'task-analytics': '<i class="fas fa-chart-bar"></i> Task Analytics',
     'all-tasks': '<i class="fas fa-clipboard-list"></i> All Tasks',
-    'video-conference': '<i class="fas fa-video"></i> Video Conference',
-    'meeting-history': '<i class="fas fa-history"></i> Meeting History'
-  };
-  
-  const pageTitle = document.getElementById('page-title');
-  if (pageTitle && titles[sectionId]) {
-    pageTitle.innerHTML = titles[sectionId];
-  }
-  
-  // Trigger chart update when analytics is shown
-  if (sectionId === 'task-analytics') {
-    setTimeout(() => {
-      if (window.updateChart && window.lastMemberProgress !== undefined) {
-        window.updateChart(window.lastMemberProgress);
-      }
-    }, 50); // Faster response when switching tabs
-  }
-  
-  // Load meeting history when section is shown
-  if (sectionId === 'meeting-history') {
-    loadMeetingHistory();
-  }
-  
-  // Close mobile sidebar after selection
-  closeMobileSidebar();
-}
-</script>
-
-</body>
-</html>
+    'video-conference': '<i class="fas fa-video"></i> Video Conference'
