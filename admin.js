@@ -1618,6 +1618,62 @@ window.deleteMeeting = async function(meetingId) {
   }
 };
 
+// Load scheduled meetings for video conference section (persistent list)
+onSnapshot(collection(db, "meetings"), (snap) => {
+  const container = document.getElementById("adminMeetingsContainer");
+  if (!container) return;
+
+  if (snap.empty) {
+    container.innerHTML = '<p style="color: #94a3b8; text-align: center;">No scheduled meetings yet.</p>';
+    return;
+  }
+
+  container.innerHTML = '';
+
+  snap.docs.forEach((docSnap) => {
+    const meeting = { id: docSnap.id, ...docSnap.data() };
+    const meetingDiv = document.createElement('div');
+    meetingDiv.style.cssText = `
+      border: 1px solid #374151;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      background: #1e293b;
+    `;
+
+    const scheduledDate = new Date(meeting.scheduledTime || (meeting.date + 'T' + meeting.time));
+    const now = Date.now();
+    const isUpcoming = (meeting.scheduledTime || new Date(meeting.date + 'T' + meeting.time).getTime()) > now;
+    const isActive = meeting.status === 'active';
+
+    meetingDiv.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+        <h4 style="margin: 0; color: #f8fafc;">${meeting.title}</h4>
+        <span style="background: ${isActive ? '#10b981' : isUpcoming ? '#3b82f6' : '#6b7280'}; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem;">
+          ${meeting.status || 'scheduled'}
+        </span>
+      </div>
+      ${meeting.description ? `<p style="color: #cbd5e1; margin: 0.5rem 0; font-size: 0.9rem;">${meeting.description}</p>` : ''}
+      <div style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 0.5rem;">
+        <i class="fas fa-calendar"></i> ${scheduledDate.toLocaleDateString()} at ${scheduledDate.toLocaleTimeString()}
+        <br>
+        <i class="fas fa-clock"></i> ${meeting.duration} minutes
+        <br>
+        <i class="fas fa-users"></i> Invited: ${meeting.invitedMembers ? meeting.invitedMembers.length : 0}
+        <br>
+        <i class="fas fa-door-open"></i> Room: ${meeting.roomName}
+      </div>
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <button onclick="startMeeting('${meeting.id}')" style="background: #10b981; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.85rem;">
+          <i class="fas fa-play"></i> Start
+        </button>
+      </div>
+    `;
+
+    container.appendChild(meetingDiv);
+  });
+});
+
 // Initialize invite members when scheduled meetings section is shown
 document.addEventListener('DOMContentLoaded', function() {
   // This will be called when the page loads
