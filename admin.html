@@ -383,9 +383,20 @@ function closeMobileSidebar() {
 </script>
 <script type="module" src="admin.js?v=3"></script>
 <script>
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("service-worker.js");
-}
+  // Safe stubs while module scripts finish loading
+  window.startMeeting = window.startMeeting || function() {
+    alert('Video conference is still loading. Please wait a moment and try again.');
+  };
+  window.startInstantMeeting = window.startInstantMeeting || function() {
+    alert('Video conference is still loading. Please wait a moment and try again.');
+  };
+  window.joinMeeting = window.joinMeeting || function() {
+    alert('Video conference is still loading. Please wait a moment and try again.');
+  };
+
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("service-worker.js");
+  }
 </script>
 
 <script type="module">
