@@ -17,6 +17,12 @@
   <script src="https://8x8.vc/vpaas-magic-cookie-31c887a17ea34701a28e22e5178164e3/external_api.js" async></script>
 </head>
 <body>
+<script>
+const savedMemberSection = localStorage.getItem('memberSelectedSection');
+if (savedMemberSection) {
+  setTimeout(() => showSection(savedMemberSection), 100);
+}
+</script>
 
 <!-- Mobile Navigation Toggle -->
 <button class="mobile-nav-toggle" onclick="toggleMobileSidebar()"><i class="fas fa-bars"></i></button>
@@ -408,6 +414,8 @@ function showSection(sectionId) {
   if (activeBtn) {
     activeBtn.classList.add('active');
   }
+
+  localStorage.setItem('memberSelectedSection', sectionId);
   
   // Update page title
   const titles = {

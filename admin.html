@@ -811,6 +811,12 @@ window.updateMeetingStatus = updateMeetingStatus;
 window.deleteMeeting = deleteMeeting;
 window.joinMeeting = joinMeeting;
 
+if (document.readyState !== 'loading') {
+  loadMeetings();
+} else {
+  document.addEventListener('DOMContentLoaded', loadMeetings);
+}
+
 const startInstantMeetingBtn = document.getElementById('startInstantMeetingBtn');
 if (startInstantMeetingBtn) {
   startInstantMeetingBtn.disabled = false;
@@ -982,6 +988,8 @@ function showSection(sectionId) {
   if (activeBtn) {
     activeBtn.classList.add('active');
   }
+
+  localStorage.setItem('adminSelectedSection', sectionId);
   
   // Update page title
   const titles = {
