@@ -37,12 +37,12 @@ if (savedMemberSection) {
       <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
     </div>
     <ul class="nav-list">
-      <li><button class="nav-btn active" onclick="showSection('my-tasks')"><i class="fas fa-clipboard-list"></i> My Tasks</button></li>
+      <li><button class="nav-btn" onclick="showSection('my-tasks')"><i class="fas fa-clipboard-list"></i> My Tasks</button></li>
       <li><button class="nav-btn" onclick="showSection('ticket-history')"><i class="fas fa-ticket-alt"></i> Ticket History</button></li>
       <li><button class="nav-btn" onclick="showSection('active-polls')"><i class="fas fa-chart-bar"></i> Active Polls</button></li>
       <li><button class="nav-btn" onclick="showSection('announcements')"><i class="fas fa-bullhorn"></i> Announcements</button></li>
       <li><button class="nav-btn" onclick="showSection('submit-ticket')"><i class="fas fa-headset"></i> Submit Ticket</button></li>
-      <li><button class="nav-btn" onclick="showSection('video-conference')"><i class="fas fa-video"></i> Video Conference</button></li>
+      <li><button class="nav-btn active" onclick="showSection('video-conference')"><i class="fas fa-video"></i> Video Conference</button></li>
       <li><button class="nav-btn" onclick="showSection('resources')"><i class="fas fa-book"></i> Resources</button></li>
       <li><button class="nav-btn" onclick="showSection('progress-report')"><i class="fas fa-file-alt"></i> Progress Report</button></li>
     </ul>
@@ -51,7 +51,7 @@ if (savedMemberSection) {
   <!-- Main Content -->
   <main class="main-content">
     <div class="content-header">
-      <h1 id="page-title"><i class="fas fa-check-circle"></i> My Thesis Hub</h1>
+      <h1 id="page-title"><i class="fas fa-video"></i> Video Conference</h1>
       <div id="datetime" class="datetime-center">Loading date...</div>
       <div class="header-actions">
         <div id="welcome" class="welcome-header">Welcome, User</div>
@@ -61,7 +61,7 @@ if (savedMemberSection) {
     
     <div class="content-sections">
       <!-- My Tasks Section -->
-      <section id="my-tasks" class="content-section active">
+      <section id="my-tasks" class="content-section">
         <div class="card">
           <div id="tasks"></div>
           <p id="emptyState" style="text-align: center; color: #94a3b8; padding: 2rem;">
@@ -127,7 +127,7 @@ if (savedMemberSection) {
       </section>
 
       <!-- Video Conference Section -->
-      <section id="video-conference" class="content-section">
+      <section id="video-conference" class="content-section active">
         <div class="card">
           <h2 style="margin-bottom: 1rem;"><i class="fas fa-video"></i> Video Conference</h2>
 
