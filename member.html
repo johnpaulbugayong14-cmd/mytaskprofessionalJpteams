@@ -250,7 +250,7 @@ function closeMobileSidebar() {
 <script type="module">
   import { requireAuth } from "./auth.js?v=5";
   import { initializeNotifications } from "./notifications.js?v=5";
-  await requireAuth(['member']);
+  await requireAuth(['member', 'admin']);
 </script>
 <script type="module" src="member.js?v=6"></script>
 <script>
