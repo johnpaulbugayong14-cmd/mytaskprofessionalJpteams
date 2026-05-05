@@ -67,18 +67,21 @@ jobs:
               };
 
               const meetingsRef = db.collection('meetings');
-              const snapshot = await meetingsRef.where('emailNotificationSent', '!=', true).get();
+              const snapshot = await meetingsRef.get();
+              const meetingsToNotify = snapshot.docs
+                .map(doc => ({ id: doc.id, ...doc.data() }))
+                .filter(meeting => !meeting.emailNotificationSent);
 
-              if (snapshot.empty) {
+              if (meetingsToNotify.length === 0) {
                 console.log('No new meetings to notify');
                 return;
               }
 
-              console.log(`Found ${snapshot.size} new meeting(s) to notify`);
+              console.log(`Found ${meetingsToNotify.length} new meeting(s) to notify`);
 
-              for (const doc of snapshot.docs) {
-                const meeting = doc.data();
-                const meetingId = doc.id;
+              for (const meetingDoc of meetingsToNotify) {
+                const meeting = meetingDoc;
+                const meetingId = meetingDoc.id;
 
                 let recipients = [];
                 if (meeting.assignedTo === 'everyone') {

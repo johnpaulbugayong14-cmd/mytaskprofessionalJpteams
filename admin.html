@@ -627,6 +627,7 @@ function initializeAdminMeetingForm() {
       roomName,
       type: 'scheduled',
       status: 'Active',
+      emailNotificationSent: false,
       createdAt: Date.now()
     };
 
@@ -683,6 +684,7 @@ async function startInstantMeeting() {
     roomName,
     type: 'instant',
     status: 'Active',
+    emailNotificationSent: false,
     createdAt: Date.now()
   };
 
