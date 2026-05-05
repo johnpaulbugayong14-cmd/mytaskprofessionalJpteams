@@ -44,7 +44,6 @@
       <li><button class="nav-btn" onclick="showSection('task-analytics')"><i class="fas fa-chart-bar"></i> Analytics</button></li>
       <li><button class="nav-btn" onclick="showSection('all-tasks')"><i class="fas fa-clipboard-list"></i> All Tasks</button></li>
       <li><button class="nav-btn" onclick="showSection('video-conference')"><i class="fas fa-video"></i> Video Conference</button></li>
-      <li><button class="nav-btn" onclick="showSection('meeting-history')"><i class="fas fa-history"></i> Meeting History</button></li>
     </ul>
   </nav>
 
@@ -288,15 +287,6 @@
         </div>
       </section>
 
-      <!-- Meeting History Section -->
-      <section id="meeting-history" class="content-section">
-        <div class="card">
-          <h2><i class="fas fa-history"></i> Meeting History</h2>
-          <p style="color: #94a3b8; margin-bottom: 1rem;">View and manage all scheduled and instant meetings</p>
-          <div id="meetingHistoryContainer"></div>
-        </div>
-      </section>
-
     </div>
   </main>
 </div>
@@ -342,8 +332,7 @@ function showSection(sectionId) {
     'progress-report': '<i class="fas fa-chart-line"></i> Progress Report',
     'task-analytics': '<i class="fas fa-chart-bar"></i> Task Analytics',
     'all-tasks': '<i class="fas fa-clipboard-list"></i> All Tasks',
-    'video-conference': '<i class="fas fa-video"></i> Video Conference',
-    'meeting-history': '<i class="fas fa-history"></i> Meeting History'
+    'video-conference': '<i class="fas fa-video"></i> Video Conference'
   };
   
   const pageTitle = document.getElementById('page-title');
@@ -358,11 +347,6 @@ function showSection(sectionId) {
         window.updateChart(window.lastMemberProgress);
       }
     }, 50); // Faster response when switching tabs
-  }
-  
-  // Load meeting history when section is shown
-  if (sectionId === 'meeting-history') {
-    loadMeetingHistory();
   }
   
   // Close mobile sidebar after selection
@@ -747,7 +731,6 @@ window.initializeAdminMeetingForm = initializeAdminMeetingForm;
 window.startMeeting = startMeeting;
 window.startInstantMeeting = startInstantMeeting;
 window.deleteAdminMeeting = deleteAdminMeeting;
-window.loadMeetingHistory = loadMeetingHistory;
 window.updateMeetingStatus = updateMeetingStatus;
 window.deleteMeeting = deleteMeeting;
 window.joinMeeting = joinMeeting;
@@ -777,83 +760,6 @@ if (document.readyState !== 'loading') {
   document.addEventListener('DOMContentLoaded', initializeAdminMeetingForm);
 }
 
-function loadMeetingHistory() {
-  const q = query(collection(db, 'meetings'), orderBy('createdAt', 'desc'));
-  onSnapshot(q, (querySnapshot) => {
-    const meetings = [];
-    querySnapshot.forEach((doc) => {
-      meetings.push({ id: doc.id, ...doc.data() });
-    });
-    renderMeetingHistory(meetings);
-  }, (error) => {
-    console.error('Meeting history listener error:', error);
-  });
-}
-
-function renderMeetingHistory(meetings) {
-  const container = document.getElementById('meetingHistoryContainer');
-  if (!container) return;
-
-  if (meetings.length === 0) {
-    container.innerHTML = '<p style="color: #94a3b8; text-align: center;">No meetings found.</p>';
-    return;
-  }
-
-  container.innerHTML = '';
-
-  meetings.forEach((meeting) => {
-    const meetingDiv = document.createElement('div');
-    meetingDiv.style.cssText = `
-      border: 1px solid #374151;
-      border-radius: 8px;
-      padding: 1rem;
-      margin-bottom: 1rem;
-      background: #1e293b;
-    `;
-
-    const createdAt = new Date(meeting.createdAt);
-    const meetingDateTime = new Date(`${meeting.date}T${meeting.time}`);
-    const now = new Date();
-    const isUpcoming = meetingDateTime > now;
-    const isToday = meetingDateTime.toDateString() === now.toDateString();
-    const isOngoing = isToday && meetingDateTime <= now && (now - meetingDateTime) < (2 * 60 * 60 * 1000);
-    const isFinished = !isUpcoming && !isOngoing;
-
-    let status = meeting.status || 'Active';
-    let statusColor = '#10b981'; // green for active
-
-    if (status === 'Cancelled') statusColor = '#ef4444'; // red
-    else if (status === 'Completed') statusColor = '#6b7280'; // gray
-
-    meetingDiv.innerHTML = `
-      <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
-        <h4 style="margin: 0; color: #f8fafc;">${meeting.title}</h4>
-        <div style="display: flex; gap: 0.5rem; align-items: center;">
-          <select id="status-${meeting.id}" style="background: #374151; color: #f8fafc; border: 1px solid #4b5563; border-radius: 0.25rem; padding: 0.25rem;">
-            <option value="Active" ${status === 'Active' ? 'selected' : ''}>Active</option>
-            <option value="Cancelled" ${status === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
-            <option value="Completed" ${status === 'Completed' ? 'selected' : ''}>Completed</option>
-          </select>
-          <button onclick="updateMeetingStatus('${meeting.id}')" style="background: #3b82f6; color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 0.25rem; cursor: pointer;">Update</button>
-          <button onclick="deleteMeeting('${meeting.id}')" style="background: #ef4444; color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 0.25rem; cursor: pointer;">Delete</button>
-        </div>
-      </div>
-      <div style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 0.5rem;">
-        <div><strong>Date:</strong> ${meeting.date} at ${meeting.time}</div>
-        <div><strong>Type:</strong> ${meeting.type || 'Scheduled'}</div>
-        <div><strong>Created:</strong> ${createdAt.toLocaleString()}</div>
-      </div>
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span style="background: ${statusColor}; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem;">
-          ${status}
-        </span>
-        ${meeting.roomName ? `<button onclick="joinMeeting('${meeting.roomName}')" style="background: #10b981; color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 0.25rem; cursor: pointer;">Join</button>` : ''}
-      </div>
-    `;
-
-    container.appendChild(meetingDiv);
-  });
-}
 
 async function updateMeetingStatus(meetingId) {
   const statusSelect = document.getElementById(`status-${meetingId}`);
@@ -929,8 +835,7 @@ function showSection(sectionId) {
     'progress-report': '<i class="fas fa-chart-line"></i> Progress Report',
     'task-analytics': '<i class="fas fa-chart-bar"></i> Task Analytics',
     'all-tasks': '<i class="fas fa-clipboard-list"></i> All Tasks',
-    'video-conference': '<i class="fas fa-video"></i> Video Conference',
-    'meeting-history': '<i class="fas fa-history"></i> Meeting History'
+    'video-conference': '<i class="fas fa-video"></i> Video Conference'
   };
   
   const pageTitle = document.getElementById('page-title');
@@ -945,11 +850,6 @@ function showSection(sectionId) {
         window.updateChart(window.lastMemberProgress);
       }
     }, 50); // Faster response when switching tabs
-  }
-  
-  // Load meeting history when section is shown
-  if (sectionId === 'meeting-history') {
-    loadMeetingHistory();
   }
   
   // Close mobile sidebar after selection
