@@ -3,7 +3,7 @@ name: Send Meeting Notification
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/5 * * * *'  # Every 5 minutes
+    - cron: '3,8,13,18,23,28,33,38,43,48,53,58 * * *'  # Every 5 minutes, staggered (offset by 3 minutes)
 
 jobs:
   check-and-send-meeting-notifications:
