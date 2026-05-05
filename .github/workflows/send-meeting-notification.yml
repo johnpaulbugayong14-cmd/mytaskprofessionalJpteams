@@ -48,7 +48,11 @@ jobs:
             service: 'gmail',
             auth: {
               user: process.env.GMAIL_USER,
-                pass: process.env.GMAIL_PASSWORD,
+              pass: process.env.GMAIL_PASSWORD,
+            },
+          });
+
+          async function sendMeetingNotifications() {
             try {
               const today = new Date();
               today.setHours(0, 0, 0, 0);
