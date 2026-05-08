@@ -143,8 +143,8 @@ function getDefaultProgressStructure() {
         { name: "List of Figures (if applicable)", status: "Not Started" }
       ]
     },
-     {
-       title: "Chapter 1 – Introduction",
+    {
+      title: "Chapter 1 – Introduction",
       items: [
         { name: "Introduction", status: "Not Started" },
         { name: "Background of the Study", status: "Not Started" },
