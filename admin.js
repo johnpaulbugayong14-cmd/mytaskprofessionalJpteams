@@ -143,16 +143,13 @@ function getDefaultProgressStructure() {
         { name: "List of Figures (if applicable)", status: "Not Started" }
       ]
     },
-     {
+    {
       title: "Chapter 1 – Introduction",
       items: [
-        { name: "Introduction", status: "Not Started" },
         { name: "Background of the Study", status: "Not Started" },
-        { name: "Theoretical Framework", status: "Not Started" },
-        { name: "Conceptual Framework", status: "Not Started" },
         { name: "Statement of the Problem", status: "Not Started" },
         { name: "Objectives of the Study", status: "Not Started" },
-        { name: "Scope and limitation", status: "Not Started" },
+        { name: "Scope and Delimitation", status: "Not Started" },
         { name: "Significance of the Study", status: "Not Started" },
         { name: "Definition of Terms", status: "Not Started" }
       ]
@@ -160,22 +157,19 @@ function getDefaultProgressStructure() {
     {
       title: "Chapter 2 – Review of Related Literature (RRL)",
       items: [
-        { name: "Introduction", status: "Not Started" },
-        { name: "Thematic Arrangement of Articles", status: "Not Started" },
-        { name: "Research Gaps", status: "Not Started" }
+        { name: "Related studies and literature", status: "Not Started" },
+        { name: "Theoretical framework (if required)", status: "Not Started" },
+        { name: "Conceptual framework", status: "Not Started" }
       ]
     },
     {
       title: "Chapter 3 – Methodology",
       items: [
-        { name: "Introduction", status: "Not Started" },
         { name: "Research design", status: "Not Started" },
-        { name: "Diagram (Flowchart or block Diagram", status: "Not Started" },
-        { name: "Material and Instrument", status: "Not Started" },
-        { name: "Locale and Population of Research", status: "Not Started" },
-        { name: "Statistical treatment of Research", status: "Not Started" }
-        { name: "Design of Prototype", status: "Not Started" },
-        { name: "Cost Benefit Analysis", status: "Not Started" },
+        { name: "Materials / instruments", status: "Not Started" },
+        { name: "Procedure / implementation", status: "Not Started" },
+        { name: "Data gathering method", status: "Not Started" },
+        { name: "Statistical treatment (if applicable)", status: "Not Started" }
       ]
     },
     {
