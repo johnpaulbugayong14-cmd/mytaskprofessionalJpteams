@@ -78,7 +78,7 @@ function getDefaultProgressStructure() {
         { name: "Diagram (Flowchart or block Diagram", status: "Not Started" },
         { name: "Material and Instrument", status: "Not Started" },
         { name: "Locale and Population of Research", status: "Not Started" },
-        { name: "Statistical treatment of Research", status: "Not Started" }
+        { name: "Statistical treatment of Research", status: "Not Started" },
         { name: "Design of Prototype", status: "Not Started" },
         { name: "Cost Benefit Analysis", status: "Not Started" },
       ]
