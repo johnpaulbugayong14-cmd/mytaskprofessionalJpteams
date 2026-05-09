@@ -57,6 +57,7 @@ function getDefaultProgressStructure() {
         { name: "Conceptual Framework", status: "Not Started" },
         { name: "Statement of the Problem", status: "Not Started" },
         { name: "Objectives of the Study", status: "Not Started" },
+        { name: "Hypothesis of the Study", status: "Not Started" },  
         { name: "Scope and limitation", status: "Not Started" },
         { name: "Significance of the Study", status: "Not Started" },
         { name: "Definition of Terms", status: "Not Started" }
@@ -66,8 +67,9 @@ function getDefaultProgressStructure() {
       title: "Chapter 2 – Review of Related Literature (RRL)",
       items: [
         { name: "Introduction", status: "Not Started" },
-        { name: "Thematic Arrangement of Articles", status: "Not Started" },
-        { name: "Research Gaps", status: "Not Started" }
+        { name: "Thematic Arrangement of Articles (RRL MINIMUM OF 30 ARTICLES)", status: "Not Started" },
+        { name: "Research Gaps", status: "Not Started" },
+        { name: "Synthesis", status: "Not Started" }
       ]
     },
     {
@@ -75,11 +77,10 @@ function getDefaultProgressStructure() {
       items: [
         { name: "Introduction", status: "Not Started" },
         { name: "Research design", status: "Not Started" },
-        { name: "Diagram (Flowchart or Block Diagram)", status: "Not Started" },
+        { name: "System and Prototype Design", status: "Not Started" },
         { name: "Material and Instrument", status: "Not Started" },
         { name: "Locale and Population of Research", status: "Not Started" },
         { name: "Statistical treatment of Research", status: "Not Started" },
-        { name: "Design of Prototype", status: "Not Started" },
         { name: "Cost Benefit Analysis", status: "Not Started" }
       ]
     },
