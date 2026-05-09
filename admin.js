@@ -471,6 +471,41 @@ loadAnnouncementAssignTo();
     });
   });
 
+function mergeProgressStructures(defaultSections, savedSections) {
+  // Merge saved data with default structure, preserving edits but adding new items
+  return defaultSections.map((defaultSection) => {
+    const savedSection = savedSections.find(s => s.title === defaultSection.title);
+    
+    if (!savedSection) {
+      // Section doesn't exist in saved data, use default
+      return defaultSection;
+    }
+    
+    // Merge items within the section
+    const mergedItems = defaultSection.items.map((defaultItem) => {
+      const savedItem = savedSection.items?.find(i => i.name === defaultItem.name);
+      
+      if (!savedItem) {
+        // Item doesn't exist in saved data, use default
+        return defaultItem;
+      }
+      
+      // Item exists in saved data, preserve status and assignments
+      return {
+        name: defaultItem.name,
+        status: savedItem.status || defaultItem.status,
+        assignedTo: Array.isArray(savedItem.assignedTo) ? savedItem.assignedTo : (savedItem.assignedTo ? [savedItem.assignedTo] : []),
+        assignedToName: Array.isArray(savedItem.assignedToName) ? savedItem.assignedToName : (savedItem.assignedToName ? [savedItem.assignedToName] : [])
+      };
+    });
+    
+    return {
+      title: defaultSection.title,
+      items: mergedItems
+    };
+  });
+}
+
 function loadProgressReport() {
   console.log('=== LOAD PROGRESS REPORT CALLED ===');
   const container = document.getElementById("progressReportPanel");
@@ -481,25 +516,21 @@ function loadProgressReport() {
 
   onSnapshot(progressRef, (snap) => {
     console.log('Progress report snapshot received:', snap.exists());
-    let sections = getDefaultProgressStructure();
+    const defaultSections = getDefaultProgressStructure();
+    let sections = defaultSections;
+    
     if (snap.exists()) {
       const data = snap.data();
       console.log('Progress report data:', data);
       if (Array.isArray(data.sections)) {
-        sections = data.sections.map(section => ({
-          ...section,
-          items: Array.isArray(section.items) ? section.items.map(item => ({
-            assignedTo: Array.isArray(item.assignedTo) ? item.assignedTo : (item.assignedTo ? [item.assignedTo] : []),
-            assignedToName: Array.isArray(item.assignedToName) ? item.assignedToName : (item.assignedToName ? [item.assignedToName] : []),
-            ...item
-          })) : []
-        }));
+        // Merge saved data with default structure to include new items
+        sections = mergeProgressStructures(defaultSections, data.sections);
       } else {
-        setDoc(progressRef, { sections }, { merge: true });
+        setDoc(progressRef, { sections: defaultSections }, { merge: true });
       }
     } else {
       console.log('Progress report document does not exist, creating default');
-      setDoc(progressRef, { sections }, { merge: true });
+      setDoc(progressRef, { sections: defaultSections }, { merge: true });
     }
     renderAdminProgressReport(sections);
   });
