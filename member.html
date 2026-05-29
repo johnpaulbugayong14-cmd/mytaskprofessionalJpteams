@@ -43,6 +43,7 @@ if (savedMemberSection) {
       <li><button class="nav-btn" onclick="showSection('announcements')"><i class="fas fa-bullhorn"></i> Announcements</button></li>
       <li><button class="nav-btn" onclick="showSection('submit-ticket')"><i class="fas fa-headset"></i> Submit Ticket</button></li>
       <li><button class="nav-btn active" onclick="showSection('video-conference')"><i class="fas fa-video"></i> Video Conference</button></li>
+      <li><button class="nav-btn" onclick="showSection('live-chat')"><i class="fas fa-comments"></i> Live Chat</button></li>
       <li><button class="nav-btn" onclick="showSection('resources')"><i class="fas fa-book"></i> Resources</button></li>
       <li><button class="nav-btn" onclick="showSection('progress-report')"><i class="fas fa-file-alt"></i> Progress Report</button></li>
     </ul>
@@ -142,6 +143,43 @@ if (savedMemberSection) {
         </div>
       </section>
 
+      <!-- Live Chat Section -->
+      <section id="live-chat" class="content-section">
+        <div class="card">
+          <h2 style="margin-bottom: 1rem;"><i class="fas fa-comments"></i> Live Chat</h2>
+          <div style="margin-bottom: 1rem; padding: 1rem; border: 1px solid #374151; border-radius: 8px; background: #0f172a;">
+            <form id="createChatForm" style="display: flex; gap: 0.75rem; align-items: center; justify-content: flex-start;">
+              <button type="submit" style="padding: 0.75rem 1.25rem; background: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer;">Create Chat Room</button>
+            </form>
+          </div>
+
+          <div id="chatRoomsList" style="margin-bottom: 2rem;">
+            <h3 style="margin-bottom: 0.75rem; color: #f8fafc;">Available Chat Rooms</h3>
+            <div id="chatRoomsContainer"></div>
+          </div>
+
+          <div id="chatRoomPanel" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.98); z-index: 9999; padding: 1rem; box-sizing: border-box; overflow: hidden;">
+            <div style="height: 100%; display: flex; flex-direction: column;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; gap: 1rem;">
+                <div>
+                  <h3 id="activeChatTitle" style="margin: 0; color: #f8fafc;"></h3>
+                  <p id="activeChatMeta" style="margin: 0.25rem 0 0; color: #94a3b8; font-size: 0.9rem;"></p>
+                </div>
+                <button onclick="closeChatRoomPanel()" style="background: #ef4444; color: white; border: none; padding: 0.5rem 0.9rem; border-radius: 8px; cursor: pointer;">Close</button>
+              </div>
+              <div id="chatMessages" style="flex: 1; min-height: 0; overflow-y: auto; margin-bottom: 1rem; padding-right: 0.5rem; border: 1px solid #374151; border-radius: 12px; padding: 1rem; background: #020617;"></div>
+              <form id="chatMessageForm" style="display: flex; gap: 0.5rem; align-items: stretch; position: relative;">
+                <div style="flex: 1 1 auto; position: relative;">
+                  <input id="chatMessageInput" type="text" placeholder="Write a message..." required style="width: 100%; min-width: 0; padding: 1rem; border-radius: 9999px; border: 1px solid #374151; background: #020617; color: #f8fafc;">
+                  <div id="memberMentionDropdown" class="mention-dropdown"></div>
+                </div>
+                <button type="submit" style="flex: 0 0 auto; width: auto; min-width: 120px; max-width: 180px; padding: 0 1.25rem; background: #10b981; color: white; border: none; border-radius: 9999px; cursor: pointer;">Send</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- Resources Section -->
       <section id="resources" class="content-section">
         <div class="card">
@@ -190,6 +228,11 @@ function showSection(sectionId) {
     if (sectionId === 'video-conference') {
       loadMeetings();
     }
+    if (sectionId === 'live-chat') {
+      if (typeof loadChatRooms === 'function') {
+        loadChatRooms();
+      }
+    }
   }
   
   // Update active nav button
@@ -210,6 +253,7 @@ function showSection(sectionId) {
     'announcements': '<i class="fas fa-bullhorn"></i> Announcements',
     'submit-ticket': '<i class="fas fa-paper-plane"></i> Submit Ticket',
     'video-conference': '<i class="fas fa-video"></i> Video Conference',
+    'live-chat': '<i class="fas fa-comments"></i> Live Chat',
     'resources': '<i class="fas fa-book"></i> Resources',
     'progress-report': '<i class="fas fa-file-alt"></i> Progress Report'
   };
@@ -373,6 +417,7 @@ function showSection(sectionId) {
     'announcements': '<i class="fas fa-bullhorn"></i> Announcements',
     'submit-ticket': '<i class="fas fa-headset"></i> Submit Ticket',
     'video-conference': '<i class="fas fa-video"></i> Video Conference',
+    'live-chat': '<i class="fas fa-comments"></i> Live Chat',
     'resources': '<i class="fas fa-book"></i> Resources',
     'progress-report': '<i class="fas fa-file-alt"></i> Progress Report'
   };
@@ -380,6 +425,12 @@ function showSection(sectionId) {
   const pageTitle = document.getElementById('page-title');
   if (pageTitle && titles[sectionId]) {
     pageTitle.innerHTML = titles[sectionId];
+  }
+
+  if (sectionId === 'live-chat') {
+    if (typeof loadChatRooms === 'function') {
+      loadChatRooms();
+    }
   }
   
   // Close mobile sidebar after selection

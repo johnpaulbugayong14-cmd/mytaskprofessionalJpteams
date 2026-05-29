@@ -83,7 +83,10 @@ import {
   deleteDoc,
   setDoc,
   getDoc,
-  arrayUnion
+  getDocs,
+  arrayUnion,
+  query,
+  orderBy
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 import { db } from "./firebase.js";
@@ -113,6 +116,16 @@ let members = [
   { uid: "test@example.com", name: "Test User" },
   { uid: "rogelioledda@gmail.com", name: "Rogelio Ledda" }
 ];
+
+const mentionUsers = [
+  ...members.filter(member => member.uid !== 'everyone'),
+  { uid: 'johnpaulbugayong@gmail.com', name: 'Admin' }
+];
+
+let liveChatRoomsUnsubscribe = null;
+let liveChatMessagesUnsubscribe = null;
+let selectedLiveChatId = null;
+let liveChatRoomsById = {};
 
 (async () => {
   // Retry getting admin credentials if first attempt fails (to handle timing issues)
@@ -308,6 +321,9 @@ function loadAnnouncementAssignTo() {
 
 loadMembers();
 loadAnnouncementAssignTo();
+
+// Load live chat room list immediately so refresh always restores the list
+loadLiveChatRooms();
 
   // Initialize notifications
   initializeNotifications();
@@ -1336,6 +1352,331 @@ onSnapshot(collection(db, "announcements"), (snap) => {
 });
 
 loadProgressReport();
+
+async function getNextLiveChatTitle() {
+  const snapshot = await getDocs(collection(db, 'liveChats'));
+  let maxIndex = 0;
+  snapshot.forEach((docSnap) => {
+    const title = String(docSnap.data().title || '').trim();
+    const match = title.match(/^live\s*chat\s*(\d+)$/i);
+    if (match) {
+      maxIndex = Math.max(maxIndex, Number(match[1]));
+    }
+  });
+  return `Livechat ${maxIndex + 1}`;
+}
+
+async function createLiveChatRoom(event) {
+  if (event && event.preventDefault) event.preventDefault();
+  const title = await getNextLiveChatTitle();
+
+  try {
+    await addDoc(collection(db, 'liveChats'), {
+      title,
+      createdByEmail: adminEmail,
+      createdByName: members.find(m => m.uid === adminEmail)?.name || adminEmail,
+      status: 'Active',
+      createdAt: Date.now()
+    });
+    loadLiveChatRooms();
+  } catch (error) {
+    console.error('Failed to create live chat room:', error);
+    alert('Unable to create chat room. Please try again.');
+  }
+}
+
+function renderAdminChatRooms(rooms) {
+  const container = document.getElementById('adminChatRoomsContainer');
+  if (!container) return;
+  if (!rooms.length) {
+    container.innerHTML = '<p style="color: #94a3b8; text-align: center;">No live chat rooms yet.</p>';
+    return;
+  }
+
+  rooms.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  liveChatRoomsById = {};
+  container.innerHTML = '';
+
+  rooms.forEach((room) => {
+    liveChatRoomsById[room.id] = room;
+    const statusColor = room.status === 'Closed' ? '#ef4444' : '#10b981';
+    const createdBy = room.createdByName || room.createdByEmail || 'Unknown';
+    const isActive = room.status === 'Active';
+    const canDelete = room.createdByEmail && room.createdByEmail !== adminEmail;
+
+    const roomDiv = document.createElement('div');
+    roomDiv.style.cssText = 'border: 1px solid #374151; background: #1e293b; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;';
+    roomDiv.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: start; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.75rem;">
+        <div style="min-width: 0;">
+          <h4 style="margin: 0; color: #f8fafc;">${room.title}</h4>
+          <p style="margin: 0.5rem 0 0; color: #94a3b8; font-size: 0.9rem;">Created by ${createdBy}</p>
+          <p style="margin: 0.25rem 0 0; color: #94a3b8; font-size: 0.8rem;">${new Date(room.createdAt).toLocaleString()}</p>
+        </div>
+        <span style="background: ${statusColor}; color: white; padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.8rem;">${room.status}</span>
+      </div>
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+        <button onclick="openAdminChatRoom('${room.id}')" style="background: ${isActive ? '#10b981' : '#6b7280'}; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer;">${isActive ? 'Open Chat' : 'View Chat'}</button>
+        ${canDelete ? `<button onclick="deleteLiveChatRoom('${room.id}')" style="background: #ef4444; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer;">Delete</button>` : ''}
+      </div>
+    `;
+    container.appendChild(roomDiv);
+  });
+}
+
+function openAdminChatRoom(chatId) {
+  const room = liveChatRoomsById[chatId];
+  if (!room) return;
+
+  selectedLiveChatId = chatId;
+  const panel = document.getElementById('adminChatRoomPanel');
+  const titleEl = document.getElementById('adminActiveChatTitle');
+  const metaEl = document.getElementById('adminActiveChatMeta');
+  const messageInput = document.getElementById('adminChatMessageInput');
+  const messageForm = document.getElementById('adminChatMessageForm');
+
+  if (panel) panel.style.display = 'block';
+  if (titleEl) titleEl.textContent = room.title;
+  if (metaEl) metaEl.textContent = `Created by ${room.createdByName || room.createdByEmail} • Status: ${room.status}`;
+  if (messageInput) messageInput.disabled = room.status !== 'Active';
+  if (messageForm) messageForm.style.opacity = room.status !== 'Active' ? '0.7' : '1';
+
+  subscribeAdminChatMessages(chatId);
+}
+
+function closeAdminChatPanel() {
+  const panel = document.getElementById('adminChatRoomPanel');
+  if (panel) panel.style.display = 'none';
+
+  if (liveChatMessagesUnsubscribe) {
+    liveChatMessagesUnsubscribe();
+    liveChatMessagesUnsubscribe = null;
+  }
+
+  selectedLiveChatId = null;
+}
+
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function formatMessageWithMentions(text) {
+  return text.replace(/@\[([^\]]+)\]/g, '<span class="mention">@$1</span>');
+}
+
+function getMentionContext(input) {
+  const cursor = input.selectionStart;
+  const value = input.value;
+  const before = value.slice(0, cursor);
+  const atIndex = before.lastIndexOf('@');
+  if (atIndex === -1) return null;
+
+  const prefix = before.slice(atIndex + 1);
+  if (/\s/.test(prefix)) return null;
+  if (atIndex > 0 && /[^\s]/.test(before[atIndex - 1])) return null;
+
+  return {
+    start: atIndex,
+    query: prefix.toLowerCase()
+  };
+}
+
+function updateMentionDropdown(input, dropdown) {
+  const context = getMentionContext(input);
+  if (!context) {
+    dropdown.style.display = 'none';
+    return;
+  }
+
+  const filtered = mentionUsers.filter((user) => {
+    const search = `${user.name} ${user.uid}`.toLowerCase();
+    return search.includes(context.query);
+  });
+
+  if (filtered.length === 0) {
+    dropdown.innerHTML = '<div class="mention-item">No matching users</div>';
+    dropdown.style.display = 'block';
+    return;
+  }
+
+  dropdown.innerHTML = filtered.map((user) => `
+    <div class="mention-item" data-name="${escapeHtml(user.name)}">
+      <strong>${escapeHtml(user.name)}</strong>
+      <span class="mention-email">${escapeHtml(user.uid)}</span>
+    </div>
+  `).join('');
+  dropdown.style.display = 'block';
+}
+
+function insertMentionAtCursor(input, dropdown, name) {
+  const cursor = input.selectionStart;
+  const value = input.value;
+  const before = value.slice(0, cursor);
+  const atIndex = before.lastIndexOf('@');
+  if (atIndex === -1) return;
+
+  const token = `@[${name}] `;
+  input.value = value.slice(0, atIndex) + token + value.slice(cursor);
+  const newCursor = atIndex + token.length;
+  input.setSelectionRange(newCursor, newCursor);
+  input.focus();
+  dropdown.style.display = 'none';
+}
+
+function setupMentionAutocomplete(inputId, dropdownId) {
+  const input = document.getElementById(inputId);
+  const dropdown = document.getElementById(dropdownId);
+  if (!input || !dropdown) return;
+
+  input.addEventListener('input', () => updateMentionDropdown(input, dropdown));
+  dropdown.addEventListener('click', (event) => {
+    const item = event.target.closest('.mention-item');
+    if (!item) return;
+    insertMentionAtCursor(input, dropdown, item.dataset.name);
+  });
+  document.addEventListener('click', (event) => {
+    if (!input.contains(event.target) && !dropdown.contains(event.target)) {
+      dropdown.style.display = 'none';
+    }
+  });
+}
+
+function renderAdminChatMessages(messages) {
+  const container = document.getElementById('adminChatMessages');
+  if (!container) return;
+
+  if (!messages.length) {
+    container.innerHTML = '<p style="color: #94a3b8; text-align: center; margin: 1rem 0;">No messages in this chat yet.</p>';
+    return;
+  }
+
+  container.innerHTML = '';
+  messages.forEach((msg) => {
+    const isOwn = msg.senderEmail === adminEmail;
+    const messageText = msg.deleted ? 'This message was unsent.' : msg.text;
+    const safeText = escapeHtml(messageText);
+    const renderedText = msg.deleted ? safeText : formatMessageWithMentions(safeText);
+    const messageDiv = document.createElement('div');
+    messageDiv.style.cssText = 'padding: 0.85rem 1rem; margin-bottom: 0.75rem; border-radius: 10px; background: #111827;';
+    messageDiv.innerHTML = `
+      <div style="display: flex; justify-content: space-between; gap: 1rem; margin-bottom: 0.35rem; opacity: ${msg.deleted ? 0.7 : 1};">
+        <div style="font-size: 0.85rem; color: #94a3b8;">${escapeHtml(msg.senderName || msg.senderEmail || 'Guest')}</div>
+        <div style="font-size: 0.75rem; color: #6b7280;">${msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</div>
+      </div>
+      <div style="color: ${msg.deleted ? '#9ca3af' : '#e5e7eb'}; line-height: 1.6; margin-bottom: 0.5rem;">${renderedText}</div>
+      ${isOwn && !msg.deleted ? `<button onclick="unsendAdminChatMessage('${selectedLiveChatId}', '${msg.id}')" style="background: transparent; color: #60a5fa; border: none; cursor: pointer; padding: 0; font-size: 0.85rem;">Unsend</button>` : ''}
+    `;
+    container.appendChild(messageDiv);
+  });
+  container.scrollTop = container.scrollHeight;
+}
+
+async function subscribeAdminChatMessages(chatId) {
+  if (liveChatMessagesUnsubscribe) {
+    liveChatMessagesUnsubscribe();
+  }
+
+  const messageQuery = query(collection(db, 'liveChats', chatId, 'messages'), orderBy('createdAt', 'asc'));
+  liveChatMessagesUnsubscribe = onSnapshot(messageQuery, (snapshot) => {
+    const messages = [];
+    snapshot.forEach((docSnap) => messages.push({ id: docSnap.id, ...docSnap.data() }));
+    renderAdminChatMessages(messages);
+  }, (error) => {
+    console.error('Admin live chat messages listener error:', error);
+  });
+}
+
+async function sendAdminChatMessage(event) {
+  if (event && event.preventDefault) event.preventDefault();
+  if (!selectedLiveChatId) return;
+
+  const messageInput = document.getElementById('adminChatMessageInput');
+  if (!messageInput) return;
+
+  const message = messageInput.value.trim();
+  if (!message) return;
+
+  try {
+    await addDoc(collection(db, 'liveChats', selectedLiveChatId, 'messages'), {
+      senderEmail: adminEmail,
+      senderName: members.find(m => m.uid === adminEmail)?.name || adminEmail,
+      text: message,
+      createdAt: Date.now(),
+      deleted: false
+    });
+    messageInput.value = '';
+  } catch (error) {
+    console.error('Failed to send admin chat message:', error);
+    alert('Unable to send message. Please try again.');
+  }
+}
+
+async function unsendAdminChatMessage(chatId, messageId) {
+  if (!chatId || !messageId) return;
+
+  const messageRef = doc(db, 'liveChats', chatId, 'messages', messageId);
+  try {
+    await updateDoc(messageRef, {
+      deleted: true,
+      text: 'This message was unsent.',
+      unsentAt: Date.now()
+    });
+  } catch (error) {
+    console.error('Failed to unsend admin chat message:', error);
+  }
+}
+
+async function deleteLiveChatRoom(chatId) {
+  if (!chatId) return;
+  if (!confirm('Delete this live chat room? This will remove the room from the list.')) return;
+
+  try {
+    await deleteDoc(doc(db, 'liveChats', chatId));
+    closeAdminChatPanel();
+    loadLiveChatRooms();
+  } catch (error) {
+    console.error('Failed to delete live chat room:', error);
+    alert('Unable to delete chat room. Please try again.');
+  }
+}
+
+function loadLiveChatRooms() {
+  if (liveChatRoomsUnsubscribe) {
+    liveChatRoomsUnsubscribe();
+  }
+
+  liveChatRoomsUnsubscribe = onSnapshot(collection(db, 'liveChats'), (snapshot) => {
+    const rooms = [];
+    snapshot.forEach((docSnap) => rooms.push({ id: docSnap.id, ...docSnap.data() }));
+    renderAdminChatRooms(rooms);
+  }, (error) => {
+    console.error('Admin live chat rooms listener error:', error);
+  });
+}
+
+window.createLiveChatRoom = createLiveChatRoom;
+window.loadLiveChatRooms = loadLiveChatRooms;
+window.openAdminChatRoom = openAdminChatRoom;
+window.closeAdminChatPanel = closeAdminChatPanel;
+window.unsendAdminChatMessage = unsendAdminChatMessage;
+window.sendAdminChatMessage = sendAdminChatMessage;
+window.deleteLiveChatRoom = deleteLiveChatRoom;
+
+const adminCreateChatForm = document.getElementById('adminCreateChatForm');
+if (adminCreateChatForm) {
+  adminCreateChatForm.addEventListener('submit', createLiveChatRoom);
+}
+const adminChatMessageForm = document.getElementById('adminChatMessageForm');
+if (adminChatMessageForm) {
+  adminChatMessageForm.addEventListener('submit', sendAdminChatMessage);
+}
+
+setupMentionAutocomplete('adminChatMessageInput', 'adminMentionDropdown');
 
 /* TICKET MANAGEMENT FUNCTIONS */
 window.respondToTicket = async function(ticketId) {

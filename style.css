@@ -59,6 +59,15 @@ h2 {
   top: 0;
   z-index: 1000;
   box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+  overflow-y: auto;
+}
+
+.nav-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  flex: 1;
+  overflow-y: auto;
 }
 
 .sidebar.collapsed {
@@ -138,6 +147,38 @@ h2 {
 
 .footer-credit {
   color: #cbd5e1;
+}
+
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 240px;
+  }
+
+  .app-container.has-collapsed-sidebar .main-content,
+  .main-content {
+    margin-left: 240px;
+  }
+
+  .content-header,
+  .content-sections {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+@media (max-width: 900px) {
+  .sidebar {
+    width: 220px;
+  }
+
+  .app-container.has-collapsed-sidebar .main-content,
+  .main-content {
+    margin-left: 220px;
+  }
+
+  .content-header {
+    padding: 1.5rem 1rem 2rem;
+  }
 }
 
 @media (max-width: 640px) {
@@ -335,7 +376,6 @@ h2 {
     margin-top: 0.5rem;
   }
 }
-}
 
 .content-sections {
   padding: 2rem;
@@ -443,6 +483,119 @@ button:hover {
 
 button:active {
   transform: translateY(0);
+}
+
+#chatRoomPanel,
+#adminChatRoomPanel {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  padding: 1rem;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.chat-panel-inner {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  max-width: 100%;
+}
+
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+#chatMessages,
+#adminChatMessages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+  border: 1px solid #374151;
+  border-radius: 12px;
+  padding: 1rem;
+  background: #020617;
+}
+
+#chatMessageForm,
+#adminChatMessageForm {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+#chatMessageInput,
+#adminChatMessageInput {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  padding: 1rem;
+}
+
+#chatMessageForm button,
+#adminChatMessageForm button {
+  width: auto;
+  flex: 0 0 auto;
+  min-width: 120px;
+  max-width: 180px;
+  padding: 0.85rem 1.25rem;
+  margin-top: 0;
+}
+
+@media (max-width: 1024px) {
+  .card {
+    margin: 1.25rem auto;
+    padding: 1.75rem;
+  }
+
+  .content-header {
+    padding: 1.75rem 1.5rem 2rem;
+  }
+}
+
+@media (max-width: 900px) {
+  .card {
+    margin: 1rem auto;
+    padding: 1.4rem;
+  }
+
+  .content-header {
+    padding: 1.5rem 1rem 1.75rem;
+  }
+
+  .content-header h1 {
+    font-size: 1.45rem;
+  }
+}
+
+@media (max-width: 640px) {
+  #chatMessageForm,
+  #adminChatMessageForm {
+    flex-direction: column;
+  }
+
+  #chatMessageForm button,
+  #adminChatMessageForm button {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  #chatRoomPanel,
+  #adminChatRoomPanel {
+    padding: 0.75rem;
+  }
+
+  .content-sections {
+    padding: 1rem;
+  }
 }
 
 .btn-secondary {
@@ -839,4 +992,46 @@ canvas {
     padding-left: 2.5rem; /* Make room for the fixed button in the header area */
     text-align: left;
     font-size: 1.5rem;
+  }
+
+  .mention-dropdown {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 0.5rem);
+    left: 0;
+    right: 0;
+    max-height: 280px;
+    overflow-y: auto;
+    background: #0f172a;
+    border: 1px solid #374151;
+    border-radius: 0.75rem;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
+    z-index: 1000;
+  }
+
+  .mention-item {
+    padding: 0.85rem 1rem;
+    cursor: pointer;
+    color: #f8fafc;
+    border-bottom: 1px solid #1f2937;
+  }
+
+  .mention-item:last-child {
+    border-bottom: none;
+  }
+
+  .mention-item:hover {
+    background: #111827;
+  }
+
+  .mention-item .mention-email {
+    display: block;
+    color: #94a3b8;
+    font-size: 0.82rem;
+    margin-top: 0.25rem;
+  }
+
+  .mention {
+    color: #60a5fa;
+    font-weight: 700;
   }

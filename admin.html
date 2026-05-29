@@ -44,6 +44,7 @@
       <li><button class="nav-btn" onclick="showSection('task-analytics')"><i class="fas fa-chart-bar"></i> Analytics</button></li>
       <li><button class="nav-btn" onclick="showSection('all-tasks')"><i class="fas fa-clipboard-list"></i> All Tasks</button></li>
       <li><button class="nav-btn" onclick="showSection('video-conference')"><i class="fas fa-video"></i> Video Conference</button></li>
+      <li><button class="nav-btn" onclick="showSection('live-chat')"><i class="fas fa-comments"></i> Live Chat</button></li>
     </ul>
   </nav>
 
@@ -287,6 +288,43 @@
         </div>
       </section>
 
+      <!-- Live Chat Section -->
+      <section id="live-chat" class="content-section">
+        <div class="card">
+          <h2><i class="fas fa-comments"></i> Live Chat</h2>
+          <div style="margin-bottom: 1rem; padding: 1rem; border: 1px solid #374151; border-radius: 8px; background: #0f172a;">
+            <form id="adminCreateChatForm" style="display: flex; gap: 0.75rem; align-items: center; justify-content: flex-start;">
+              <button type="submit" style="padding: 0.75rem 1.25rem; background: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer;">Create Chat Room</button>
+            </form>
+          </div>
+
+          <div id="adminChatRoomsList" style="margin-bottom: 2rem;">
+            <h3 style="margin-bottom: 0.75rem; color: #f8fafc;">Chat Rooms</h3>
+            <div id="adminChatRoomsContainer"></div>
+          </div>
+
+          <div id="adminChatRoomPanel" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.98); z-index: 9999; padding: 1rem; box-sizing: border-box; overflow: hidden;">
+            <div style="height: 100%; display: flex; flex-direction: column;">
+              <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                <div>
+                  <h3 id="adminActiveChatTitle" style="margin: 0; color: #f8fafc;"></h3>
+                  <p id="adminActiveChatMeta" style="margin: 0.25rem 0 0; color: #94a3b8; font-size: 0.9rem;"></p>
+                </div>
+                <button onclick="closeAdminChatPanel()" style="background: #ef4444; color: white; border: none; padding: 0.5rem 0.9rem; border-radius: 8px; cursor: pointer;">Close</button>
+              </div>
+              <div id="adminChatMessages" style="flex: 1; min-height: 0; overflow-y: auto; margin-bottom: 1rem; padding-right: 0.5rem; border: 1px solid #374151; border-radius: 12px; padding: 1rem; background: #020617;"></div>
+              <form id="adminChatMessageForm" style="display: flex; gap: 0.5rem; align-items: stretch; position: relative;">
+                <div style="flex: 1 1 auto; position: relative;">
+                  <input id="adminChatMessageInput" type="text" placeholder="Write a message..." required style="width: 100%; min-width: 0; padding: 1rem; border-radius: 9999px; border: 1px solid #374151; background: #020617; color: #f8fafc;">
+                  <div id="adminMentionDropdown" class="mention-dropdown"></div>
+                </div>
+                <button type="submit" style="flex: 0 0 auto; width: auto; min-width: 120px; max-width: 180px; padding: 0 1.25rem; background: #10b981; color: white; border: none; border-radius: 9999px; cursor: pointer;">Send</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </section>
+
     </div>
   </main>
 </div>
@@ -332,12 +370,19 @@ function showSection(sectionId) {
     'progress-report': '<i class="fas fa-chart-line"></i> Progress Report',
     'task-analytics': '<i class="fas fa-chart-bar"></i> Task Analytics',
     'all-tasks': '<i class="fas fa-clipboard-list"></i> All Tasks',
-    'video-conference': '<i class="fas fa-video"></i> Video Conference'
+    'video-conference': '<i class="fas fa-video"></i> Video Conference',
+    'live-chat': '<i class="fas fa-comments"></i> Live Chat'
   };
   
   const pageTitle = document.getElementById('page-title');
   if (pageTitle && titles[sectionId]) {
     pageTitle.innerHTML = titles[sectionId];
+  }
+
+  if (sectionId === 'live-chat') {
+    if (typeof loadLiveChatRooms === 'function') {
+      loadLiveChatRooms();
+    }
   }
   
   // Trigger chart update when analytics is shown
@@ -837,7 +882,8 @@ function showSection(sectionId) {
     'progress-report': '<i class="fas fa-chart-line"></i> Progress Report',
     'task-analytics': '<i class="fas fa-chart-bar"></i> Task Analytics',
     'all-tasks': '<i class="fas fa-clipboard-list"></i> All Tasks',
-    'video-conference': '<i class="fas fa-video"></i> Video Conference'
+    'video-conference': '<i class="fas fa-video"></i> Video Conference',
+    'live-chat': '<i class="fas fa-comments"></i> Live Chat'
   };
   
   const pageTitle = document.getElementById('page-title');
@@ -852,6 +898,11 @@ function showSection(sectionId) {
         window.updateChart(window.lastMemberProgress);
       }
     }, 50); // Faster response when switching tabs
+  }
+  if (sectionId === 'live-chat') {
+    if (typeof loadLiveChatRooms === 'function') {
+      loadLiveChatRooms();
+    }
   }
   
   // Close mobile sidebar after selection

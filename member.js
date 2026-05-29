@@ -8,6 +8,10 @@ window.signOutUser = signOutUser;
 
 let userEmail = null;
 let meetingsUnsubscribe = null;
+let chatRoomsUnsubscribe = null;
+let chatMessagesUnsubscribe = null;
+let selectedChatId = null;
+let chatRoomsById = {};
 const container = document.getElementById("tasks");
 const emptyState = document.getElementById("emptyState");
 const welcomeEl = document.getElementById("welcome");
@@ -24,6 +28,11 @@ const members = [
   { uid: "phricksborebor@gmail.com", name: "Phricks Borebor" },
   { uid: "moezarperez@gmail.com", name: "Moezar Perez" },
   { uid: "rogelioledda@gmail.com", name: "Rogelio Ledda" }
+];
+
+const mentionUsers = [
+  ...members.filter(member => member.uid !== 'everyone'),
+  { uid: 'johnpaulbugayong@gmail.com', name: 'Admin' }
 ];
 
 const progressReportCollection = "progressReports";
@@ -702,6 +711,339 @@ window.joinScheduledMeeting = function(roomName) {
   initializeJitsiConference(roomName);
 };
 
+function getChatRoomDisplayName(email) {
+  return getUserName(email) || email;
+}
+
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function formatMessageWithMentions(text) {
+  return text.replace(/@\[([^\]]+)\]/g, '<span class="mention">@$1</span>');
+}
+
+function getMentionContext(input) {
+  const cursor = input.selectionStart;
+  const value = input.value;
+  const before = value.slice(0, cursor);
+  const atIndex = before.lastIndexOf('@');
+  if (atIndex === -1) return null;
+
+  const prefix = before.slice(atIndex + 1);
+  if (/\s/.test(prefix)) return null;
+  if (atIndex > 0 && /[^\s]/.test(before[atIndex - 1])) return null;
+
+  return {
+    start: atIndex,
+    query: prefix.toLowerCase()
+  };
+}
+
+function updateMentionDropdown(input, dropdown) {
+  const context = getMentionContext(input);
+  if (!context) {
+    dropdown.style.display = 'none';
+    return;
+  }
+
+  const filtered = mentionUsers.filter((user) => {
+    const search = `${user.name} ${user.uid}`.toLowerCase();
+    return search.includes(context.query);
+  });
+
+  if (filtered.length === 0) {
+    dropdown.innerHTML = '<div class="mention-item">No matching members found</div>';
+    dropdown.style.display = 'block';
+    return;
+  }
+
+  dropdown.innerHTML = filtered.map((user) => `
+    <div class="mention-item" data-name="${escapeHtml(user.name)}">
+      <strong>${escapeHtml(user.name)}</strong>
+      <span class="mention-email">${escapeHtml(user.uid)}</span>
+    </div>
+  `).join('');
+  dropdown.style.display = 'block';
+}
+
+function insertMentionAtCursor(input, dropdown, name) {
+  const cursor = input.selectionStart;
+  const value = input.value;
+  const before = value.slice(0, cursor);
+  const atIndex = before.lastIndexOf('@');
+  if (atIndex === -1) return;
+
+  const token = `@[${name}] `;
+  const newValue = value.slice(0, atIndex) + token + value.slice(cursor);
+  input.value = newValue;
+  const newCursor = atIndex + token.length;
+  input.setSelectionRange(newCursor, newCursor);
+  input.focus();
+  dropdown.style.display = 'none';
+}
+
+function setupMentionAutocomplete(inputId, dropdownId) {
+  const input = document.getElementById(inputId);
+  const dropdown = document.getElementById(dropdownId);
+  if (!input || !dropdown) return;
+
+  input.addEventListener('input', () => updateMentionDropdown(input, dropdown));
+
+  dropdown.addEventListener('click', (event) => {
+    const item = event.target.closest('.mention-item');
+    if (!item) return;
+    const name = item.dataset.name;
+    insertMentionAtCursor(input, dropdown, name);
+  });
+
+  document.addEventListener('click', (event) => {
+    if (!input.contains(event.target) && !dropdown.contains(event.target)) {
+      dropdown.style.display = 'none';
+    }
+  });
+}
+
+async function getNextLiveChatTitle() {
+  const snapshot = await getDocs(collection(db, 'liveChats'));
+  let maxIndex = 0;
+  snapshot.forEach((docSnap) => {
+    const title = String(docSnap.data().title || '').trim();
+    const match = title.match(/^live\s*chat\s*(\d+)$/i);
+    if (match) {
+      maxIndex = Math.max(maxIndex, Number(match[1]));
+    }
+  });
+  return `Livechat ${maxIndex + 1}`;
+}
+
+async function createLiveChatRoom(event) {
+  if (event && event.preventDefault) event.preventDefault();
+  let title = await getNextLiveChatTitle();
+
+  const currentEmail = userEmail || await getStoredUserEmail();
+  const chatRoom = {
+    title,
+    createdByEmail: currentEmail,
+    createdByName: getChatRoomDisplayName(currentEmail),
+    status: 'Active',
+    createdAt: Date.now()
+  };
+
+  try {
+    await addDoc(collection(db, 'liveChats'), chatRoom);
+    loadChatRooms();
+  } catch (error) {
+    console.error('Failed to create live chat room:', error);
+    alert('Unable to create chat room. Please try again.');
+  }
+}
+
+function renderChatRooms(chatRooms) {
+  const container = document.getElementById('chatRoomsContainer');
+  if (!container) return;
+
+  if (!chatRooms || chatRooms.length === 0) {
+    container.innerHTML = '<p style="color: #94a3b8; text-align: center;">No live chat rooms available yet.</p>';
+    return;
+  }
+
+  chatRooms.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  chatRoomsById = {};
+  container.innerHTML = '';
+
+  chatRooms.forEach((room) => {
+    chatRoomsById[room.id] = room;
+    const roomDiv = document.createElement('div');
+    roomDiv.style.cssText = 'border: 1px solid #374151; background: #1e293b; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;';
+    const createdBy = room.createdByName || room.createdByEmail || 'Unknown';
+    const statusColor = room.status === 'Closed' ? '#ef4444' : '#10b981';
+    const isActive = room.status === 'Active';
+
+    roomDiv.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.75rem;">
+        <div style="min-width: 0;">
+          <h4 style="margin: 0; color: #f8fafc;">${room.title}</h4>
+          <p style="margin: 0.5rem 0 0; color: #94a3b8; font-size: 0.9rem;">Created by ${createdBy}</p>
+        </div>
+        <span style="background: ${statusColor}; color: white; padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.8rem;">${room.status || 'Active'}</span>
+      </div>
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+        <button onclick="openChatRoom('${room.id}')" style="background: ${isActive ? '#10b981' : '#6b7280'}; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer;">${isActive ? 'Open Chat' : 'View Chat'}</button>
+      </div>
+    `;
+
+    container.appendChild(roomDiv);
+  });
+}
+
+function renderChatMessages(messages) {
+  const chatMessagesEl = document.getElementById('chatMessages');
+  if (!chatMessagesEl) return;
+
+  if (!messages || messages.length === 0) {
+    chatMessagesEl.innerHTML = '<p style="color: #94a3b8; text-align: center; margin: 1rem 0;">No messages yet. Start the conversation!</p>';
+    return;
+  }
+
+  chatMessagesEl.innerHTML = '';
+  messages.forEach((msg) => {
+    const msgDiv = document.createElement('div');
+    msgDiv.style.cssText = 'padding: 0.85rem 1rem; border-radius: 10px; margin-bottom: 0.75rem; background: #111827;';
+    const sender = msg.senderName || msg.senderEmail || 'Unknown';
+    const timestamp = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+    const messageText = msg.deleted ? 'This message was unsent.' : msg.text;
+    const safeText = escapeHtml(messageText);
+    const renderedText = msg.deleted ? safeText : formatMessageWithMentions(safeText);
+    const opacity = msg.deleted ? '0.7' : '1';
+    const isOwnMessage = msg.senderEmail === userEmail;
+
+    msgDiv.innerHTML = `
+      <div style="display: flex; justify-content: space-between; gap: 1rem; margin-bottom: 0.35rem; opacity: ${opacity};">
+        <div style="font-size: 0.85rem; color: #94a3b8;">${escapeHtml(sender)}</div>
+        <div style="font-size: 0.75rem; color: #6b7280;">${timestamp}</div>
+      </div>
+      <div style="color: ${msg.deleted ? '#9ca3af' : '#e5e7eb'}; line-height: 1.6; margin-bottom: 0.5rem;">${renderedText}</div>
+      ${isOwnMessage && !msg.deleted ? `<button onclick="unsendChatMessage('${selectedChatId}', '${msg.id}')" style="background: transparent; color: #60a5fa; border: none; cursor: pointer; padding: 0; font-size: 0.85rem;">Unsend</button>` : ''}
+    `;
+
+    chatMessagesEl.appendChild(msgDiv);
+  });
+  chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+}
+
+function openChatRoom(chatId) {
+  const chatRoom = chatRoomsById[chatId];
+  if (!chatRoom) return;
+
+  selectedChatId = chatId;
+
+  const panel = document.getElementById('chatRoomPanel');
+  const titleEl = document.getElementById('activeChatTitle');
+  const metaEl = document.getElementById('activeChatMeta');
+  const messageInput = document.getElementById('chatMessageInput');
+  const messageForm = document.getElementById('chatMessageForm');
+
+  if (panel) panel.style.display = 'block';
+  if (titleEl) titleEl.textContent = chatRoom.title;
+  if (metaEl) metaEl.textContent = `Created by ${chatRoom.createdByName || chatRoom.createdByEmail} • Status: ${chatRoom.status}`;
+  if (messageInput) messageInput.disabled = chatRoom.status !== 'Active';
+  if (messageForm) messageForm.style.opacity = chatRoom.status !== 'Active' ? '0.7' : '1';
+
+  subscribeChatMessages(chatId);
+}
+
+function closeChatRoomPanel() {
+  const panel = document.getElementById('chatRoomPanel');
+  if (panel) panel.style.display = 'none';
+
+  if (chatMessagesUnsubscribe) {
+    chatMessagesUnsubscribe();
+    chatMessagesUnsubscribe = null;
+  }
+
+  selectedChatId = null;
+}
+
+async function subscribeChatMessages(chatId) {
+  if (chatMessagesUnsubscribe) {
+    chatMessagesUnsubscribe();
+  }
+
+  const messagesQuery = query(collection(db, 'liveChats', chatId, 'messages'), orderBy('createdAt', 'asc'));
+  chatMessagesUnsubscribe = onSnapshot(messagesQuery, (snapshot) => {
+    const messages = [];
+    snapshot.forEach((docSnap) => {
+      messages.push({ id: docSnap.id, ...docSnap.data() });
+    });
+    renderChatMessages(messages);
+  }, (error) => {
+    console.error('Chat messages listener error:', error);
+  });
+}
+
+async function sendChatMessage(event) {
+  if (event && event.preventDefault) event.preventDefault();
+  if (!selectedChatId) return;
+
+  const messageInput = document.getElementById('chatMessageInput');
+  if (!messageInput) return;
+  const message = messageInput.value.trim();
+  if (!message) return;
+
+  const currentEmail = userEmail || await getStoredUserEmail();
+  const messageData = {
+    senderEmail: currentEmail,
+    senderName: getChatRoomDisplayName(currentEmail),
+    text: message,
+    createdAt: Date.now(),
+    deleted: false
+  };
+
+  try {
+    await addDoc(collection(db, 'liveChats', selectedChatId, 'messages'), messageData);
+    messageInput.value = '';
+  } catch (error) {
+    console.error('Failed to send chat message:', error);
+    alert('Unable to send message. Please try again.');
+  }
+}
+
+async function unsendChatMessage(chatId, messageId) {
+  if (!chatId || !messageId || !userEmail) return;
+
+  const messageRef = doc(db, 'liveChats', chatId, 'messages', messageId);
+  try {
+    await updateDoc(messageRef, {
+      deleted: true,
+      text: 'This message was unsent.',
+      unsentAt: Date.now()
+    });
+  } catch (error) {
+    console.error('Failed to unsend chat message:', error);
+  }
+}
+
+function loadChatRooms() {
+  if (chatRoomsUnsubscribe) {
+    chatRoomsUnsubscribe();
+  }
+
+  chatRoomsUnsubscribe = onSnapshot(collection(db, 'liveChats'), (snapshot) => {
+    const rooms = [];
+    snapshot.forEach((docSnap) => {
+      rooms.push({ id: docSnap.id, ...docSnap.data() });
+    });
+    renderChatRooms(rooms);
+  }, (error) => {
+    console.error('Live chat rooms listener error:', error);
+  });
+}
+
+window.createLiveChatRoom = createLiveChatRoom;
+window.loadChatRooms = loadChatRooms;
+window.openChatRoom = openChatRoom;
+window.closeChatRoomPanel = closeChatRoomPanel;
+window.unsendChatMessage = unsendChatMessage;
+window.sendChatMessage = sendChatMessage;
+
+// Attach the chat form handler after DOM is ready
+const createChatFormElement = document.getElementById('createChatForm');
+if (createChatFormElement) {
+  createChatFormElement.addEventListener('submit', createLiveChatRoom);
+}
+const chatMessageFormElement = document.getElementById('chatMessageForm');
+if (chatMessageFormElement) {
+  chatMessageFormElement.addEventListener('submit', sendChatMessage);
+}
+
+setupMentionAutocomplete('chatMessageInput', 'memberMentionDropdown');
+
 // No scheduling controls on member page
 
 
@@ -811,6 +1153,9 @@ window.joinScheduledMeeting = function(roomName) {
     loadAnnouncements();
     loadProgressReport();
     loadResources();
+
+    // Always ensure chat room list stays synced after refresh
+    loadChatRooms();
   }
   
   // Ensure the ticket history section exists in the DOM
