@@ -157,6 +157,8 @@ let selectedLiveChatId = null;
 let liveChatRoomsById = {};
 let adminChatMessagesById = {};
 let adminReplyToMessage = null;
+let selectedAdminChatImageData = null;
+let selectedAdminChatImageName = null;
 
 (async () => {
   // Retry getting admin credentials if first attempt fails (to handle timing issues)
@@ -1512,6 +1514,62 @@ function updateAdminReplyPreview() {
   `;
 }
 
+function updateAdminChatImagePreview() {
+  const preview = document.getElementById('adminChatImagePreview');
+  if (!preview) return;
+
+  if (!selectedAdminChatImageData) {
+    preview.style.display = 'none';
+    preview.innerHTML = '';
+    return;
+  }
+
+  preview.style.display = 'block';
+  preview.style.padding = '0.75rem 0.85rem';
+  preview.style.borderRadius = '12px';
+  preview.style.border = '1px solid #374151';
+  preview.style.background = '#0f172a';
+  preview.style.color = '#e5e7eb';
+  preview.innerHTML = `
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap;">
+      <div style="display: flex; align-items: center; gap: 0.75rem; min-width: 0; overflow: hidden;">
+        <img src="${selectedAdminChatImageData}" alt="Selected image" style="max-width: 72px; max-height: 72px; border-radius: 12px; object-fit: cover;" />
+        <div style="min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(selectedAdminChatImageName || 'Selected image')}</div>
+      </div>
+      <button type="button" onclick="clearAdminChatImageSelection()" style="display: inline-flex; align-items: center; justify-content: center; width: auto; background: rgba(249, 115, 22, 0.12); color: #f97316; border: 1px solid rgba(249, 115, 22, 0.35); border-radius: 9999px; cursor: pointer; padding: 0.2rem 0.5rem; font-size: 0.75rem; line-height: 1; white-space: nowrap;">Remove</button>
+    </div>
+  `;
+}
+
+function clearAdminChatImageSelection() {
+  selectedAdminChatImageData = null;
+  selectedAdminChatImageName = null;
+  const input = document.getElementById('adminChatImageInput');
+  if (input) input.value = '';
+  updateAdminChatImagePreview();
+}
+
+function triggerAdminChatImageInput() {
+  const input = document.getElementById('adminChatImageInput');
+  if (input) input.click();
+}
+
+function handleAdminChatImageInputChange(event) {
+  const file = event.target.files?.[0];
+  if (!file) {
+    clearAdminChatImageSelection();
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    selectedAdminChatImageData = reader.result;
+    selectedAdminChatImageName = file.name;
+    updateAdminChatImagePreview();
+  };
+  reader.readAsDataURL(file);
+}
+
 function setAdminReplyToMessage(messageId) {
   if (!messageId) return;
   const msg = adminChatMessagesById[messageId];
@@ -1628,6 +1686,7 @@ function renderAdminChatMessages(messages) {
     const messageText = msg.deleted ? 'This message was unsent.' : msg.text;
     const safeText = escapeHtml(messageText);
     const renderedText = msg.deleted ? safeText : formatMessageWithMentions(safeText);
+    const imageMarkup = !msg.deleted && msg.imageData ? `<div style="margin-bottom: 0.75rem;"><img class="admin-chat-image" src="${msg.imageData}" alt="Sent image" style="width: auto; max-width: 100%; max-height: 280px; border-radius: 14px; object-fit: cover; display: block; cursor: pointer;"/></div>` : '';
     const replyPreview = msg.replyToId ? `
       <div style="padding: 0.75rem 1rem; margin-bottom: 0.75rem; border-radius: 12px; background: #0f172a; border: 1px solid #374151;">
         <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.25rem;">Replying to ${escapeHtml(msg.replyToSenderName || 'Unknown')}</div>
@@ -1647,12 +1706,50 @@ function renderAdminChatMessages(messages) {
         <div style="font-size: 0.85rem; color: #94a3b8;">${escapeHtml(msg.senderName || getUserName(msg.senderEmail) || 'Guest')}</div>
         <div style="font-size: 0.75rem; color: #6b7280;">${msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</div>
       </div>
-      <div style="color: ${msg.deleted ? '#9ca3af' : '#e5e7eb'}; line-height: 1.6; margin-bottom: 0.5rem;">${renderedText}</div>
+      <div style="color: ${msg.deleted ? '#9ca3af' : '#e5e7eb'}; line-height: 1.6; margin-bottom: 0.5rem;">${imageMarkup}${renderedText}</div>
       ${actionButtons ? `<div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">${actionButtons}</div>` : ''}
     `;
     container.appendChild(messageDiv);
   });
   container.scrollTop = container.scrollHeight;
+
+  // Attach click listeners to chat images
+  const chatImages = container.querySelectorAll('.admin-chat-image');
+  chatImages.forEach(img => {
+    img.addEventListener('click', function(e) {
+      e.stopPropagation();
+      openAdminChatImageFullscreen(this.src);
+    });
+  });
+}
+
+function openAdminChatImageFullscreen(imageSrc) {
+  let overlay = document.getElementById('adminChatImageFullscreenOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'adminChatImageFullscreenOverlay';
+    overlay.style.cssText = 'position: fixed; inset: 0; background: rgba(15, 23, 42, 0.96); display: flex; align-items: center; justify-content: center; z-index: 100000; padding: 1rem; box-sizing: border-box;';
+    overlay.onclick = (event) => { if (event.target === overlay) closeAdminChatImageFullscreen(); };
+    const img = document.createElement('img');
+    img.id = 'adminChatImageFullscreenOverlayImg';
+    img.style.cssText = 'max-width: 100%; max-height: 100%; border-radius: 16px; box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35);';
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.innerText = '×';
+    close.style.cssText = 'position: absolute; top: 1rem; right: 1rem; background: rgba(0, 0, 0, 0.55); color: #f8fafc; border: none; border-radius: 9999px; width: 2.5rem; height: 2.5rem; font-size: 1.25rem; cursor: pointer;';
+    close.onclick = (event) => { event.stopPropagation(); closeAdminChatImageFullscreen(); };
+    overlay.appendChild(img);
+    overlay.appendChild(close);
+    document.body.appendChild(overlay);
+  }
+  const img = document.getElementById('adminChatImageFullscreenOverlayImg');
+  if (img) img.src = imageSrc;
+  overlay.style.display = 'flex';
+}
+
+function closeAdminChatImageFullscreen() {
+  const overlay = document.getElementById('adminChatImageFullscreenOverlay');
+  if (overlay) overlay.style.display = 'none';
 }
 
 async function subscribeAdminChatMessages(chatId) {
@@ -1678,15 +1775,22 @@ async function sendAdminChatMessage(event) {
   if (!messageInput) return;
 
   const message = messageInput.value.trim();
-  if (!message) return;
+  if (!message && !selectedAdminChatImageData) return;
 
   const newMessage = {
     senderEmail: adminEmail,
     senderName: getUserName(adminEmail),
-    text: message,
+    text: message || '',
     createdAt: Date.now(),
     deleted: false
   };
+
+  if (selectedAdminChatImageData) {
+    newMessage.imageData = selectedAdminChatImageData;
+    if (selectedAdminChatImageName) {
+      newMessage.imageName = selectedAdminChatImageName;
+    }
+  }
 
   if (adminReplyToMessage) {
     newMessage.replyToId = adminReplyToMessage.id;
@@ -1698,6 +1802,7 @@ async function sendAdminChatMessage(event) {
   try {
     await addDoc(collection(db, 'liveChats', selectedLiveChatId, 'messages'), newMessage);
     messageInput.value = '';
+    clearAdminChatImageSelection();
     clearAdminReplyToMessage();
   } catch (error) {
     console.error('Failed to send admin chat message:', error);
@@ -1755,6 +1860,9 @@ window.closeAdminChatPanel = closeAdminChatPanel;
 window.setAdminReplyToMessage = setAdminReplyToMessage;
 window.unsendAdminChatMessage = unsendAdminChatMessage;
 window.sendAdminChatMessage = sendAdminChatMessage;
+window.triggerAdminChatImageInput = triggerAdminChatImageInput;
+window.handleAdminChatImageInputChange = handleAdminChatImageInputChange;
+window.clearAdminChatImageSelection = clearAdminChatImageSelection;
 window.deleteLiveChatRoom = deleteLiveChatRoom;
 
 const adminCreateChatForm = document.getElementById('adminCreateChatForm');

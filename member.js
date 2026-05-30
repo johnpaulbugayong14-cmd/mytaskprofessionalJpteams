@@ -14,6 +14,8 @@ let selectedChatId = null;
 let chatRoomsById = {};
 let chatMessagesById = {};
 let replyToMessage = null;
+let selectedChatImageData = null;
+let selectedChatImageName = null;
 const container = document.getElementById("tasks");
 const emptyState = document.getElementById("emptyState");
 const welcomeEl = document.getElementById("welcome");
@@ -909,6 +911,7 @@ function renderChatMessages(messages) {
     const messageText = msg.deleted ? 'This message was unsent.' : msg.text;
     const safeText = escapeHtml(messageText);
     const renderedText = msg.deleted ? safeText : formatMessageWithMentions(safeText);
+    const imageMarkup = !msg.deleted && msg.imageData ? `<div style="margin-bottom: 0.75rem;"><img src="${msg.imageData}" alt="Sent image" onclick="openChatImageFullscreen(this.src)" style="width: auto; max-width: 100%; max-height: 280px; border-radius: 14px; object-fit: cover; display: block; cursor: pointer;"/></div>` : '';
     const opacity = msg.deleted ? '0.7' : '1';
     const isOwnMessage = msg.senderEmail === userEmail;
     const replyPreview = msg.replyToId ? `
@@ -994,14 +997,98 @@ function updateReplyPreview() {
   preview.style.justifyContent = 'space-between';
   preview.style.alignItems = 'center';
   preview.style.gap = '1rem';
-  const cancelButtonStyle = 'display: inline-flex; align-items: center; justify-content: center; width: auto; background: rgba(249, 115, 22, 0.12); color: #f97316; border: 1px solid rgba(249, 115, 22, 0.35); border-radius: 9999px; cursor: pointer; padding: 0.2rem 0.5rem; font-size: 0.75rem; line-height: 1; white-space: nowrap;';
   preview.innerHTML = `
     <div style="min-width: 0;">
       <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.25rem;">Replying to ${sender}</div>
       <div style="font-size: 0.9rem; color: #e5e7eb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${text}</div>
     </div>
-    <button type="button" onclick="clearReplyToMessage()" style="${cancelButtonStyle}">Cancel</button>
+    <button type="button" onclick="clearReplyToMessage()" style="display: inline-flex; align-items: center; justify-content: center; width: auto; background: rgba(249, 115, 22, 0.12); color: #f97316; border: 1px solid rgba(249, 115, 22, 0.35); border-radius: 9999px; cursor: pointer; padding: 0.2rem 0.5rem; font-size: 0.75rem; line-height: 1; white-space: nowrap;">Cancel</button>
   `;
+}
+
+function updateChatImagePreview() {
+  const preview = document.getElementById('chatImagePreview');
+  if (!preview) return;
+
+  if (!selectedChatImageData) {
+    preview.style.display = 'none';
+    preview.innerHTML = '';
+    return;
+  }
+
+  preview.style.display = 'block';
+  preview.style.padding = '0.75rem 0.85rem';
+  preview.style.borderRadius = '12px';
+  preview.style.border = '1px solid #374151';
+  preview.style.background = '#0f172a';
+  preview.style.color = '#e5e7eb';
+  preview.innerHTML = `
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap;">
+      <div style="display: flex; align-items: center; gap: 0.75rem; min-width: 0; overflow: hidden;">
+        <img src="${selectedChatImageData}" alt="Selected image" style="max-width: 72px; max-height: 72px; border-radius: 12px; object-fit: cover;" />
+        <div style="min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(selectedChatImageName || 'Selected image')}</div>
+      </div>
+      <button type="button" onclick="clearChatImageSelection()" style="display: inline-flex; align-items: center; justify-content: center; width: auto; background: rgba(249, 115, 22, 0.12); color: #f97316; border: 1px solid rgba(249, 115, 22, 0.35); border-radius: 9999px; cursor: pointer; padding: 0.2rem 0.5rem; font-size: 0.75rem; line-height: 1; white-space: nowrap;">Remove</button>
+    </div>
+  `;
+}
+
+function openChatImageFullscreen(imageSrc) {
+  let overlay = document.getElementById('chatImageFullscreenOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'chatImageFullscreenOverlay';
+    overlay.style.cssText = 'position: fixed; inset: 0; background: rgba(15, 23, 42, 0.96); display: flex; align-items: center; justify-content: center; z-index: 100000; padding: 1rem; box-sizing: border-box;';
+    overlay.onclick = (event) => { if (event.target === overlay) closeChatImageFullscreen(); };
+    const img = document.createElement('img');
+    img.id = 'chatImageFullscreenOverlayImg';
+    img.style.cssText = 'max-width: 100%; max-height: 100%; border-radius: 16px; box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35);';
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.innerText = '×';
+    close.style.cssText = 'position: absolute; top: 1rem; right: 1rem; background: rgba(0, 0, 0, 0.55); color: #f8fafc; border: none; border-radius: 9999px; width: 2.5rem; height: 2.5rem; font-size: 1.25rem; cursor: pointer;';
+    close.onclick = (event) => { event.stopPropagation(); closeChatImageFullscreen(); };
+    overlay.appendChild(img);
+    overlay.appendChild(close);
+    document.body.appendChild(overlay);
+  }
+  const img = document.getElementById('chatImageFullscreenOverlayImg');
+  if (img) img.src = imageSrc;
+  overlay.style.display = 'flex';
+}
+
+function closeChatImageFullscreen() {
+  const overlay = document.getElementById('chatImageFullscreenOverlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+function clearChatImageSelection() {
+  selectedChatImageData = null;
+  selectedChatImageName = null;
+  const input = document.getElementById('chatImageInput');
+  if (input) input.value = '';
+  updateChatImagePreview();
+}
+
+function triggerChatImageInput() {
+  const input = document.getElementById('chatImageInput');
+  if (input) input.click();
+}
+
+function handleChatImageInputChange(event) {
+  const file = event.target.files?.[0];
+  if (!file) {
+    clearChatImageSelection();
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    selectedChatImageData = reader.result;
+    selectedChatImageName = file.name;
+    updateChatImagePreview();
+  };
+  reader.readAsDataURL(file);
 }
 
 function setReplyToMessage(messageId) {
@@ -1036,16 +1123,23 @@ async function sendChatMessage(event) {
   const messageInput = document.getElementById('chatMessageInput');
   if (!messageInput) return;
   const message = messageInput.value.trim();
-  if (!message) return;
+  if (!message && !selectedChatImageData) return;
 
   const currentEmail = userEmail || await getStoredUserEmail();
   const messageData = {
     senderEmail: currentEmail,
     senderName: getUserName(currentEmail),
-    text: message,
+    text: message || '',
     createdAt: Date.now(),
     deleted: false
   };
+
+  if (selectedChatImageData) {
+    messageData.imageData = selectedChatImageData;
+    if (selectedChatImageName) {
+      messageData.imageName = selectedChatImageName;
+    }
+  }
 
   if (replyToMessage) {
     messageData.replyToId = replyToMessage.id;
@@ -1057,6 +1151,7 @@ async function sendChatMessage(event) {
   try {
     await addDoc(collection(db, 'liveChats', selectedChatId, 'messages'), messageData);
     messageInput.value = '';
+    clearChatImageSelection();
     clearReplyToMessage();
   } catch (error) {
     console.error('Failed to send chat message:', error);
@@ -1102,6 +1197,9 @@ window.closeChatRoomPanel = closeChatRoomPanel;
 window.setReplyToMessage = setReplyToMessage;
 window.unsendChatMessage = unsendChatMessage;
 window.sendChatMessage = sendChatMessage;
+window.triggerChatImageInput = triggerChatImageInput;
+window.handleChatImageInputChange = handleChatImageInputChange;
+window.clearChatImageSelection = clearChatImageSelection;
 
 // Attach the chat form handler after DOM is ready
 const createChatFormElement = document.getElementById('createChatForm');

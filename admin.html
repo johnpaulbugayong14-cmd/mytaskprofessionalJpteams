@@ -316,13 +316,16 @@
               </div>
               <div id="adminChatMessages" style="flex: 1; min-height: 0; overflow-y: auto; margin-bottom: 1rem; padding-right: 0.5rem; border: 1px solid #374151; border-radius: 12px; padding: 1rem; background: #020617;"></div>
               <div id="adminChatReplyPreview" style="display: none; margin-bottom: 0.75rem; padding: 0.85rem 1rem; border-radius: 14px; border: 1px solid #374151; background: #111827; color: #e5e7eb;"></div>
-              <form id="adminChatMessageForm" style="display: flex; gap: 0.5rem; align-items: stretch; position: relative;">
-                <div style="flex: 1 1 auto; position: relative;">
-                  <input id="adminChatMessageInput" type="text" placeholder="Write a message..." required style="width: 100%; min-width: 0; padding: 1rem; border-radius: 9999px; border: 1px solid #374151; background: #020617; color: #f8fafc;">
+              <form id="adminChatMessageForm" style="display: flex; gap: 0.5rem; align-items: stretch; position: relative; flex-wrap: wrap;">
+                <div style="flex: 1 1 auto; min-width: 0; position: relative;">
+                  <input id="adminChatMessageInput" type="text" placeholder="Write a message..." style="width: 100%; min-width: 0; padding: 1rem; border-radius: 9999px; border: 1px solid #374151; background: #020617; color: #f8fafc;">
                   <div id="adminMentionDropdown" class="mention-dropdown"></div>
                 </div>
+                <button type="button" onclick="triggerAdminChatImageInput()" style="flex: 0 0 auto; width: auto; min-width: 56px; max-width: 56px; padding: 0 0.85rem; background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.35); border-radius: 9999px; cursor: pointer;">📷</button>
+                <input id="adminChatImageInput" type="file" accept="image/*" style="display: none;" onchange="handleAdminChatImageInputChange(event)">
                 <button type="submit" style="flex: 0 0 auto; width: auto; min-width: 120px; max-width: 180px; padding: 0 1.25rem; background: #10b981; color: white; border: none; border-radius: 9999px; cursor: pointer;">Send</button>
               </form>
+              <div id="adminChatImagePreview" style="display:none; margin-top: 0.75rem;"></div>
             </div>
           </div>
         </div>
