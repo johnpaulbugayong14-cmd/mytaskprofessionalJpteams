@@ -12,6 +12,8 @@ let chatRoomsUnsubscribe = null;
 let chatMessagesUnsubscribe = null;
 let selectedChatId = null;
 let chatRoomsById = {};
+let chatMessagesById = {};
+let replyToMessage = null;
 const container = document.getElementById("tasks");
 const emptyState = document.getElementById("emptyState");
 const welcomeEl = document.getElementById("welcome");
@@ -899,6 +901,7 @@ function renderChatMessages(messages) {
 
   chatMessagesEl.innerHTML = '';
   messages.forEach((msg) => {
+    chatMessagesById[msg.id] = msg;
     const msgDiv = document.createElement('div');
     msgDiv.style.cssText = 'padding: 0.85rem 1rem; border-radius: 10px; margin-bottom: 0.75rem; background: #111827;';
     const sender = msg.senderName || getUserName(msg.senderEmail) || 'Unknown';
@@ -908,14 +911,25 @@ function renderChatMessages(messages) {
     const renderedText = msg.deleted ? safeText : formatMessageWithMentions(safeText);
     const opacity = msg.deleted ? '0.7' : '1';
     const isOwnMessage = msg.senderEmail === userEmail;
+    const replyPreview = msg.replyToId ? `
+      <div style="padding: 0.75rem 1rem; margin-bottom: 0.75rem; border-radius: 12px; background: #0f172a; border: 1px solid #374151;">
+        <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.25rem;">Replying to ${escapeHtml(msg.replyToSenderName || 'Unknown')}</div>
+        <div style="font-size: 0.9rem; color: #e5e7eb; line-height: 1.4;">${escapeHtml(msg.replyToText || '')}</div>
+      </div>
+    ` : '';
+    const buttonBaseStyle = 'display: inline-flex; align-items: center; justify-content: center; width: auto; background: rgba(96, 165, 250, 0.12); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.35); border-radius: 9999px; cursor: pointer; padding: 0.2rem 0.5rem; font-size: 0.75rem; line-height: 1; white-space: nowrap;';
+    const replyButton = !msg.deleted ? `<button type="button" onclick="setReplyToMessage('${msg.id}')" style="${buttonBaseStyle}">Reply</button>` : '';
+    const unsendButton = isOwnMessage && !msg.deleted ? `<button type="button" onclick="unsendChatMessage('${selectedChatId}', '${msg.id}')" style="${buttonBaseStyle}">Unsend</button>` : '';
+    const actionButtons = [replyButton, unsendButton].filter(Boolean).join('<span style="margin: 0 0.35rem; color: #374151;">|</span>');
 
     msgDiv.innerHTML = `
+      ${replyPreview}
       <div style="display: flex; justify-content: space-between; gap: 1rem; margin-bottom: 0.35rem; opacity: ${opacity};">
         <div style="font-size: 0.85rem; color: #94a3b8;">${escapeHtml(sender)}</div>
         <div style="font-size: 0.75rem; color: #6b7280;">${timestamp}</div>
       </div>
       <div style="color: ${msg.deleted ? '#9ca3af' : '#e5e7eb'}; line-height: 1.6; margin-bottom: 0.5rem;">${renderedText}</div>
-      ${isOwnMessage && !msg.deleted ? `<button onclick="unsendChatMessage('${selectedChatId}', '${msg.id}')" style="background: transparent; color: #60a5fa; border: none; cursor: pointer; padding: 0; font-size: 0.85rem;">Unsend</button>` : ''}
+      ${actionButtons ? `<div style="display: flex; gap: 0.35rem; flex-wrap: nowrap; align-items: center;">${actionButtons}</div>` : ''}
     `;
 
     chatMessagesEl.appendChild(msgDiv);
@@ -941,6 +955,7 @@ function openChatRoom(chatId) {
   if (messageInput) messageInput.disabled = chatRoom.status !== 'Active';
   if (messageForm) messageForm.style.opacity = chatRoom.status !== 'Active' ? '0.7' : '1';
 
+  clearReplyToMessage();
   subscribeChatMessages(chatId);
 }
 
@@ -954,6 +969,47 @@ function closeChatRoomPanel() {
   }
 
   selectedChatId = null;
+  clearReplyToMessage();
+}
+
+function clearReplyToMessage() {
+  replyToMessage = null;
+  updateReplyPreview();
+}
+
+function updateReplyPreview() {
+  const preview = document.getElementById('chatReplyPreview');
+  const input = document.getElementById('chatMessageInput');
+  if (!preview || !input) return;
+
+  if (!replyToMessage) {
+    preview.style.display = 'none';
+    preview.innerHTML = '';
+    return;
+  }
+
+  const sender = escapeHtml(replyToMessage.senderName || getUserName(replyToMessage.senderEmail) || 'Unknown');
+  const text = escapeHtml(replyToMessage.text || 'This message was unsent.');
+  preview.style.display = 'flex';
+  preview.style.justifyContent = 'space-between';
+  preview.style.alignItems = 'center';
+  preview.style.gap = '1rem';
+  const cancelButtonStyle = 'display: inline-flex; align-items: center; justify-content: center; width: auto; background: rgba(249, 115, 22, 0.12); color: #f97316; border: 1px solid rgba(249, 115, 22, 0.35); border-radius: 9999px; cursor: pointer; padding: 0.2rem 0.5rem; font-size: 0.75rem; line-height: 1; white-space: nowrap;';
+  preview.innerHTML = `
+    <div style="min-width: 0;">
+      <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.25rem;">Replying to ${sender}</div>
+      <div style="font-size: 0.9rem; color: #e5e7eb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${text}</div>
+    </div>
+    <button type="button" onclick="clearReplyToMessage()" style="${cancelButtonStyle}">Cancel</button>
+  `;
+}
+
+function setReplyToMessage(messageId) {
+  if (!messageId) return;
+  const msg = chatMessagesById[messageId];
+  if (!msg) return;
+  replyToMessage = msg;
+  updateReplyPreview();
 }
 
 async function subscribeChatMessages(chatId) {
@@ -991,9 +1047,17 @@ async function sendChatMessage(event) {
     deleted: false
   };
 
+  if (replyToMessage) {
+    messageData.replyToId = replyToMessage.id;
+    messageData.replyToSenderName = replyToMessage.senderName || getUserName(replyToMessage.senderEmail);
+    messageData.replyToText = replyToMessage.text || 'This message was unsent.';
+    messageData.replyToCreatedAt = replyToMessage.createdAt || null;
+  }
+
   try {
     await addDoc(collection(db, 'liveChats', selectedChatId, 'messages'), messageData);
     messageInput.value = '';
+    clearReplyToMessage();
   } catch (error) {
     console.error('Failed to send chat message:', error);
     alert('Unable to send message. Please try again.');
@@ -1035,6 +1099,7 @@ window.createLiveChatRoom = createLiveChatRoom;
 window.loadChatRooms = loadChatRooms;
 window.openChatRoom = openChatRoom;
 window.closeChatRoomPanel = closeChatRoomPanel;
+window.setReplyToMessage = setReplyToMessage;
 window.unsendChatMessage = unsendChatMessage;
 window.sendChatMessage = sendChatMessage;
 

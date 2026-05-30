@@ -303,16 +303,19 @@
             <div id="adminChatRoomsContainer"></div>
           </div>
 
-          <div id="adminChatRoomPanel" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.98); z-index: 9999; padding: 1rem; box-sizing: border-box; overflow: hidden;">
-            <div style="height: 100%; display: flex; flex-direction: column;">
-              <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+          <div id="adminChatRoomPanel" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.98); z-index: 9999; padding: 1rem; box-sizing: border-box; overflow: hidden;">
+            <div style="height: 100%; display: flex; flex-direction: column; max-height: 100%;">
+              <div style="display: flex; justify-content: flex-start; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                <button onclick="closeAdminChatPanel()" style="display: inline-flex; align-items: center; justify-content: center; width: auto; background: rgba(96, 165, 250, 0.12); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.35); border-radius: 9999px; cursor: pointer; padding: 0.2rem 0.5rem; font-size: 0.75rem; line-height: 1; white-space: nowrap;">
+                  ←
+                </button>
                 <div>
                   <h3 id="adminActiveChatTitle" style="margin: 0; color: #f8fafc;"></h3>
                   <p id="adminActiveChatMeta" style="margin: 0.25rem 0 0; color: #94a3b8; font-size: 0.9rem;"></p>
                 </div>
-                <button onclick="closeAdminChatPanel()" style="background: #ef4444; color: white; border: none; padding: 0.5rem 0.9rem; border-radius: 8px; cursor: pointer;">Close</button>
               </div>
               <div id="adminChatMessages" style="flex: 1; min-height: 0; overflow-y: auto; margin-bottom: 1rem; padding-right: 0.5rem; border: 1px solid #374151; border-radius: 12px; padding: 1rem; background: #020617;"></div>
+              <div id="adminChatReplyPreview" style="display: none; margin-bottom: 0.75rem; padding: 0.85rem 1rem; border-radius: 14px; border: 1px solid #374151; background: #111827; color: #e5e7eb;"></div>
               <form id="adminChatMessageForm" style="display: flex; gap: 0.5rem; align-items: stretch; position: relative;">
                 <div style="flex: 1 1 auto; position: relative;">
                   <input id="adminChatMessageInput" type="text" placeholder="Write a message..." required style="width: 100%; min-width: 0; padding: 1rem; border-radius: 9999px; border: 1px solid #374151; background: #020617; color: #f8fafc;">

@@ -155,6 +155,8 @@ let liveChatRoomsUnsubscribe = null;
 let liveChatMessagesUnsubscribe = null;
 let selectedLiveChatId = null;
 let liveChatRoomsById = {};
+let adminChatMessagesById = {};
+let adminReplyToMessage = null;
 
 (async () => {
   // Retry getting admin credentials if first attempt fails (to handle timing issues)
@@ -1461,6 +1463,7 @@ function openAdminChatRoom(chatId) {
   if (messageInput) messageInput.disabled = room.status !== 'Active';
   if (messageForm) messageForm.style.opacity = room.status !== 'Active' ? '0.7' : '1';
 
+  clearAdminReplyToMessage();
   subscribeAdminChatMessages(chatId);
 }
 
@@ -1474,6 +1477,47 @@ function closeAdminChatPanel() {
   }
 
   selectedLiveChatId = null;
+  clearAdminReplyToMessage();
+}
+
+function clearAdminReplyToMessage() {
+  adminReplyToMessage = null;
+  updateAdminReplyPreview();
+}
+
+function updateAdminReplyPreview() {
+  const preview = document.getElementById('adminChatReplyPreview');
+  const input = document.getElementById('adminChatMessageInput');
+  if (!preview || !input) return;
+
+  if (!adminReplyToMessage) {
+    preview.style.display = 'none';
+    preview.innerHTML = '';
+    return;
+  }
+
+  const sender = escapeHtml(adminReplyToMessage.senderName || getUserName(adminReplyToMessage.senderEmail) || 'Unknown');
+  const text = escapeHtml(adminReplyToMessage.text || 'This message was unsent.');
+  preview.style.display = 'flex';
+  preview.style.justifyContent = 'space-between';
+  preview.style.alignItems = 'center';
+  preview.style.gap = '1rem';
+  const cancelButtonStyle = 'display: inline-flex; align-items: center; justify-content: center; width: auto; background: rgba(249, 115, 22, 0.12); color: #f97316; border: 1px solid rgba(249, 115, 22, 0.35); border-radius: 9999px; cursor: pointer; padding: 0.2rem 0.5rem; font-size: 0.75rem; line-height: 1; white-space: nowrap;';
+  preview.innerHTML = `
+    <div style="min-width: 0;">
+      <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.25rem;">Replying to ${sender}</div>
+      <div style="font-size: 0.9rem; color: #e5e7eb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${text}</div>
+    </div>
+    <button type="button" onclick="clearAdminReplyToMessage()" style="${cancelButtonStyle}">Cancel</button>
+  `;
+}
+
+function setAdminReplyToMessage(messageId) {
+  if (!messageId) return;
+  const msg = adminChatMessagesById[messageId];
+  if (!msg) return;
+  adminReplyToMessage = msg;
+  updateAdminReplyPreview();
 }
 
 function escapeHtml(text) {
@@ -1570,6 +1614,8 @@ function renderAdminChatMessages(messages) {
   const container = document.getElementById('adminChatMessages');
   if (!container) return;
 
+  adminChatMessagesById = {};
+
   if (!messages.length) {
     container.innerHTML = '<p style="color: #94a3b8; text-align: center; margin: 1rem 0;">No messages in this chat yet.</p>';
     return;
@@ -1577,19 +1623,32 @@ function renderAdminChatMessages(messages) {
 
   container.innerHTML = '';
   messages.forEach((msg) => {
+    adminChatMessagesById[msg.id] = msg;
     const isOwn = msg.senderEmail === adminEmail;
     const messageText = msg.deleted ? 'This message was unsent.' : msg.text;
     const safeText = escapeHtml(messageText);
     const renderedText = msg.deleted ? safeText : formatMessageWithMentions(safeText);
+    const replyPreview = msg.replyToId ? `
+      <div style="padding: 0.75rem 1rem; margin-bottom: 0.75rem; border-radius: 12px; background: #0f172a; border: 1px solid #374151;">
+        <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.25rem;">Replying to ${escapeHtml(msg.replyToSenderName || 'Unknown')}</div>
+        <div style="font-size: 0.9rem; color: #e5e7eb; line-height: 1.4;">${escapeHtml(msg.replyToText || '')}</div>
+      </div>
+    ` : '';
+    const buttonBaseStyle = 'display: inline-flex; align-items: center; justify-content: center; width: auto; background: rgba(96, 165, 250, 0.12); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.35); border-radius: 9999px; cursor: pointer; padding: 0.2rem 0.5rem; font-size: 0.75rem; line-height: 1; white-space: nowrap;';
+    const replyButton = !msg.deleted ? `<button type="button" onclick="setAdminReplyToMessage('${msg.id}')" style="${buttonBaseStyle}">Reply</button>` : '';
+    const unsendButton = isOwn && !msg.deleted ? `<button type="button" onclick="unsendAdminChatMessage('${selectedLiveChatId}', '${msg.id}')" style="${buttonBaseStyle}">Unsend</button>` : '';
+    const actionButtons = [replyButton, unsendButton].filter(Boolean).join('<span style="margin: 0 0.35rem; color: #374151;">|</span>');
+
     const messageDiv = document.createElement('div');
     messageDiv.style.cssText = 'padding: 0.85rem 1rem; margin-bottom: 0.75rem; border-radius: 10px; background: #111827;';
     messageDiv.innerHTML = `
+      ${replyPreview}
       <div style="display: flex; justify-content: space-between; gap: 1rem; margin-bottom: 0.35rem; opacity: ${msg.deleted ? 0.7 : 1};">
         <div style="font-size: 0.85rem; color: #94a3b8;">${escapeHtml(msg.senderName || getUserName(msg.senderEmail) || 'Guest')}</div>
         <div style="font-size: 0.75rem; color: #6b7280;">${msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</div>
       </div>
       <div style="color: ${msg.deleted ? '#9ca3af' : '#e5e7eb'}; line-height: 1.6; margin-bottom: 0.5rem;">${renderedText}</div>
-      ${isOwn && !msg.deleted ? `<button onclick="unsendAdminChatMessage('${selectedLiveChatId}', '${msg.id}')" style="background: transparent; color: #60a5fa; border: none; cursor: pointer; padding: 0; font-size: 0.85rem;">Unsend</button>` : ''}
+      ${actionButtons ? `<div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">${actionButtons}</div>` : ''}
     `;
     container.appendChild(messageDiv);
   });
@@ -1621,15 +1680,25 @@ async function sendAdminChatMessage(event) {
   const message = messageInput.value.trim();
   if (!message) return;
 
+  const newMessage = {
+    senderEmail: adminEmail,
+    senderName: getUserName(adminEmail),
+    text: message,
+    createdAt: Date.now(),
+    deleted: false
+  };
+
+  if (adminReplyToMessage) {
+    newMessage.replyToId = adminReplyToMessage.id;
+    newMessage.replyToSenderName = adminReplyToMessage.senderName || getUserName(adminReplyToMessage.senderEmail);
+    newMessage.replyToText = adminReplyToMessage.text || 'This message was unsent.';
+    newMessage.replyToCreatedAt = adminReplyToMessage.createdAt || null;
+  }
+
   try {
-    await addDoc(collection(db, 'liveChats', selectedLiveChatId, 'messages'), {
-      senderEmail: adminEmail,
-      senderName: getUserName(adminEmail),
-      text: message,
-      createdAt: Date.now(),
-      deleted: false
-    });
+    await addDoc(collection(db, 'liveChats', selectedLiveChatId, 'messages'), newMessage);
     messageInput.value = '';
+    clearAdminReplyToMessage();
   } catch (error) {
     console.error('Failed to send admin chat message:', error);
     alert('Unable to send message. Please try again.');
@@ -1683,6 +1752,7 @@ window.createLiveChatRoom = createLiveChatRoom;
 window.loadLiveChatRooms = loadLiveChatRooms;
 window.openAdminChatRoom = openAdminChatRoom;
 window.closeAdminChatPanel = closeAdminChatPanel;
+window.setAdminReplyToMessage = setAdminReplyToMessage;
 window.unsendAdminChatMessage = unsendAdminChatMessage;
 window.sendAdminChatMessage = sendAdminChatMessage;
 window.deleteLiveChatRoom = deleteLiveChatRoom;
