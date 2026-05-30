@@ -911,7 +911,7 @@ function renderChatMessages(messages) {
     const messageText = msg.deleted ? 'This message was unsent.' : msg.text;
     const safeText = escapeHtml(messageText);
     const renderedText = msg.deleted ? safeText : formatMessageWithMentions(safeText);
-    const imageMarkup = !msg.deleted && msg.imageData ? `<div style="margin-bottom: 0.75rem;"><img src="${msg.imageData}" alt="Sent image" onclick="openChatImageFullscreen(this.src)" style="width: auto; max-width: 100%; max-height: 280px; border-radius: 14px; object-fit: cover; display: block; cursor: pointer;"/></div>` : '';
+    const imageMarkup = !msg.deleted && msg.imageData ? `<div style="margin-bottom: 0.75rem;"><img class="chat-image" src="${msg.imageData}" alt="Sent image" style="width: auto; max-width: 100%; max-height: 280px; border-radius: 14px; object-fit: cover; display: block; cursor: pointer;"/></div>` : '';
     const opacity = msg.deleted ? '0.7' : '1';
     const isOwnMessage = msg.senderEmail === userEmail;
     const replyPreview = msg.replyToId ? `
@@ -931,13 +931,63 @@ function renderChatMessages(messages) {
         <div style="font-size: 0.85rem; color: #94a3b8;">${escapeHtml(sender)}</div>
         <div style="font-size: 0.75rem; color: #6b7280;">${timestamp}</div>
       </div>
-      <div style="color: ${msg.deleted ? '#9ca3af' : '#e5e7eb'}; line-height: 1.6; margin-bottom: 0.5rem;">${renderedText}</div>
-      ${actionButtons ? `<div style="display: flex; gap: 0.35rem; flex-wrap: nowrap; align-items: center;">${actionButtons}</div>` : ''}
+      <div style="color: ${msg.deleted ? '#9ca3af' : '#e5e7eb'}; line-height: 1.6; margin-bottom: 0.5rem;">${imageMarkup}${renderedText}</div>
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; flex-wrap: wrap; margin-bottom: ${msg.reactions && Object.keys(msg.reactions).length > 0 ? '0.5rem' : '0'};">
+        ${actionButtons ? `<div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">${actionButtons}</div>` : ''}
+        <button type="button" class="chat-react-btn" data-message-id="${msg.id}" style="display: inline-flex; align-items: center; justify-content: center; width: auto; background: rgba(249, 115, 22, 0.12); color: #f97316; border: 1px solid rgba(249, 115, 22, 0.35); border-radius: 9999px; cursor: pointer; padding: 0.2rem 0.5rem; font-size: 0.75rem; line-height: 1; white-space: nowrap;">😊 React</button>
+      </div>
+      ${msg.reactions && Object.keys(msg.reactions).length > 0 ? `
+        <div style="display: flex; gap: 0.35rem; flex-wrap: wrap; padding-top: 0.5rem; border-top: 1px solid #374151;">
+          ${Object.entries(msg.reactions).map(([emoji, users]) => `
+            <div class="chat-reaction-badge" data-message-id="${msg.id}" data-emoji="${emoji}" data-users='${JSON.stringify(users)}' style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.5rem; background: rgba(96, 165, 250, 0.1); border: 1px solid rgba(96, 165, 250, 0.2); border-radius: 9999px; font-size: 0.8rem; cursor: pointer; transition: all 0.15s;">
+              <span>${emoji}</span>
+              <span style="color: #94a3b8;">${users.length}</span>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
     `;
 
     chatMessagesEl.appendChild(msgDiv);
   });
   chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+
+  // Attach click listeners to chat images
+  const chatImages = chatMessagesEl.querySelectorAll('.chat-image');
+  chatImages.forEach(img => {
+    img.addEventListener('click', function(e) {
+      e.stopPropagation();
+      openChatImageFullscreen(this.src);
+    });
+  });
+
+  // Attach click listeners to reaction buttons
+  const reactBtns = chatMessagesEl.querySelectorAll('.chat-react-btn');
+  reactBtns.forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const messageId = this.dataset.messageId;
+      showReactionMenu(messageId, e);
+    });
+  });
+
+  // Attach click listeners to reaction badges to view details
+  const reactionBadges = chatMessagesEl.querySelectorAll('.chat-reaction-badge');
+  reactionBadges.forEach(badge => {
+    badge.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const messageId = this.dataset.messageId;
+      const emoji = this.dataset.emoji;
+      const users = JSON.parse(this.dataset.users);
+      showReactionDetails(emoji, users);
+    });
+    badge.addEventListener('mouseover', function() {
+      this.style.background = 'rgba(96, 165, 250, 0.2)';
+    });
+    badge.addEventListener('mouseout', function() {
+      this.style.background = 'rgba(96, 165, 250, 0.1)';
+    });
+  });
 }
 
 function openChatRoom(chatId) {
@@ -1171,6 +1221,113 @@ async function unsendChatMessage(chatId, messageId) {
     });
   } catch (error) {
     console.error('Failed to unsend chat message:', error);
+  }
+}
+
+function showReactionDetails(emoji, users) {
+  let modal = document.getElementById('reactionDetailsModal');
+  if (modal) modal.remove();
+
+  modal = document.createElement('div');
+  modal.id = 'reactionDetailsModal';
+  modal.style.cssText = 'position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; z-index: 100000; padding: 1rem; box-sizing: border-box;';
+
+  const content = document.createElement('div');
+  content.style.cssText = 'background: #111827; border: 1px solid #374151; border-radius: 16px; padding: 2rem; max-width: 400px; width: 100%; box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35);';
+
+  content.innerHTML = `
+    <div style="margin-bottom: 1.5rem;">
+      <div style="font-size: 2.5rem; margin-bottom: 0.5rem; text-align: center;">${emoji}</div>
+      <div style="text-align: center; color: #94a3b8; font-size: 0.9rem;">${users.length} ${users.length === 1 ? 'person reacted' : 'people reacted'}</div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.5rem; max-height: 300px; overflow-y: auto;">
+      ${users.map(email => `
+        <div style="padding: 0.75rem; background: rgba(96, 165, 250, 0.1); border: 1px solid rgba(96, 165, 250, 0.2); border-radius: 8px; color: #e5e7eb; font-size: 0.9rem;">
+          ${escapeHtml(getUserName(email) || email)}
+        </div>
+      `).join('')}
+    </div>
+    <button type="button" onclick="document.getElementById('reactionDetailsModal').remove();" style="width: 100%; padding: 0.75rem; background: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem;">Close</button>
+  `;
+
+  modal.appendChild(content);
+  modal.onclick = (e) => {
+    if (e.target === modal) modal.remove();
+  };
+
+  document.body.appendChild(modal);
+}
+
+function showReactionMenu(messageId, event) {
+  const emojis = [
+    { emoji: '😂', name: 'laughing' },
+    { emoji: '😠', name: 'mad' },
+    { emoji: '😢', name: 'sad' },
+    { emoji: '❤️', name: 'love' }
+  ];
+
+  let menu = document.getElementById('reactionMenu');
+  if (menu) menu.remove();
+
+  menu = document.createElement('div');
+  menu.id = 'reactionMenu';
+  menu.style.cssText = 'position: fixed; background: #111827; border: 1px solid #374151; border-radius: 9999px; display: flex; gap: 0.5rem; padding: 0.5rem; z-index: 50000; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);';
+
+  emojis.forEach(item => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = item.emoji;
+    btn.style.cssText = 'background: rgba(96, 165, 250, 0.1); border: 1px solid rgba(96, 165, 250, 0.2); color: #e5e7eb; padding: 0.5rem 0.75rem; border-radius: 9999px; cursor: pointer; font-size: 1.2rem; transition: all 0.15s;';
+    btn.onmouseover = () => btn.style.background = 'rgba(96, 165, 250, 0.2)';
+    btn.onmouseout = () => btn.style.background = 'rgba(96, 165, 250, 0.1)';
+    btn.onclick = () => {
+      toggleMessageReaction(messageId, item.emoji);
+      menu.remove();
+    };
+    menu.appendChild(btn);
+  });
+
+  document.body.appendChild(menu);
+  const rect = event.target.getBoundingClientRect();
+  menu.style.left = (rect.left + rect.width / 2 - menu.offsetWidth / 2) + 'px';
+  menu.style.top = (rect.top - menu.offsetHeight - 10) + 'px';
+
+  document.addEventListener('click', function closeMenu(e) {
+    if (!menu.contains(e.target) && e.target !== event.target) {
+      menu.remove();
+      document.removeEventListener('click', closeMenu);
+    }
+  });
+}
+
+async function toggleMessageReaction(messageId, emoji) {
+  if (!selectedChatId || !messageId || !userEmail) return;
+
+  const messageRef = doc(db, 'liveChats', selectedChatId, 'messages', messageId);
+  const messageSnap = await getDoc(messageRef);
+  if (!messageSnap.exists()) return;
+
+  const reactions = messageSnap.data().reactions || {};
+  const currentUserEmail = userEmail;
+
+  if (!reactions[emoji]) {
+    reactions[emoji] = [];
+  }
+
+  const userIndex = reactions[emoji].indexOf(currentUserEmail);
+  if (userIndex > -1) {
+    reactions[emoji].splice(userIndex, 1);
+    if (reactions[emoji].length === 0) {
+      delete reactions[emoji];
+    }
+  } else {
+    reactions[emoji].push(currentUserEmail);
+  }
+
+  try {
+    await updateDoc(messageRef, { reactions });
+  } catch (error) {
+    console.error('Failed to update reaction:', error);
   }
 }
 
