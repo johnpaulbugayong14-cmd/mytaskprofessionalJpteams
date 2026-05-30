@@ -122,6 +122,8 @@ const mentionUsers = [
   { uid: 'johnpaulbugayong@gmail.com', name: 'Admin' }
 ];
 
+let adminEmail = null;
+let adminRole = null;
 let liveChatRoomsUnsubscribe = null;
 let liveChatMessagesUnsubscribe = null;
 let selectedLiveChatId = null;
@@ -129,8 +131,8 @@ let liveChatRoomsById = {};
 
 (async () => {
   // Retry getting admin credentials if first attempt fails (to handle timing issues)
-  let adminEmail = await getStoredUserEmail();
-  let adminRole = await getStoredUserRole();
+  adminEmail = await getStoredUserEmail();
+  adminRole = await getStoredUserRole();
   let retries = 0;
   
   while ((!adminEmail || !adminRole) && retries < 5) {
@@ -1402,7 +1404,7 @@ function renderAdminChatRooms(rooms) {
     const statusColor = room.status === 'Closed' ? '#ef4444' : '#10b981';
     const createdBy = room.createdByName || room.createdByEmail || 'Unknown';
     const isActive = room.status === 'Active';
-    const canDelete = room.createdByEmail && room.createdByEmail !== adminEmail;
+    const canDelete = true;
 
     const roomDiv = document.createElement('div');
     roomDiv.style.cssText = 'border: 1px solid #374151; background: #1e293b; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;';
