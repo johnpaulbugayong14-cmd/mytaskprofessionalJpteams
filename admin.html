@@ -240,8 +240,8 @@
       <section id="task-analytics" class="content-section">
         <div class="card analytics-card">
           <h2><i class="fas fa-chart-bar"></i> Task Analytics</h2>
-          <div class="chart-container">
-            <canvas id="taskChart"></canvas>
+          <div class="analytics-list-container" style="display: flex; flex-direction: column; gap: 1rem; padding-top: 1rem;">
+            <div id="taskAnalyticsList" class="analytics-list" style="display: grid; gap: 1rem;"></div>
           </div>
         </div>
       </section>
@@ -329,11 +329,21 @@
   </main>
 </div>
 
+<div id="taskAnalyticsModalOverlay" class="analytics-modal-overlay" onclick="hideMemberTaskDetails()">
+  <div class="analytics-modal" onclick="event.stopPropagation()">
+    <div class="analytics-modal-header">
+      <h3 style="margin: 0; color: #f8fafc;">Task Details</h3>
+      <button type="button" class="analytics-modal-close" onclick="hideMemberTaskDetails()">×</button>
+    </div>
+    <p id="taskAnalyticsDetailsMessage" style="color: #94a3b8; margin-top: 0.75rem;">Select a member to view pending, needs action, or overdue tasks.</p>
+    <div id="taskAnalyticsDetailsList" style="display: grid; gap: 0.75rem; margin-top: 0.75rem;"></div>
+  </div>
+</div>
+
 <footer style="text-align: center; padding: 1rem; color: #94a3b8; font-size: 0.8rem; margin-top: 2rem;">
   task assignment system for thesis
 </footer>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 // Navigation functions
 function showSection(sectionId) {

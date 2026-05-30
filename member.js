@@ -27,7 +27,8 @@ const members = [
   { uid: "allancorral@gmail.com", name: "Allan Corral" },
   { uid: "phricksborebor@gmail.com", name: "Phricks Borebor" },
   { uid: "moezarperez@gmail.com", name: "Moezar Perez" },
-  { uid: "rogelioledda@gmail.com", name: "Rogelio Ledda" }
+  { uid: "rogelioledda@gmail.com", name: "Rogelio Ledda" },
+  { uid: "johnpaulbugayong@gmail.com", name: "Admin" }
 ];
 
 const mentionUsers = [
@@ -38,8 +39,13 @@ const mentionUsers = [
 const progressReportCollection = "progressReports";
 const progressReportDocId = "thesisProgress";
 
+function normalizeEmail(email) {
+  return String(email || '').trim().toLowerCase();
+}
+
 function getUserName(email) {
-  const member = members.find(m => m.uid === email);
+  const normalized = normalizeEmail(email);
+  const member = members.find(m => normalizeEmail(m.uid) === normalized);
   return member ? member.name : email;
 }
 
@@ -830,7 +836,7 @@ async function createLiveChatRoom(event) {
   const chatRoom = {
     title,
     createdByEmail: currentEmail,
-    createdByName: getChatRoomDisplayName(currentEmail),
+    createdByName: getUserName(currentEmail),
     status: 'Active',
     createdAt: Date.now()
   };
@@ -861,7 +867,7 @@ function renderChatRooms(chatRooms) {
     chatRoomsById[room.id] = room;
     const roomDiv = document.createElement('div');
     roomDiv.style.cssText = 'border: 1px solid #374151; background: #1e293b; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;';
-    const createdBy = room.createdByName || room.createdByEmail || 'Unknown';
+    const createdBy = room.createdByName || getUserName(room.createdByEmail) || 'Unknown';
     const statusColor = room.status === 'Closed' ? '#ef4444' : '#10b981';
     const isActive = room.status === 'Active';
 
@@ -895,7 +901,7 @@ function renderChatMessages(messages) {
   messages.forEach((msg) => {
     const msgDiv = document.createElement('div');
     msgDiv.style.cssText = 'padding: 0.85rem 1rem; border-radius: 10px; margin-bottom: 0.75rem; background: #111827;';
-    const sender = msg.senderName || msg.senderEmail || 'Unknown';
+    const sender = msg.senderName || getUserName(msg.senderEmail) || 'Unknown';
     const timestamp = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
     const messageText = msg.deleted ? 'This message was unsent.' : msg.text;
     const safeText = escapeHtml(messageText);
@@ -931,7 +937,7 @@ function openChatRoom(chatId) {
 
   if (panel) panel.style.display = 'block';
   if (titleEl) titleEl.textContent = chatRoom.title;
-  if (metaEl) metaEl.textContent = `Created by ${chatRoom.createdByName || chatRoom.createdByEmail} • Status: ${chatRoom.status}`;
+  if (metaEl) metaEl.textContent = `Created by ${chatRoom.createdByName || getUserName(chatRoom.createdByEmail)} • Status: ${chatRoom.status}`;
   if (messageInput) messageInput.disabled = chatRoom.status !== 'Active';
   if (messageForm) messageForm.style.opacity = chatRoom.status !== 'Active' ? '0.7' : '1';
 
@@ -979,7 +985,7 @@ async function sendChatMessage(event) {
   const currentEmail = userEmail || await getStoredUserEmail();
   const messageData = {
     senderEmail: currentEmail,
-    senderName: getChatRoomDisplayName(currentEmail),
+    senderName: getUserName(currentEmail),
     text: message,
     createdAt: Date.now(),
     deleted: false

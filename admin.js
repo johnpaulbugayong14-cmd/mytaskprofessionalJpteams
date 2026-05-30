@@ -100,8 +100,24 @@ const pushNotificationsManager = new PushNotificationsManager();
 let chart;
 let chartUpdateTimeout;
 let lastMemberProgress = {};
+let lastAnalyticsTasks = [];
+
+function parseDeadline(value) {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === 'number') return new Date(value);
+  if (typeof value === 'string') {
+    const parsed = new Date(value);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  }
+  if (value && typeof value.toDate === 'function') {
+    return value.toDate();
+  }
+  return null;
+}
 
 window.lastMemberProgress = lastMemberProgress;
+window.lastAnalyticsTasks = lastAnalyticsTasks;
 
 const progressReportCollection = "progressReports";
 const progressReportDocId = "thesisProgress";
@@ -114,13 +130,24 @@ let members = [
   { uid: "phricksborebor@gmail.com", name: "Phricks Borebor" },
   { uid: "moezarperez@gmail.com", name: "Moezar Perez" },
   { uid: "test@example.com", name: "Test User" },
-  { uid: "rogelioledda@gmail.com", name: "Rogelio Ledda" }
+  { uid: "rogelioledda@gmail.com", name: "Rogelio Ledda" },
+  { uid: "johnpaulbugayong@gmail.com", name: "Admin" }
 ];
 
 const mentionUsers = [
   ...members.filter(member => member.uid !== 'everyone'),
   { uid: 'johnpaulbugayong@gmail.com', name: 'Admin' }
 ];
+
+function normalizeEmail(email) {
+  return String(email || '').trim().toLowerCase();
+}
+
+function getUserName(email) {
+  const normalized = normalizeEmail(email);
+  const member = members.find(m => normalizeEmail(m.uid) === normalized);
+  return member ? member.name : email;
+}
 
 let adminEmail = null;
 let adminRole = null;
@@ -698,13 +725,16 @@ onSnapshot(collection(db, "tasks"), (snap) => {
 
   // Track progress by member for analytics
   const memberProgress = {};
+  const allTasks = docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
+  lastAnalyticsTasks = allTasks;
+  window.lastAnalyticsTasks = allTasks;
 
-  docs.forEach(docSnap => {
-    const t = docSnap.data();
+  allTasks.forEach(t => {
     const memberName = t.assignedToName || t.assignedTo || "Unassigned";
 
     let status = (t.status || "pending").toLowerCase().trim();
-    if (new Date(t.deadline).getTime() < now && (status === "pending" || status === "pending validation")) {
+    const deadline = parseDeadline(t.deadline);
+    if (deadline && deadline.getTime() < now && (status === "pending" || status === "pending validation")) {
       status = "overdue";
     }
 
@@ -763,212 +793,200 @@ function updateChartIfNeeded() {
   }
 }
 
-let lastChartData = null;
-
 /* GRAPH */
 function updateChart(memberProgress) {
-  const ctx = document.getElementById("taskChart");
-  if (!ctx) {
-    console.error('Chart canvas element not found');
+  const container = document.getElementById("taskAnalyticsList");
+  if (!container) {
+    console.error('Analytics list container not found');
     return;
   }
 
-  if (typeof Chart === 'undefined') {
-    console.error('Chart.js is not loaded yet.');
-    return;
-  }
+  container.innerHTML = "";
 
-  const parent = ctx.parentElement;
-  const placeholderClass = 'chart-placeholder';
-  const existingPlaceholder = parent ? parent.querySelector(`.${placeholderClass}`) : null;
-
-  // Handle empty data
   if (!memberProgress || Object.keys(memberProgress).length === 0) {
-    if (chart) {
-      chart.destroy();
-      chart = null;
-    }
-
-    if (parent && !existingPlaceholder) {
-      const msg = document.createElement('p');
-      msg.className = placeholderClass;
-      msg.textContent = 'No task data available. Create a task to see analytics.';
-      msg.style.color = '#94a3b8';
-      msg.style.textAlign = 'center';
-      msg.style.padding = '2rem';
-      parent.appendChild(msg);
-    }
+    container.innerHTML = `<p style="color: #94a3b8; text-align: center; padding: 2rem;">No task data available. Create a task to see analytics.</p>`;
     return;
   }
 
-  if (existingPlaceholder) {
-    existingPlaceholder.remove();
-  }
-
-  const memberNames = Object.keys(memberProgress).filter(name => name && name !== "");
-  
+  const memberNames = Object.keys(memberProgress).filter(name => name && name !== "").sort();
   if (memberNames.length === 0) {
+    container.innerHTML = `<p style="color: #94a3b8; text-align: center; padding: 2rem;">No task data available. Create a task to see analytics.</p>`;
     return;
   }
 
-  const doneData = memberNames.map(member => memberProgress[member].done);
-  const pendingData = memberNames.map(member => memberProgress[member].pending);
-  const overdueData = memberNames.map(member => memberProgress[member].overdue);
-  const needsActionData = memberNames.map(member => memberProgress[member].needsAction);
-  const pendingValidationData = memberNames.map(member => memberProgress[member].pendingValidation);
+  memberNames.forEach(member => {
+    const progress = memberProgress[member] || {};
+    const pending = progress.pending || 0;
+    const needsAction = progress.needsAction || 0;
+    const overdue = progress.overdue || 0;
 
-  const currentData = {
-    labels: memberNames,
-    datasets: [doneData, pendingData, overdueData, needsActionData, pendingValidationData]
-  };
+    const card = document.createElement('div');
+    card.style.padding = '1rem';
+    card.style.border = '1px solid #334155';
+    card.style.borderRadius = '0.75rem';
+    card.style.background = '#0f172a';
+    card.style.display = 'grid';
+    card.style.gap = '0.5rem';
 
-  const dataChanged = !lastChartData ||
-    JSON.stringify(lastChartData.labels) !== JSON.stringify(currentData.labels) ||
-    JSON.stringify(lastChartData.datasets) !== JSON.stringify(currentData.datasets);
+    const title = document.createElement('h3');
+    title.textContent = member;
+    title.style.margin = '0';
+    title.style.fontSize = '1.05rem';
+    title.style.color = '#f8fafc';
 
-  if (!dataChanged) {
-    return; // No need to update if data hasn't changed
-  }
+    card.appendChild(title);
 
-  lastChartData = currentData;
+    const statusContainer = document.createElement('div');
+    statusContainer.style.display = 'flex';
+    statusContainer.style.flexWrap = 'wrap';
+    statusContainer.style.gap = '0.75rem';
 
-  // Update existing chart
-  if (chart && chart.data && !chart.destroyed) {
-    chart.data.labels = memberNames;
-    chart.data.datasets[0].data = doneData;
-    chart.data.datasets[1].data = pendingData;
-    chart.data.datasets[2].data = overdueData;
-    chart.data.datasets[3].data = needsActionData;
-    chart.data.datasets[4].data = pendingValidationData;
-    chart.update('none');
-    return;
-  }
+    const addStatus = (label, value, color, bg) => {
+      const status = document.createElement('span');
+      status.textContent = `${label}: ${value}`;
+      status.style.color = color;
+      status.style.background = bg;
+      status.style.padding = '0.35rem 0.75rem';
+      status.style.borderRadius = '999px';
+      status.style.fontSize = '0.92rem';
+      status.style.fontWeight = '600';
+      status.style.minWidth = 'max-content';
+      statusContainer.appendChild(status);
+    };
 
-  // Destroy any existing chart before creating new one
-  if (chart && !chart.destroyed) {
-    chart.destroy();
-  }
+    if (pending > 0) addStatus('Pending', pending, '#1d4ed8', 'rgba(59,130,246,0.12)');
+    if (needsAction > 0) addStatus('Needs Action', needsAction, '#b45309', 'rgba(245,158,11,0.15)');
+    if (overdue > 0) addStatus('Overdue', overdue, '#dc2626', 'rgba(239,68,68,0.15)');
 
-  // Create new chart
-  try {
-    const datasets = [
-      {
-        label: 'Done',
-        data: memberNames.map(member => memberProgress[member].done),
-        backgroundColor: '#16a34a',
-        borderColor: '#15803d',
-        borderWidth: 1
-      },
-      {
-        label: 'Pending',
-        data: memberNames.map(member => memberProgress[member].pending),
-        backgroundColor: '#2563eb',
-        borderColor: '#1d4ed8',
-        borderWidth: 1
-      },
-      {
-        label: 'Overdue',
-        data: memberNames.map(member => memberProgress[member].overdue),
-        backgroundColor: '#dc2626',
-        borderColor: '#b91c1c',
-        borderWidth: 1
-      },
-      {
-        label: 'Needs Action',
-        data: memberNames.map(member => memberProgress[member].needsAction),
-        backgroundColor: '#f59e0b',
-        borderColor: '#d97706',
-        borderWidth: 1
-      },
-      {
-        label: 'Pending Validation',
-        data: memberNames.map(member => memberProgress[member].pendingValidation),
-        backgroundColor: '#8b5cf6',
-        borderColor: '#7c3aed',
-        borderWidth: 1
-      }
-    ];
+    if (pending === 0 && needsAction === 0 && overdue === 0) {
+      const empty = document.createElement('p');
+      empty.textContent = 'No pending, needs action, or overdue tasks.';
+      empty.style.margin = '0';
+      empty.style.color = '#94a3b8';
+      card.appendChild(empty);
+    } else {
+      card.appendChild(statusContainer);
 
-    chart = new Chart(ctx, {
-      type: "bar",
-      data: {
-        labels: memberNames,
-        datasets
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        indexAxis: 'y',
-        animation: false,
-        layout: {
-          padding: {
-            left: 8,
-            right: 8,
-            top: 8,
-            bottom: 8
-          }
-        },
-        elements: {
-          bar: {
-            borderRadius: 4,
-            barThickness: 16,
-            maxBarThickness: 18
-          }
-        },
-        scales: {
-          x: {
-            beginAtZero: true,
-            ticks: {
-              color: '#cbd5e1',
-              maxTicksLimit: 5
-            },
-            grid: {
-              color: 'rgba(148, 163, 184, 0.12)'
-            }
-          },
-          y: {
-            ticks: {
-              color: '#cbd5e1',
-              font: {
-                size: 12
-              },
-              padding: 6
-            },
-            grid: {
-              display: false
-            }
-          }
-        },
-        plugins: {
-          legend: {
-            display: true,
-            position: 'top',
-            labels: {
-              color: '#cbd5e1',
-              boxWidth: 12,
-              boxHeight: 12,
-              padding: 12
-            }
-          },
-          tooltip: {
-            enabled: true,
-            callbacks: {
-              label: function(context) {
-                return context.dataset.label + ': ' + context.parsed.x;
-              }
-            }
-          }
-        }
-      }
-    });
-    window.adminTaskChart = chart;
-    window.updateChart = updateChart;
-  } catch (err) {
-    console.error('Chart initialization error:', err);
-  }
+      const detailsButton = document.createElement('button');
+      detailsButton.textContent = 'View Tasks';
+      detailsButton.style.marginTop = '0.75rem';
+      detailsButton.style.padding = '0.65rem 0.95rem';
+      detailsButton.style.border = 'none';
+      detailsButton.style.borderRadius = '0.75rem';
+      detailsButton.style.background = '#2563eb';
+      detailsButton.style.color = '#ffffff';
+      detailsButton.style.cursor = 'pointer';
+      detailsButton.style.fontWeight = '600';
+      detailsButton.onclick = () => showMemberTaskDetails(member);
+      card.appendChild(detailsButton);
+    }
+
+    container.appendChild(card);
+  });
 }
 
-// Expose updateChart and lastMemberProgress globally
+function showMemberTaskDetails(memberName) {
+  const modalOverlay = document.getElementById('taskAnalyticsModalOverlay');
+  const detailMessage = document.getElementById('taskAnalyticsDetailsMessage');
+  const detailList = document.getElementById('taskAnalyticsDetailsList');
+
+  if (!modalOverlay || !detailMessage || !detailList) {
+    console.error('Analytics detail modal elements not found');
+    return;
+  }
+
+  const tasks = window.lastAnalyticsTasks || [];
+  const now = Date.now();
+
+  const filtered = tasks.map(task => {
+    const status = (task.status || 'pending').toLowerCase().trim();
+    const deadline = parseDeadline(task.deadline);
+    const isOverdue = deadline && deadline.getTime() < now && (status === 'pending' || status === 'pending validation');
+    return {
+      ...task,
+      displayStatus: isOverdue ? 'overdue' : status,
+    };
+  }).filter(task => {
+    const name = task.assignedToName || task.assignedTo || 'Unassigned';
+    return name === memberName && ['pending', 'needs action', 'overdue'].includes(task.displayStatus);
+  });
+
+  detailList.innerHTML = '';
+  modalOverlay.style.display = 'flex';
+  modalOverlay.classList.add('show');
+  modalOverlay.style.visibility = 'visible';
+  modalOverlay.style.opacity = '1';
+  detailMessage.textContent = `Showing overdue, needs action, and pending tasks for ${memberName}.`;
+  document.body.style.overflow = 'hidden';
+
+  if (filtered.length === 0) {
+    detailList.innerHTML = `<p style="margin:0; color:#94a3b8;">No overdue, needs action, or pending tasks found for this member.</p>`;
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+
+  filtered.forEach(task => {
+    const item = document.createElement('div');
+    item.style.padding = '0.85rem';
+    item.style.border = '1px solid rgba(148, 163, 184, 0.2)';
+    item.style.borderRadius = '0.75rem';
+    item.style.background = '#111827';
+
+    const title = document.createElement('p');
+    title.textContent = task.title || 'Untitled Task';
+    title.style.margin = '0 0 0.5rem 0';
+    title.style.fontWeight = '700';
+    title.style.color = '#f8fafc';
+
+    const status = document.createElement('span');
+    status.textContent = task.displayStatus === 'needs action' ? 'Needs Action' : task.displayStatus.charAt(0).toUpperCase() + task.displayStatus.slice(1);
+    status.style.display = 'inline-block';
+    status.style.padding = '0.25rem 0.65rem';
+    status.style.borderRadius = '999px';
+    status.style.fontSize = '0.82rem';
+    status.style.fontWeight = '600';
+    status.style.marginBottom = '0.5rem';
+    status.style.color = '#ffffff';
+    status.style.background = task.displayStatus === 'overdue' ? '#dc2626' : task.displayStatus === 'needs action' ? '#d97706' : '#2563eb';
+
+    const deadline = document.createElement('p');
+    const deadlineDate = parseDeadline(task.deadline);
+    deadline.textContent = `Deadline: ${deadlineDate ? deadlineDate.toLocaleDateString() : 'Not set'}`;
+    deadline.style.margin = '0 0 0.35rem 0';
+    deadline.style.color = '#cbd5e1';
+    deadline.style.fontSize = '0.92rem';
+
+    const description = document.createElement('p');
+    description.textContent = task.description || (task.title ? '' : 'No additional details available.');
+    description.style.margin = '0';
+    description.style.color = '#94a3b8';
+    description.style.fontSize = '0.92rem';
+
+    item.appendChild(title);
+    item.appendChild(status);
+    item.appendChild(deadline);
+    if (description.textContent) item.appendChild(description);
+    fragment.appendChild(item);
+  });
+
+  detailList.appendChild(fragment);
+}
+
+function hideMemberTaskDetails() {
+  const modalOverlay = document.getElementById('taskAnalyticsModalOverlay');
+  if (!modalOverlay) {
+    return;
+  }
+  modalOverlay.classList.remove('show');
+  modalOverlay.style.visibility = 'hidden';
+  modalOverlay.style.opacity = '0';
+  modalOverlay.style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+window.showMemberTaskDetails = showMemberTaskDetails;
+window.hideMemberTaskDetails = hideMemberTaskDetails;
 window.updateChart = updateChart;
 window.updateChartIfNeeded = function() {
   if (window.lastMemberProgress) {
@@ -1376,7 +1394,7 @@ async function createLiveChatRoom(event) {
     await addDoc(collection(db, 'liveChats'), {
       title,
       createdByEmail: adminEmail,
-      createdByName: members.find(m => m.uid === adminEmail)?.name || adminEmail,
+      createdByName: getUserName(adminEmail),
       status: 'Active',
       createdAt: Date.now()
     });
@@ -1402,7 +1420,7 @@ function renderAdminChatRooms(rooms) {
   rooms.forEach((room) => {
     liveChatRoomsById[room.id] = room;
     const statusColor = room.status === 'Closed' ? '#ef4444' : '#10b981';
-    const createdBy = room.createdByName || room.createdByEmail || 'Unknown';
+    const createdBy = room.createdByName || getUserName(room.createdByEmail) || 'Unknown';
     const isActive = room.status === 'Active';
     const canDelete = true;
 
@@ -1439,7 +1457,7 @@ function openAdminChatRoom(chatId) {
 
   if (panel) panel.style.display = 'block';
   if (titleEl) titleEl.textContent = room.title;
-  if (metaEl) metaEl.textContent = `Created by ${room.createdByName || room.createdByEmail} • Status: ${room.status}`;
+  if (metaEl) metaEl.textContent = `Created by ${room.createdByName || getUserName(room.createdByEmail)} • Status: ${room.status}`;
   if (messageInput) messageInput.disabled = room.status !== 'Active';
   if (messageForm) messageForm.style.opacity = room.status !== 'Active' ? '0.7' : '1';
 
@@ -1567,7 +1585,7 @@ function renderAdminChatMessages(messages) {
     messageDiv.style.cssText = 'padding: 0.85rem 1rem; margin-bottom: 0.75rem; border-radius: 10px; background: #111827;';
     messageDiv.innerHTML = `
       <div style="display: flex; justify-content: space-between; gap: 1rem; margin-bottom: 0.35rem; opacity: ${msg.deleted ? 0.7 : 1};">
-        <div style="font-size: 0.85rem; color: #94a3b8;">${escapeHtml(msg.senderName || msg.senderEmail || 'Guest')}</div>
+        <div style="font-size: 0.85rem; color: #94a3b8;">${escapeHtml(msg.senderName || getUserName(msg.senderEmail) || 'Guest')}</div>
         <div style="font-size: 0.75rem; color: #6b7280;">${msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</div>
       </div>
       <div style="color: ${msg.deleted ? '#9ca3af' : '#e5e7eb'}; line-height: 1.6; margin-bottom: 0.5rem;">${renderedText}</div>
@@ -1606,7 +1624,7 @@ async function sendAdminChatMessage(event) {
   try {
     await addDoc(collection(db, 'liveChats', selectedLiveChatId, 'messages'), {
       senderEmail: adminEmail,
-      senderName: members.find(m => m.uid === adminEmail)?.name || adminEmail,
+      senderName: getUserName(adminEmail),
       text: message,
       createdAt: Date.now(),
       deleted: false
