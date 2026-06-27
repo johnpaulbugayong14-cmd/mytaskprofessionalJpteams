@@ -10,6 +10,7 @@ body {
   color: #e2e8f0;
   min-height: 100vh;
   line-height: 1.6;
+  overflow-x: hidden;
 }
 
 h1, h2, h3 {
@@ -42,6 +43,7 @@ h2 {
 .app-container {
   display: flex;
   min-height: 100vh;
+  width: 100%;
 }
 
 /* Sidebar Styles */
@@ -292,6 +294,7 @@ h2 {
   flex: 1;
   margin-left: 280px;
   transition: margin-left 0.3s ease;
+  min-width: 0;
 }
 
 .app-container.has-collapsed-sidebar .main-content {
@@ -368,6 +371,7 @@ h2 {
     position: static;
     margin-top: 0.75rem;
     justify-content: center;
+    flex-wrap: wrap;
   }
 
   .datetime-center {
@@ -388,6 +392,7 @@ h2 {
 
 .content-section.active {
   display: block;
+  width: 100%;
 }
 
 /* Mobile Navigation */
@@ -1291,3 +1296,145 @@ canvas {
     color: #60a5fa;
     font-weight: 700;
   }
+}
+
+@media (max-width: 1024px) {
+  .mobile-nav-toggle {
+    display: inline-flex;
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    z-index: 1100;
+    width: 2.8rem;
+    height: 2.8rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.95);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    color: #f8fafc;
+    box-shadow: 0 8px 24px rgba(2, 6, 23, 0.3);
+  }
+
+  .sidebar {
+    transform: translateX(-100%);
+    width: min(280px, 86vw);
+    transition: transform 0.25s ease;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 6, 23, 0.72);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.25s ease;
+    z-index: 999;
+  }
+
+  .sidebar-overlay.show {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .main-content {
+    margin-left: 0;
+  }
+
+  .app-container.has-collapsed-sidebar .main-content,
+  .main-content {
+    margin-left: 0;
+  }
+
+  .content-sections {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .content-header {
+    padding-top: 3.5rem;
+  }
+
+  .content-sections {
+    padding: 0.75rem;
+  }
+
+  .card {
+    padding: 1rem;
+    border-radius: 12px;
+  }
+
+  #chatRoomPanel,
+  #adminChatRoomPanel {
+    padding: 0.75rem;
+  }
+
+  #chatMessages,
+  #adminChatMessages {
+    min-height: 220px;
+    max-height: calc(100vh - 250px);
+  }
+
+  #chatMessageForm,
+  #adminChatMessageForm {
+    flex-direction: column;
+  }
+
+  #chatMessageForm button,
+  #adminChatMessageForm button {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  #jaas-container {
+    min-height: 320px;
+    height: min(60vh, 460px);
+  }
+
+  #jaas-container iframe {
+    width: 100%;
+    height: 100%;
+    min-height: 320px;
+  }
+}
+
+/* Ensure chat panels are inline page content, not fixed popups */
+#chatRoomPanel,
+#adminChatRoomPanel {
+  display: none;
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  background: transparent;
+  z-index: auto;
+}
+
+#chatRoomPanel.open,
+#adminChatRoomPanel.open {
+  display: block;
+}
+
+#chatRoomPanel > div,
+#adminChatRoomPanel > div {
+  width: 100%;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+#chatMessages,
+#adminChatMessages {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}

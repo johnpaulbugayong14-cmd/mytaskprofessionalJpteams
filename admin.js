@@ -1676,29 +1676,15 @@ function renderAdminChatRooms(rooms) {
 }
 
 function openAdminChatRoom(chatId) {
-  const room = liveChatRoomsById[chatId];
-  if (!room) return;
-
-  selectedLiveChatId = chatId;
-  const panel = document.getElementById('adminChatRoomPanel');
-  const titleEl = document.getElementById('adminActiveChatTitle');
-  const metaEl = document.getElementById('adminActiveChatMeta');
-  const messageInput = document.getElementById('adminChatMessageInput');
-  const messageForm = document.getElementById('adminChatMessageForm');
-
-  if (panel) panel.style.display = 'block';
-  if (titleEl) titleEl.textContent = room.title;
-  if (metaEl) metaEl.textContent = `Created by ${room.createdByName || getUserName(room.createdByEmail)} • Status: ${room.status}`;
-  if (messageInput) messageInput.disabled = room.status !== 'Active';
-  if (messageForm) messageForm.style.opacity = room.status !== 'Active' ? '0.7' : '1';
-
-  clearAdminReplyToMessage();
-  subscribeAdminChatMessages(chatId);
+  window.location.href = `chat.html?chatId=${chatId}&from=admin`;
 }
 
 function closeAdminChatPanel() {
   const panel = document.getElementById('adminChatRoomPanel');
-  if (panel) panel.style.display = 'none';
+  if (panel) {
+    panel.style.display = 'none';
+    panel.classList.remove('open');
+  }
 
   if (liveChatMessagesUnsubscribe) {
     liveChatMessagesUnsubscribe();

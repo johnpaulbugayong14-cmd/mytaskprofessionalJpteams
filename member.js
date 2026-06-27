@@ -1108,7 +1108,7 @@ function renderChatRooms(chatRooms) {
         <span style="background: ${statusColor}; color: white; padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.8rem;">${room.status || 'Active'}</span>
       </div>
       <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
-        <button onclick="openChatRoom('${room.id}')" style="background: ${isActive ? '#10b981' : '#6b7280'}; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer;">${isActive ? 'Open Chat' : 'View Chat'}</button>
+        <button onclick="window.location.href='chat.html?chatId=${room.id}&from=member'" style="background: ${isActive ? '#10b981' : '#6b7280'}; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer;">${isActive ? 'Open Chat' : 'View Chat'}</button>
       </div>
     `;
 
@@ -1215,30 +1215,15 @@ function renderChatMessages(messages) {
 }
 
 function openChatRoom(chatId) {
-  const chatRoom = chatRoomsById[chatId];
-  if (!chatRoom) return;
-
-  selectedChatId = chatId;
-
-  const panel = document.getElementById('chatRoomPanel');
-  const titleEl = document.getElementById('activeChatTitle');
-  const metaEl = document.getElementById('activeChatMeta');
-  const messageInput = document.getElementById('chatMessageInput');
-  const messageForm = document.getElementById('chatMessageForm');
-
-  if (panel) panel.style.display = 'block';
-  if (titleEl) titleEl.textContent = chatRoom.title;
-  if (metaEl) metaEl.textContent = `Created by ${chatRoom.createdByName || getUserName(chatRoom.createdByEmail)} • Status: ${chatRoom.status}`;
-  if (messageInput) messageInput.disabled = chatRoom.status !== 'Active';
-  if (messageForm) messageForm.style.opacity = chatRoom.status !== 'Active' ? '0.7' : '1';
-
-  clearReplyToMessage();
-  subscribeChatMessages(chatId);
+  window.location.href = `chat.html?chatId=${chatId}&from=member`;
 }
 
 function closeChatRoomPanel() {
   const panel = document.getElementById('chatRoomPanel');
-  if (panel) panel.style.display = 'none';
+  if (panel) {
+    panel.style.display = 'none';
+    panel.classList.remove('open');
+  }
 
   if (chatMessagesUnsubscribe) {
     chatMessagesUnsubscribe();
