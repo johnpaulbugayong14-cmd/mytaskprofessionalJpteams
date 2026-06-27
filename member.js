@@ -489,9 +489,11 @@ function checkMaintenance() {
           window._originalShowSection = null;
         }
         window.maintenanceEnforced = false;
-        // remove any maintenance message elements
+        // remove any maintenance message elements and banners
         document.querySelectorAll('.maintenance-message').forEach(el => el.remove());
-        removeMaintenanceMessageFromSubmitCard();
+        removeMaintenanceBannerFromSection('#submit-ticket .card');
+        removeMaintenanceBannerFromSection('#ticket-history .card');
+        removeHeaderMaintenanceBanner();
       }
     }, (error) => {
       console.error('Maintenance onSnapshot error:', error);
