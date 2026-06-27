@@ -189,7 +189,6 @@ let members = [
   { uid: "allancorral@gmail.com", name: "Allan Corral" },
   { uid: "phricksborebor@gmail.com", name: "Phricks Borebor" },
   { uid: "moezarperez@gmail.com", name: "Moezar Perez" },
-  { uid: "test@example.com", name: "Test User" },
   { uid: "rogelioledda@gmail.com", name: "Rogelio Ledda" },
   { uid: "johnpaulbugayong@gmail.com", name: "Admin" }
 ];
@@ -672,6 +671,15 @@ function loadProgressReport() {
   });
 }
 
+function getTaskRecipients(assignedTo) {
+  if (assignedTo === "everyone") {
+    return members.filter(member => member.uid !== "everyone");
+  }
+
+  const selectedMember = members.find(member => member.uid === assignedTo);
+  return selectedMember ? [selectedMember] : [];
+}
+
 /* CREATE TASK */
 window.createTask = async function () {
   const title = document.getElementById("title").value.trim();
@@ -686,27 +694,31 @@ window.createTask = async function () {
   }
 
   try {
-    const member = members.find(m => m.uid === assignedTo) || members[0];
+    const recipients = getTaskRecipients(assignedTo);
 
-    const taskData = {
-      title,
-      description: description || "",
-      deadline,
-      assignedTo,
-      assignedToName: member.name,
-      linkURL: link || null,
-      status: "pending",
-      emailNotificationSent: false,
-      createdAt: Date.now()
-    };
+    if (recipients.length === 0) {
+      alert("Please select a valid recipient.");
+      return;
+    }
 
-    await addDoc(collection(db, "tasks"), taskData);
+    for (const recipient of recipients) {
+      const taskData = {
+        title,
+        description: description || "",
+        deadline,
+        assignedTo: recipient.uid,
+        assignedToName: recipient.name,
+        linkURL: link || null,
+        status: "pending",
+        emailNotificationSent: false,
+        createdAt: Date.now()
+      };
 
-    // Send notification to assigned user
-    if (assignedTo !== "everyone") {
+      await addDoc(collection(db, "tasks"), taskData);
+
       const notificationTitle = "New Task Assigned";
       const notificationBody = `You have been assigned a new task: "${title}"`;
-      await sendNotificationToUsers([assignedTo], notificationTitle, notificationBody, 'task');
+      await sendNotificationToUsers([recipient.uid], notificationTitle, notificationBody, 'task');
       showLocalNotification(notificationTitle, notificationBody);
     }
 
@@ -716,7 +728,8 @@ window.createTask = async function () {
     document.getElementById("assignedTo").value = "";
     document.getElementById("linkInput").value = "";
 
-    alert("Task created successfully!");
+    const recipientLabel = assignedTo === "everyone" ? `${recipients.length} members` : recipients[0].name;
+    alert(`Task created successfully for ${recipientLabel}!`);
   } catch (error) {
     console.error("Error creating task:", error);
     alert(`Failed to create task: ${error.message}`);
