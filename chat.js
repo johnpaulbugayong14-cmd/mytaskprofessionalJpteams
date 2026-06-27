@@ -71,7 +71,8 @@ function renderChatMessages(messages) {
     const safeText = escapeHtml(messageText);
     const renderedText = safeText;
     const imageMarkup = !msg.deleted && msg.imageData ? `<div style="margin: 0.75rem 0;"><img class="chat-image" src="${escapeHtml(msg.imageData)}" alt="Chat image" loading="lazy" /></div>` : '';
-    const isOwnMessage = normalizeEmail(msg.senderEmail) === normalizeEmail(currentUserEmail);
+    const normalizedCurrentUserEmail = normalizeEmail(currentUserEmail || '');
+    const isOwnMessage = normalizedCurrentUserEmail && normalizeEmail(msg.senderEmail) === normalizedCurrentUserEmail;
     const unsendButton = isOwnMessage && !msg.deleted ? `<button type="button" class="chat-unsend-btn" data-message-id="${msg.id}" style="display: inline-flex; align-items: center; justify-content: center; width: auto; background: rgba(248, 113, 113, 0.12); color: #f97316; border: 1px solid rgba(248, 113, 113, 0.35); border-radius: 9999px; cursor: pointer; padding: 0.2rem 0.5rem; font-size: 0.75rem; line-height: 1; white-space: nowrap;">Unsend</button>` : '';
     const actionButtons = [unsendButton].filter(Boolean).join('<span style="margin: 0 0.35rem; color: #374151;">|</span>');
 

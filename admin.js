@@ -1895,7 +1895,7 @@ function renderAdminChatMessages(messages) {
   container.innerHTML = '';
   messages.forEach((msg) => {
     adminChatMessagesById[msg.id] = msg;
-    const isOwn = msg.senderEmail === adminEmail;
+    const isOwn = normalizeEmail(msg.senderEmail) === normalizeEmail(adminEmail);
     const messageText = msg.deleted ? 'This message was unsent.' : msg.text;
     const safeText = escapeHtml(messageText);
     const renderedText = msg.deleted ? safeText : formatMessageWithMentions(safeText);
@@ -2163,20 +2163,20 @@ async function toggleAdminMessageReaction(messageId, emoji) {
   if (!messageSnap.exists()) return;
 
   const reactions = messageSnap.data().reactions || {};
-  const currentUserEmail = adminEmail;
+  const normalizedCurrentUserEmail = normalizeEmail(adminEmail);
 
   if (!reactions[emoji]) {
     reactions[emoji] = [];
   }
 
-  const userIndex = reactions[emoji].indexOf(currentUserEmail);
+  const userIndex = reactions[emoji].findIndex(user => normalizeEmail(user) === normalizedCurrentUserEmail);
   if (userIndex > -1) {
     reactions[emoji].splice(userIndex, 1);
     if (reactions[emoji].length === 0) {
       delete reactions[emoji];
     }
   } else {
-    reactions[emoji].push(currentUserEmail);
+    reactions[emoji].push(adminEmail);
   }
 
   try {
