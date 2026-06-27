@@ -122,6 +122,66 @@ window.lastAnalyticsTasks = lastAnalyticsTasks;
 const progressReportCollection = "progressReports";
 const progressReportDocId = "thesisProgress";
 const progressStatuses = ["Not Started", "Pending", "Completed"];
+const progressStorageKey = "thesisProgressReportBackup";
+
+function getProgressBackupSections() {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return null;
+    const cached = window.localStorage.getItem(progressStorageKey);
+    if (!cached) return null;
+    const parsed = JSON.parse(cached);
+    if (Array.isArray(parsed?.sections)) return parsed.sections;
+    if (Array.isArray(parsed)) return parsed;
+  } catch (error) {
+    console.warn("Unable to read cached progress report:", error);
+  }
+  return null;
+}
+
+function saveProgressBackupSections(sections) {
+  try {
+    if (typeof window !== "undefined" && window.localStorage) {
+      window.localStorage.setItem(progressStorageKey, JSON.stringify({ sections, updatedAt: new Date().toISOString() }));
+    }
+  } catch (error) {
+    console.warn("Unable to cache progress report locally:", error);
+  }
+}
+
+function normalizeProgressSections(sections, defaultSections = getDefaultProgressStructure()) {
+  if (!Array.isArray(sections)) return null;
+
+  return defaultSections.map((defaultSection, sectionIndex) => {
+    const savedSection = sections.find(section => section.title === defaultSection.title) || sections[sectionIndex] || {};
+    const items = Array.isArray(savedSection.items) ? savedSection.items : [];
+
+    return {
+      title: defaultSection.title,
+      items: defaultSection.items.map((defaultItem, itemIndex) => {
+        const savedItem = items.find(item => item.name === defaultItem.name) || items[itemIndex] || {};
+        return {
+          name: defaultItem.name,
+          status: savedItem.status || defaultItem.status || "Not Started",
+          assignedTo: Array.isArray(savedItem.assignedTo) ? savedItem.assignedTo : (savedItem.assignedTo ? [savedItem.assignedTo] : []),
+          assignedToName: Array.isArray(savedItem.assignedToName) ? savedItem.assignedToName : (savedItem.assignedToName ? [savedItem.assignedToName] : [])
+        };
+      })
+    };
+  });
+}
+
+async function persistProgressReportSections(sections) {
+  const progressRef = doc(db, progressReportCollection, progressReportDocId);
+  try {
+    await setDoc(progressRef, { sections, updatedAt: new Date().toISOString() }, { merge: true });
+    saveProgressBackupSections(sections);
+    return true;
+  } catch (error) {
+    console.error("Firestore progress save failed, falling back to local storage:", error);
+    saveProgressBackupSections(sections);
+    return false;
+  }
+}
 
 let members = [
   { uid: "everyone", name: "Everyone" },
@@ -321,8 +381,12 @@ function getProgressFormValues() {
 window.saveProgressReport = async function() {
   try {
     const sections = getProgressFormValues();
-    await setDoc(doc(db, progressReportCollection, progressReportDocId), { sections }, { merge: true });
-    alert("Thesis progress saved successfully!");
+    const savedToFirestore = await persistProgressReportSections(sections);
+    if (savedToFirestore) {
+      alert("Thesis progress saved successfully!");
+    } else {
+      alert("Thesis progress was saved locally because Firestore was unavailable. Please refresh once the connection is restored.");
+    }
   } catch (error) {
     console.error("Error saving progress report:", error);
     alert("Failed to save thesis progress. Please try again.");
@@ -563,25 +627,48 @@ function loadProgressReport() {
   const progressRef = doc(db, progressReportCollection, progressReportDocId);
   console.log('Progress report reference:', progressRef);
 
-  onSnapshot(progressRef, (snap) => {
+  onSnapshot(progressRef, async (snap) => {
     console.log('Progress report snapshot received:', snap.exists());
     const defaultSections = getDefaultProgressStructure();
+    const cachedSections = getProgressBackupSections();
     let sections = defaultSections;
     
     if (snap.exists()) {
       const data = snap.data();
       console.log('Progress report data:', data);
-      if (Array.isArray(data.sections)) {
-        // Merge saved data with default structure to include new items
-        sections = mergeProgressStructures(defaultSections, data.sections);
+      const normalizedSections = normalizeProgressSections(data.sections, defaultSections);
+      if (normalizedSections) {
+        sections = normalizedSections;
+        saveProgressBackupSections(sections);
+      } else if (cachedSections) {
+        sections = cachedSections;
       } else {
-        setDoc(progressRef, { sections: defaultSections }, { merge: true });
+        sections = defaultSections;
+      }
+    } else if (cachedSections) {
+      sections = cachedSections;
+      try {
+        await setDoc(progressRef, { sections, updatedAt: new Date().toISOString() }, { merge: true });
+      } catch (error) {
+        console.warn('Unable to restore cached progress report to Firestore:', error);
       }
     } else {
       console.log('Progress report document does not exist, creating default');
-      setDoc(progressRef, { sections: defaultSections }, { merge: true });
+      try {
+        await setDoc(progressRef, { sections: defaultSections, updatedAt: new Date().toISOString() }, { merge: true });
+        saveProgressBackupSections(defaultSections);
+      } catch (error) {
+        console.warn('Unable to initialize progress report in Firestore:', error);
+        saveProgressBackupSections(defaultSections);
+      }
     }
     renderAdminProgressReport(sections);
+  }, (error) => {
+    console.error('Progress report onSnapshot error:', error);
+    const cachedSections = getProgressBackupSections();
+    if (cachedSections) {
+      renderAdminProgressReport(cachedSections);
+    }
   });
 }
 

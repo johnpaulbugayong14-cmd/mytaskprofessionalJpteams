@@ -42,6 +42,53 @@ const mentionUsers = [
 
 const progressReportCollection = "progressReports";
 const progressReportDocId = "thesisProgress";
+const progressStorageKey = "thesisProgressReportBackup";
+
+function getProgressBackupSections() {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return null;
+    const cached = window.localStorage.getItem(progressStorageKey);
+    if (!cached) return null;
+    const parsed = JSON.parse(cached);
+    if (Array.isArray(parsed?.sections)) return parsed.sections;
+    if (Array.isArray(parsed)) return parsed;
+  } catch (error) {
+    console.warn("Unable to read cached progress report:", error);
+  }
+  return null;
+}
+
+function saveProgressBackupSections(sections) {
+  try {
+    if (typeof window !== "undefined" && window.localStorage) {
+      window.localStorage.setItem(progressStorageKey, JSON.stringify({ sections, updatedAt: new Date().toISOString() }));
+    }
+  } catch (error) {
+    console.warn("Unable to cache progress report locally:", error);
+  }
+}
+
+function normalizeProgressSections(sections, defaultSections = getDefaultProgressStructure()) {
+  if (!Array.isArray(sections)) return null;
+
+  return defaultSections.map((defaultSection, sectionIndex) => {
+    const savedSection = sections.find(section => section.title === defaultSection.title) || sections[sectionIndex] || {};
+    const items = Array.isArray(savedSection.items) ? savedSection.items : [];
+
+    return {
+      title: defaultSection.title,
+      items: defaultSection.items.map((defaultItem, itemIndex) => {
+        const savedItem = items.find(item => item.name === defaultItem.name) || items[itemIndex] || {};
+        return {
+          name: defaultItem.name,
+          status: savedItem.status || defaultItem.status || "Not Started",
+          assignedTo: Array.isArray(savedItem.assignedTo) ? savedItem.assignedTo : (savedItem.assignedTo ? [savedItem.assignedTo] : []),
+          assignedToName: Array.isArray(savedItem.assignedToName) ? savedItem.assignedToName : (savedItem.assignedToName ? [savedItem.assignedToName] : [])
+        };
+      })
+    };
+  });
+}
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -224,24 +271,45 @@ function mergeProgressStructures(defaultSections, savedSections) {
 
 function loadProgressReport() {
   const progressRef = doc(db, progressReportCollection, progressReportDocId);
-  onSnapshot(progressRef, (snap) => {
+  onSnapshot(progressRef, async (snap) => {
     const defaultSections = getDefaultProgressStructure();
+    const cachedSections = getProgressBackupSections();
     let sections = defaultSections;
     
     if (snap.exists()) {
       const data = snap.data();
-      if (Array.isArray(data.sections)) {
-        // Merge saved data with default structure to include new items
-        sections = mergeProgressStructures(defaultSections, data.sections);
+      const normalizedSections = normalizeProgressSections(data.sections, defaultSections);
+      if (normalizedSections) {
+        sections = mergeProgressStructures(defaultSections, normalizedSections);
+        saveProgressBackupSections(sections);
+      } else if (cachedSections) {
+        sections = mergeProgressStructures(defaultSections, cachedSections);
       } else {
-        setDoc(progressRef, { sections: defaultSections }, { merge: true });
+        sections = defaultSections;
+      }
+    } else if (cachedSections) {
+      sections = mergeProgressStructures(defaultSections, cachedSections);
+      try {
+        await setDoc(progressRef, { sections, updatedAt: new Date().toISOString() }, { merge: true });
+      } catch (error) {
+        console.warn('Unable to restore cached progress report to Firestore:', error);
       }
     } else {
-      setDoc(progressRef, { sections: defaultSections }, { merge: true });
+      try {
+        await setDoc(progressRef, { sections: defaultSections, updatedAt: new Date().toISOString() }, { merge: true });
+        saveProgressBackupSections(defaultSections);
+      } catch (error) {
+        console.warn('Unable to initialize progress report in Firestore:', error);
+        saveProgressBackupSections(defaultSections);
+      }
     }
     renderMemberProgressReport(sections);
   }, (error) => {
     console.error('Progress report onSnapshot error:', error);
+    const cachedSections = getProgressBackupSections();
+    if (cachedSections) {
+      renderMemberProgressReport(mergeProgressStructures(getDefaultProgressStructure(), cachedSections));
+    }
   });
 }
 
