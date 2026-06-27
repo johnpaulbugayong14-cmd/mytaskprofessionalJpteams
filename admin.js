@@ -968,7 +968,32 @@ onSnapshot(collection(db, "tasks"), (snap) => {
 
   const docs = [];
   snap.forEach(docSnap => docs.push(docSnap));
-  docs.sort((a, b) => b.data().createdAt - a.data().createdAt);
+  // Sort tasks: high-priority statuses (pending, overdue, needs action, pending validation) first,
+  // then others, with 'done'/'completed' at the bottom. Within same priority, newest first.
+  function statusPriority(status) {
+    const s = String(status || '').toLowerCase().trim();
+    if (s === 'done' || s === 'completed') return 2;
+    if (s === 'pending' || s === 'overdue' || s === 'needs action' || s === 'needs_action' || s === 'pending validation' || s === 'pending_validation') return 0;
+    return 1;
+  }
+  function createdAtMillis(val) {
+    if (!val) return 0;
+    if (typeof val === 'number') return val;
+    if (val && typeof val.toMillis === 'function') return val.toMillis();
+    const parsed = Date.parse(String(val));
+    return isNaN(parsed) ? 0 : parsed;
+  }
+
+  docs.sort((a, b) => {
+    const ta = a.data();
+    const tb = b.data();
+    const pa = statusPriority(ta.status);
+    const pb = statusPriority(tb.status);
+    if (pa !== pb) return pa - pb; // lower priority value = higher display priority
+    const ca = createdAtMillis(ta.createdAt);
+    const cb = createdAtMillis(tb.createdAt);
+    return cb - ca; // newest first
+  });
 
   // Track progress by member for analytics
   const memberProgress = {};
@@ -1013,6 +1038,13 @@ onSnapshot(collection(db, "tasks"), (snap) => {
     let html = "";
     docs.forEach(docSnap => {
       const t = docSnap.data();
+      // Render existing feedbacks
+      const feedbackHtml = Array.isArray(t.feedbacks) && t.feedbacks.length > 0 ? t.feedbacks.map(f => {
+        const time = f.createdAt && f.createdAt.toDate ? f.createdAt.toDate().toLocaleString() : (f.createdAt ? new Date(f.createdAt).toLocaleString() : '');
+        const author = f.author || 'Admin';
+        return `<div style="padding:0.5rem; border:1px solid #334155; border-radius:6px; margin-bottom:0.5rem; background:#041024;"><div style=\"font-weight:600; color:#f3f4f6;\">${author} <span style=\"font-weight:400; color:#94a3b8; font-size:0.85rem; margin-left:0.5rem;\">${time}</span></div><div style=\"color:#cbd5e1; margin-top:0.25rem;\">${f.message}</div></div>`;
+      }).join('') : '<p style="color:#94a3b8;">No feedback yet.</p>';
+
       html += `
         <div class="card" style="${t.status === 'pending validation' ? 'border: 2px solid #f59e0b; background: rgba(245, 158, 11, 0.1);' : ''}">
           <h3>${t.title}</h3>
@@ -1025,12 +1057,59 @@ onSnapshot(collection(db, "tasks"), (snap) => {
           <button onclick="markDone('${docSnap.id}')">Mark Done</button>
           ${(t.status === "pending" || t.status === "overdue" || t.status === "pending validation") ? `<button onclick="needAction('${docSnap.id}')" class="btn-warning" style="margin-top: 0.5rem;">Need an Action</button>` : ""}
           <button onclick="deleteTask('${docSnap.id}')" class="btn-danger" style="margin-top: 0.5rem;">Delete</button>
+
+          <div style="margin-top:1rem;">
+            <h4 style=\"margin:0 0 0.5rem 0; color:#f3f4f6;\">Feedback</h4>
+            <div id=\"feedback-list-${docSnap.id}\">${feedbackHtml}</div>
+            <textarea id=\"feedback-input-${docSnap.id}\" placeholder=\"Add feedback for this task...\" style=\"width:100%; margin-top:0.5rem; min-height:70px; background:#020617; color:#f3f4f6; border:1px solid #334155; padding:0.5rem;\"></textarea>
+            <div style=\"display:flex; gap:0.5rem; margin-top:0.5rem;\">
+              <button onclick=\"addTaskFeedback('${docSnap.id}')\" style=\"background:#3b82f6; color:white; border:none; padding:0.5rem 0.75rem; border-radius:6px;\">Add Feedback</button>
+            </div>
+          </div>
         </div>
       `;
     });
     container.innerHTML = html;
   }
 });
+
+// Add feedback to a task (admin)
+window.addTaskFeedback = async function(taskId) {
+  try {
+    const input = document.getElementById(`feedback-input-${taskId}`);
+    if (!input) return;
+    const msg = input.value.trim();
+    if (!msg) {
+      alert('Please enter feedback before submitting.');
+      return;
+    }
+
+    const feedback = {
+      author: adminEmail || 'Admin',
+      message: msg,
+      createdAt: new Date()
+    };
+
+    const taskRef = doc(db, 'tasks', taskId);
+    await updateDoc(taskRef, {
+      feedbacks: arrayUnion(feedback),
+      latestFeedback: feedback
+    });
+
+    input.value = '';
+    const list = document.getElementById(`feedback-list-${taskId}`);
+    if (list) {
+      const item = document.createElement('div');
+      item.style.cssText = 'padding:0.5rem; border:1px solid #334155; border-radius:6px; margin-bottom:0.5rem; background:#041024;';
+      const time = new Date(feedback.createdAt).toLocaleString();
+      item.innerHTML = `<div style="font-weight:600; color:#f3f4f6;">${feedback.author} <span style=\"font-weight:400; color:#94a3b8; font-size:0.85rem; margin-left:0.5rem;\">${time}</span></div><div style=\"color:#cbd5e1; margin-top:0.25rem;\">${feedback.message}</div>`;
+      list.insertBefore(item, list.firstChild);
+    }
+  } catch (error) {
+    console.error('Failed to add feedback:', error);
+    alert('Failed to add feedback. See console for details.');
+  }
+};
 
 // Update chart only when analytics is visible and data changed
 function updateChartIfNeeded() {

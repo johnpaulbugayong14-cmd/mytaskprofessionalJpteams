@@ -1819,7 +1819,32 @@ setupMentionAutocomplete('chatMessageInput', 'memberMentionDropdown');
 
       const docs = [];
       snap.forEach(doc => docs.push(doc));
-      docs.sort((a, b) => b.data().createdAt - a.data().createdAt);
+      // Sort tasks: high-priority statuses (pending, overdue, needs action, pending validation) first,
+      // then others, with 'done'/'completed' at the bottom. Within same priority, newest first.
+      function statusPriority(status) {
+        const s = String(status || '').toLowerCase().trim();
+        if (s === 'done' || s === 'completed') return 2;
+        if (s === 'pending' || s === 'overdue' || s === 'needs action' || s === 'needs_action' || s === 'pending validation' || s === 'pending_validation') return 0;
+        return 1;
+      }
+      function createdAtMillis(val) {
+        if (!val) return 0;
+        if (typeof val === 'number') return val;
+        if (val && typeof val.toMillis === 'function') return val.toMillis();
+        const parsed = Date.parse(String(val));
+        return isNaN(parsed) ? 0 : parsed;
+      }
+
+      docs.sort((a, b) => {
+        const ta = a.data();
+        const tb = b.data();
+        const pa = statusPriority(ta.status);
+        const pb = statusPriority(tb.status);
+        if (pa !== pb) return pa - pb;
+        const ca = createdAtMillis(ta.createdAt);
+        const cb = createdAtMillis(tb.createdAt);
+        return cb - ca;
+      });
 
       docs.forEach(doc => {
         const t = doc.data();
@@ -1850,6 +1875,18 @@ setupMentionAutocomplete('chatMessageInput', 'memberMentionDropdown');
             </div>
             ${t.linkURL ? `<a href="${t.linkURL}" target="_blank" style="display: inline-block; margin-top: 0.5rem;">🔗 Open Link</a>` : ""}
             ${t.status === "pending" || t.status === "needs action" ? `<button onclick="markDone('${doc.id}')" class="btn-submit">Already Submitted</button>` : ""}
+            
+            <!-- Feedbacks -->
+            <div style="margin-top:0.75rem;">
+              <h4 style="margin:0 0 0.5rem 0; color:#f3f4f6;">Feedback</h4>
+              <div id="member-feedback-list-${doc.id}">
+                ${Array.isArray(t.feedbacks) && t.feedbacks.length > 0 ? t.feedbacks.map(f => {
+                  const time = f.createdAt && f.createdAt.toDate ? f.createdAt.toDate().toLocaleString() : (f.createdAt ? new Date(f.createdAt).toLocaleString() : '');
+                  const author = f.author || 'Admin';
+                  return `<div style="padding:0.5rem; border:1px solid #334155; border-radius:6px; margin-bottom:0.5rem; background:#041024;"><div style=\"font-weight:600; color:#f3f4f6;\">${author} <span style=\"font-weight:400; color:#94a3b8; font-size:0.85rem; margin-left:0.5rem;\">${time}</span></div><div style=\"color:#cbd5e1; margin-top:0.25rem;\">${f.message}</div></div>`;
+                }).join('') : '<p style="color:#94a3b8;">No feedback yet.</p>'}
+              </div>
+            </div>
           </div>
         `;
       });
