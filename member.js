@@ -256,23 +256,14 @@ function getSafePollOptions(poll) {
 }
 
 function getDismissedInAppNotifications() {
-  try {
-    const stored = localStorage.getItem("dismissedInAppNotifications");
-    if (!stored) return [];
-    const parsed = JSON.parse(stored);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (error) {
-    console.warn("Unable to load dismissed in-app notifications:", error);
-    return [];
-  }
+  // Do not persist dismissed notifications across page reloads so admin notices
+  // appear again on every login/refresh. Only keep dismissed IDs in-memory.
+  return [];
 }
 
 function persistDismissedInAppNotifications() {
-  try {
-    localStorage.setItem("dismissedInAppNotifications", JSON.stringify(Array.from(dismissedInAppNotificationIds)));
-  } catch (error) {
-    console.warn("Unable to save dismissed in-app notifications:", error);
-  }
+  // Intentionally no-op: do not persist dismissed in-app notifications to storage
+  // so they reappear on next refresh/login as requested.
 }
 
 function showInAppNotificationOverlay(notification) {
