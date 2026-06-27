@@ -35,7 +35,9 @@
       <li><button class="nav-btn active" onclick="showSection('create-task')"><i class="fas fa-plus"></i> Create Task</button></li>
       <li><button class="nav-btn" onclick="showSection('create-poll')"><i class="fas fa-poll"></i> Create Poll</button></li>
       <li><button class="nav-btn" onclick="showSection('create-announcement')"><i class="fas fa-bullhorn"></i> Announcement</button></li>
+      <li><button class="nav-btn" onclick="showSection('create-in-app-notification')"><i class="fas fa-bell"></i> In-App Notice</button></li>
       <li><button class="nav-btn" onclick="showSection('create-resource')"><i class="fas fa-book"></i> Resource</button></li>
+      <li><button class="nav-btn" onclick="showSection('manage-in-app-notifications')"><i class="fas fa-bell"></i> Manage Notices</button></li>
       <li><button class="nav-btn" onclick="showSection('manage-polls')"><i class="fas fa-poll"></i> Manage Polls</button></li>
       <li><button class="nav-btn" onclick="showSection('manage-announcements')"><i class="fas fa-bullhorn"></i> Manage Announcements</button></li>
       <li><button class="nav-btn" onclick="showSection('support-tickets')"><i class="fas fa-ticket-alt"></i> Support Tickets</button></li>
@@ -157,7 +159,46 @@
           </form>
         </div>
       </section>
+
+      <!-- Create In-App Notification Section -->
+      <section id="create-in-app-notification" class="content-section">
+        <div class="card">
+          <h2>Create In-App Notification</h2>
+
+          <form onsubmit="event.preventDefault(); createInAppNotification();">
+            <div class="form-group">
+              <label for="inAppNotificationTitle">Title</label>
+              <input id="inAppNotificationTitle" type="text" placeholder="Enter notification title" required>
+            </div>
+
+            <div class="form-group">
+              <label for="inAppNotificationMessage">Message</label>
+              <textarea id="inAppNotificationMessage" placeholder="Enter the message members should see" rows="6" required></textarea>
+            </div>
+
+            <div class="form-group">
+              <label>Display To</label>
+              <div id="inAppNotificationRecipients" style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                <!-- Checkboxes will be populated by JavaScript -->
+              </div>
+              <p style="font-size: 0.85rem; color: #94a3b8; margin-top: 0.35rem;">Leave all unchecked to send this to everyone.</p>
+            </div>
+
+            <button type="submit" class="btn-warning"><i class="fas fa-bell"></i> Create In-App Notification</button>
+          </form>
+        </div>
+      </section>
       
+      <!-- Manage In-App Notifications Section -->
+      <section id="manage-in-app-notifications" class="content-section">
+        <div class="card">
+          <h2><i class="fas fa-bell"></i> Manage In-App Notices</h2>
+          <div id="inAppNotificationsList">
+            <p style="color: #94a3b8; text-align: center;">Loading in-app notices...</p>
+          </div>
+        </div>
+      </section>
+
       <!-- Create Resource Section -->
       <section id="create-resource" class="content-section">
         <div class="card">
@@ -890,7 +931,9 @@ function showSection(sectionId) {
     'create-task': '<i class="fas fa-plus"></i> Create Task',
     'create-poll': '<i class="fas fa-poll"></i> Create Poll',
     'create-announcement': '<i class="fas fa-bullhorn"></i> Create Announcement',
+    'create-in-app-notification': '<i class="fas fa-bell"></i> In-App Notification',
     'create-resource': '<i class="fas fa-book"></i> Create Resource',
+    'manage-in-app-notifications': '<i class="fas fa-bell"></i> Manage Notices',
     'manage-polls': '<i class="fas fa-poll"></i> Manage Polls',
     'manage-announcements': '<i class="fas fa-bullhorn"></i> Manage Announcements',
     'support-tickets': '<i class="fas fa-ticket-alt"></i> Support Tickets',

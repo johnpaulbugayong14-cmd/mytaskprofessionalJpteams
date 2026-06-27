@@ -403,6 +403,7 @@ function loadMembers() {
 
 function loadAnnouncementAssignTo() {
   const container = document.getElementById("announcementAssignTo");
+  if (!container) return;
   container.innerHTML = "";
 
   members.forEach(m => {
@@ -415,8 +416,90 @@ function loadAnnouncementAssignTo() {
   });
 }
 
+function loadInAppNotificationRecipients() {
+  const container = document.getElementById("inAppNotificationRecipients");
+  if (!container) return;
+  container.innerHTML = "";
+
+  members.forEach(m => {
+    container.innerHTML += `
+      <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.9rem;">
+        <input type="checkbox" value="${m.uid}" class="in-app-notification-recipient-checkbox">
+        ${m.name}
+      </label>
+    `;
+  });
+}
+
+function formatInAppNotificationDate(dateValue) {
+  if (!dateValue) return "Unknown date";
+  if (dateValue.toDate) return dateValue.toDate().toLocaleString();
+  if (dateValue instanceof Date) return dateValue.toLocaleString();
+  return new Date(dateValue).toLocaleString();
+}
+
+function loadInAppNotificationsList() {
+  const container = document.getElementById("inAppNotificationsList");
+  if (!container) return;
+
+  onSnapshot(collection(db, "inAppNotifications"), (snap) => {
+    const docs = [];
+    snap.forEach(docSnap => docs.push({ id: docSnap.id, ...docSnap.data() }));
+    docs.sort((a, b) => {
+      const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+      const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+      return timeB - timeA;
+    });
+
+    if (docs.length === 0) {
+      container.innerHTML = '<p style="color: #94a3b8; text-align: center;">No in-app notices created yet.</p>';
+      return;
+    }
+
+    container.innerHTML = docs.map((notification) => {
+      const recipientsText = Array.isArray(notification.assignedToNames) && notification.assignedToNames.length > 0
+        ? notification.assignedToNames.join(", ")
+        : (notification.targetType === "everyone" ? "Everyone" : "No recipients");
+
+      return `
+        <div style="border: 1px solid #374151; border-radius: 0.5rem; padding: 1rem; margin-bottom: 0.75rem; background: #111827;">
+          <div style="display: flex; justify-content: space-between; gap: 1rem; align-items: start; margin-bottom: 0.5rem;">
+            <div>
+              <h4 style="margin: 0 0 0.25rem 0; color: #f3f4f6;">${notification.title || "Untitled notice"}</h4>
+              <p style="margin: 0; color: #9ca3af; font-size: 0.875rem;">${formatInAppNotificationDate(notification.createdAt)}</p>
+            </div>
+            <button onclick="deleteInAppNotification('${notification.id}')" style="background: #ef4444; color: white; border: none; padding: 0.45rem 0.75rem; border-radius: 0.375rem; cursor: pointer;">Delete</button>
+          </div>
+          <p style="margin: 0 0 0.5rem 0; color: #d1d5db; white-space: pre-wrap;">${notification.message || ""}</p>
+          <p style="margin: 0; color: #60a5fa; font-size: 0.85rem;">Target: ${notification.targetType === "everyone" ? "Everyone" : recipientsText}</p>
+        </div>
+      `;
+    }).join('');
+  }, (error) => {
+    console.error("In-app notices list listener error:", error);
+    container.innerHTML = '<p style="color: #ef4444; text-align: center;">Unable to load in-app notices right now.</p>';
+  });
+}
+
+window.deleteInAppNotification = async function (id) {
+  if (!id) return;
+  if (!confirm("Delete this in-app notification? Members will stop seeing it.")) {
+    return;
+  }
+
+  try {
+    await deleteDoc(doc(db, "inAppNotifications", id));
+    alert("In-app notification deleted successfully.");
+  } catch (error) {
+    console.error("Error deleting in-app notification:", error);
+    alert(`Failed to delete in-app notification: ${error.message}`);
+  }
+};
+
 loadMembers();
 loadAnnouncementAssignTo();
+loadInAppNotificationRecipients();
+loadInAppNotificationsList();
 
 // Load live chat room list immediately so refresh always restores the list
 loadLiveChatRooms();
@@ -1239,6 +1322,50 @@ window.addAnnouncementComment = async function(announcementId) {
   } catch (error) {
     console.error("Error posting comment:", error);
     alert("Failed to post comment. Please try again.");
+  }
+};
+
+/* CREATE IN-APP NOTIFICATION */
+window.createInAppNotification = async function () {
+  const title = document.getElementById("inAppNotificationTitle").value.trim();
+  const message = document.getElementById("inAppNotificationMessage").value.trim();
+  const checkedBoxes = document.querySelectorAll(".in-app-notification-recipient-checkbox:checked");
+  const selectedRecipients = Array.from(checkedBoxes).map(cb => cb.value);
+
+  if (!title || !message) {
+    alert("Please fill all fields.");
+    return;
+  }
+
+  try {
+    const normalizedRecipients = selectedRecipients.includes("everyone") ? ["everyone"] : (selectedRecipients.length > 0 ? selectedRecipients : ["everyone"]);
+    const targetType = normalizedRecipients.includes("everyone") ? "everyone" : "specific";
+    const assignedToNames = normalizedRecipients.map(uid => {
+      const member = members.find(m => m.uid === uid);
+      return member ? member.name : uid;
+    });
+
+    const notificationData = {
+      title,
+      message,
+      targetType,
+      assignedTo: normalizedRecipients,
+      assignedToNames,
+      createdAt: new Date(),
+      active: true,
+      createdBy: adminEmail || "admin"
+    };
+
+    await addDoc(collection(db, "inAppNotifications"), notificationData);
+
+    document.getElementById("inAppNotificationTitle").value = "";
+    document.getElementById("inAppNotificationMessage").value = "";
+    document.querySelectorAll(".in-app-notification-recipient-checkbox").forEach(cb => cb.checked = false);
+
+    alert("In-app notification created successfully!");
+  } catch (error) {
+    console.error("Error creating in-app notification:", error);
+    alert(`Failed to create in-app notification: ${error.message}`);
   }
 };
 

@@ -978,6 +978,7 @@ canvas {
 
   .task-meta {
     flex-direction: column;
+}
   }
 
   /* Enhanced mobile comment styling */
@@ -1077,6 +1078,116 @@ canvas {
 
   .analytics-modal-close:hover {
     background: #dc2626;
+  }
+
+  .deadline-notification-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.86);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    z-index: 100000;
+  }
+
+  .deadline-notification-modal {
+    width: min(520px, 100%);
+    max-height: min(80vh, 720px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: #0f172a;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 1rem;
+    box-shadow: 0 28px 90px rgba(15, 23, 42, 0.45);
+    padding: 1.75rem;
+    color: #e2e8f0;
+    text-align: left;
+  }
+
+  .deadline-notification-title {
+    margin: 0 0 0.75rem;
+    font-size: 1.35rem;
+    letter-spacing: 0.01em;
+    color: #f8fafc;
+  }
+
+  .deadline-notification-description {
+    margin: 0 0 1.25rem;
+    color: #cbd5e1;
+    line-height: 1.7;
+    font-size: 0.98rem;
+  }
+
+  .deadline-notification-list {
+    list-style: none;
+    margin: 0 0 1.5rem;
+    padding: 0;
+    display: grid;
+    gap: 0.85rem;
+    overflow-y: auto;
+    padding-right: 0.35rem;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+  }
+
+  .deadline-notification-list::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .deadline-notification-list::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.45);
+    border-radius: 999px;
+  }
+
+  .deadline-notification-list-item {
+    background: rgba(148, 163, 184, 0.05);
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    border-radius: 0.85rem;
+    padding: 1rem 1rem 0.85rem;
+    color: #f8fafc;
+  }
+
+  .deadline-notification-list-item.overdue {
+    border-color: rgba(248, 113, 113, 0.35);
+    background: rgba(248, 113, 113, 0.08);
+  }
+
+  .deadline-notification-list-item.due-soon {
+    border-color: rgba(251, 191, 36, 0.35);
+    background: rgba(251, 191, 36, 0.08);
+  }
+
+  .deadline-notification-list-item strong {
+    display: block;
+    margin-bottom: 0.4rem;
+    color: #f8fafc;
+  }
+
+  .deadline-notification-list-item span {
+    display: block;
+    color: #cbd5e1;
+    font-size: 0.93rem;
+    line-height: 1.5;
+  }
+
+  .deadline-notification-close {
+    border: none;
+    background: #2563eb;
+    color: #ffffff;
+    width: 100%;
+    padding: 0.95rem 1rem;
+    border-radius: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    transition: background 180ms ease, transform 180ms ease;
+  }
+
+  .deadline-notification-close:hover {
+    background: #1d4ed8;
+    transform: translateY(-1px);
   }
 
   .mobile-nav-toggle {

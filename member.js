@@ -16,6 +16,9 @@ let chatMessagesById = {};
 let replyToMessage = null;
 let selectedChatImageData = null;
 let selectedChatImageName = null;
+let shownDeadlineTaskIds = new Set();
+let shownInAppNotificationIds = new Set();
+let dismissedInAppNotificationIds = new Set(getDismissedInAppNotifications());
 const container = document.getElementById("tasks");
 const emptyState = document.getElementById("emptyState");
 const welcomeEl = document.getElementById("welcome");
@@ -194,8 +197,161 @@ function getDeadlineWarning(deadlineStr, status) {
   return { class: "", message: "" };
 }
 
+function showTaskDeadlineModal(warnings) {
+  if (!Array.isArray(warnings) || warnings.length === 0) {
+    return;
+  }
+
+  const existingModal = document.getElementById('deadlineNotificationModal');
+  if (existingModal) {
+    existingModal.remove();
+  }
+
+  const overlay = document.createElement('div');
+  overlay.id = 'deadlineNotificationModal';
+  overlay.className = 'deadline-notification-overlay';
+
+  const modal = document.createElement('div');
+  modal.className = 'deadline-notification-modal';
+
+  const title = document.createElement('h2');
+  title.className = 'deadline-notification-title';
+  title.textContent = warnings.some(w => w.status.includes('Overdue')) ? 'Overdue task alert' : 'Due soon task alert';
+
+  const description = document.createElement('p');
+  description.className = 'deadline-notification-description';
+  description.textContent = 'The following task(s) need your attention:';
+
+  const list = document.createElement('ul');
+  list.className = 'deadline-notification-list';
+  warnings.forEach((warning) => {
+    const item = document.createElement('li');
+    item.className = `deadline-notification-list-item ${warning.status.includes('Overdue') ? 'overdue' : 'due-soon'}`;
+    item.innerHTML = `<strong>${warning.title}</strong><br><span>${warning.status}</span><br><span>Deadline: ${warning.deadline || 'Not set'}</span>`;
+    list.appendChild(item);
+  });
+
+  const button = document.createElement('button');
+  button.className = 'deadline-notification-close';
+  button.textContent = 'Dismiss';
+  button.onclick = () => overlay.remove();
+
+  modal.appendChild(title);
+  modal.appendChild(description);
+  modal.appendChild(list);
+  modal.appendChild(button);
+  overlay.appendChild(modal);
+
+  overlay.addEventListener('click', (event) => {
+    if (event.target === overlay) {
+      overlay.remove();
+    }
+  });
+
+  document.body.appendChild(overlay);
+}
+
 function getSafePollOptions(poll) {
   return Array.isArray(poll.options) ? poll.options : [];
+}
+
+function getDismissedInAppNotifications() {
+  try {
+    const stored = localStorage.getItem("dismissedInAppNotifications");
+    if (!stored) return [];
+    const parsed = JSON.parse(stored);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.warn("Unable to load dismissed in-app notifications:", error);
+    return [];
+  }
+}
+
+function persistDismissedInAppNotifications() {
+  try {
+    localStorage.setItem("dismissedInAppNotifications", JSON.stringify(Array.from(dismissedInAppNotificationIds)));
+  } catch (error) {
+    console.warn("Unable to save dismissed in-app notifications:", error);
+  }
+}
+
+function showInAppNotificationOverlay(notification) {
+  if (!notification || !notification.id) return;
+
+  const notificationId = notification.id;
+  if (shownInAppNotificationIds.has(notificationId) || dismissedInAppNotificationIds.has(notificationId)) {
+    return;
+  }
+
+  shownInAppNotificationIds.add(notificationId);
+
+  const existingModal = document.getElementById("inAppNotificationOverlay");
+  if (existingModal) {
+    existingModal.remove();
+  }
+
+  const overlay = document.createElement("div");
+  overlay.id = "inAppNotificationOverlay";
+  overlay.className = "deadline-notification-overlay";
+
+  const modal = document.createElement("div");
+  modal.className = "deadline-notification-modal";
+
+  const title = document.createElement("h2");
+  title.className = "deadline-notification-title";
+  title.textContent = notification.title || "New update";
+
+  const message = document.createElement("p");
+  message.className = "deadline-notification-description";
+  message.textContent = notification.message || "You have a new update from the admin.";
+
+  const button = document.createElement("button");
+  button.className = "deadline-notification-close";
+  button.textContent = "Dismiss";
+  button.onclick = () => {
+    dismissedInAppNotificationIds.add(notificationId);
+    persistDismissedInAppNotifications();
+    overlay.remove();
+  };
+
+  modal.appendChild(title);
+  modal.appendChild(message);
+  modal.appendChild(button);
+  overlay.appendChild(modal);
+
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) {
+      dismissedInAppNotificationIds.add(notificationId);
+      persistDismissedInAppNotifications();
+      overlay.remove();
+    }
+  });
+
+  document.body.appendChild(overlay);
+}
+
+function loadInAppNotifications() {
+  onSnapshot(collection(db, "inAppNotifications"), (snap) => {
+    const docs = [];
+    snap.forEach(docSnap => docs.push({ id: docSnap.id, ...docSnap.data() }));
+    docs.sort((a, b) => {
+      const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+      const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+      return timeB - timeA;
+    });
+
+    docs.forEach((notification) => {
+      if (notification.active === false) return;
+      const targetType = notification.targetType || "everyone";
+      const assignedTo = Array.isArray(notification.assignedTo) ? notification.assignedTo : [];
+      const shouldShow = targetType === "everyone" || assignedTo.includes("everyone") || assignedTo.includes(userEmail);
+      if (shouldShow) {
+        showInAppNotificationOverlay(notification);
+      }
+    });
+  }, (error) => {
+    console.error("In-app notifications listener error:", error);
+  });
 }
 
 function getSafePollVotes(poll) {
@@ -1501,6 +1657,7 @@ setupMentionAutocomplete('chatMessageInput', 'memberMentionDropdown');
       console.log('Tasks snapshot received, docs count:', snap.size);
       container.innerHTML = "";
       let taskCount = 0;
+      const deadlineWarnings = [];
 
       const docs = [];
       snap.forEach(doc => docs.push(doc));
@@ -1513,6 +1670,14 @@ setupMentionAutocomplete('chatMessageInput', 'memberMentionDropdown');
 
         taskCount++;
         const warning = getDeadlineWarning(t.deadline, t.status);
+        if (warning.message) {
+          deadlineWarnings.push({
+            id: doc.id,
+            title: t.title,
+            deadline: t.deadline,
+            status: warning.message
+          });
+        }
         container.innerHTML += `
           <div class="task-item ${warning.class} ${t.status === "needs action" ? "task-needs-action" : ""}">
             <div class="task-header">
@@ -1531,6 +1696,14 @@ setupMentionAutocomplete('chatMessageInput', 'memberMentionDropdown');
         `;
       });
 
+      if (deadlineWarnings.length > 0) {
+        const newDeadlineWarnings = deadlineWarnings.filter(warning => !shownDeadlineTaskIds.has(warning.id));
+        if (newDeadlineWarnings.length > 0) {
+          showTaskDeadlineModal(newDeadlineWarnings);
+          newDeadlineWarnings.forEach(warning => shownDeadlineTaskIds.add(warning.id));
+        }
+      }
+
       if (emptyState) {
         emptyState.style.display = taskCount === 0 ? "block" : "none";
       }
@@ -1542,9 +1715,10 @@ setupMentionAutocomplete('chatMessageInput', 'memberMentionDropdown');
       console.error('Tasks onSnapshot error:', error);
     });
     
-    // Load polls and announcements
+    // Load polls, announcements, and in-app notifications
     loadPolls();
     loadAnnouncements();
+    loadInAppNotifications();
     loadProgressReport();
     loadResources();
 
