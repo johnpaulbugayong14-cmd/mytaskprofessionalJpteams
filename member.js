@@ -330,6 +330,177 @@ function showInAppNotificationOverlay(notification) {
   document.body.appendChild(overlay);
 }
 
+// Maintenance overlay: when admin enables maintenance, show notice and allow only tickets
+function checkMaintenance() {
+  try {
+    const maintenanceRef = doc(db, 'appSettings', 'maintenance');
+    onSnapshot(maintenanceRef, (snap) => {
+      const data = snap.exists() ? snap.data() : { enabled: false };
+      const enabled = !!data.enabled;
+      const message = data.message || 'The site is currently under maintenance. You may submit a support ticket or view ticket status.';
+
+      // Sections and nav allowed during maintenance
+      const allowedSections = new Set(['submit-ticket', 'ticket-history']);
+
+      // Hide/show nav items
+      document.querySelectorAll('.nav-list .nav-btn').forEach(btn => {
+        try {
+          const onclick = btn.getAttribute('onclick') || '';
+          const matches = onclick.match(/showSection\('\s*([^']+)\s*'\)/);
+          const sectionId = matches ? matches[1] : null;
+          if (enabled) {
+            if (!allowedSections.has(sectionId)) {
+              btn.style.display = 'none';
+            } else {
+              btn.style.display = '';
+            }
+          } else {
+            btn.style.display = '';
+          }
+        } catch (e) {
+          // ignore
+        }
+      });
+
+      // Show/hide sections
+      document.querySelectorAll('.content-section').forEach(sec => {
+        if (enabled) {
+          if (!allowedSections.has(sec.id)) {
+            sec.dataset.hiddenByMaintenance = 'true';
+            sec.style.display = 'none';
+          } else {
+            sec.style.display = '';
+            delete sec.dataset.hiddenByMaintenance;
+          }
+        } else {
+          sec.style.display = '';
+          delete sec.dataset.hiddenByMaintenance;
+        }
+      });
+
+      // Ensure current section is allowed
+      // Render maintenance banner into a section card (e.g. submit-ticket, ticket-history)
+      function renderMaintenanceBannerInSection(sectionSelector, msg) {
+        const sectionCard = document.querySelector(sectionSelector);
+        if (!sectionCard) return;
+        let banner = sectionCard.querySelector('.maintenance-banner');
+        if (!banner) {
+          banner = document.createElement('div');
+          banner.className = 'maintenance-banner';
+          banner.style.marginTop = '1rem';
+          banner.style.color = '#e5e7eb';
+          banner.style.padding = '0.75rem';
+          banner.style.background = '#1f2937';
+          banner.style.border = '1px solid #374151';
+          banner.style.borderRadius = '0.5rem';
+          const h2 = sectionCard.querySelector('h2');
+          if (h2 && h2.parentNode === sectionCard) {
+            h2.insertAdjacentElement('afterend', banner);
+          } else {
+            sectionCard.insertBefore(banner, sectionCard.firstChild);
+          }
+        }
+        banner.textContent = msg || '';
+        banner.style.display = msg ? '' : 'none';
+      }
+
+      function removeMaintenanceBannerFromSection(sectionSelector) {
+        const sectionCard = document.querySelector(sectionSelector);
+        if (!sectionCard) return;
+        const banner = sectionCard.querySelector('.maintenance-banner');
+        if (banner) banner.remove();
+      }
+
+      // Header banner under page title
+      function renderHeaderMaintenanceBanner(msg) {
+        const header = document.querySelector('.content-header');
+        if (!header) return;
+        let banner = header.querySelector('.maintenance-header-banner');
+        if (!banner) {
+          banner = document.createElement('div');
+          banner.className = 'maintenance-header-banner';
+          banner.style.marginTop = '0.5rem';
+          banner.style.color = '#fee2e2';
+          banner.style.padding = '0.5rem 0.75rem';
+          banner.style.background = '#b91c1c';
+          banner.style.borderRadius = '0.375rem';
+          banner.style.fontWeight = '700';
+          header.appendChild(banner);
+        }
+        banner.textContent = msg || '';
+        banner.style.display = msg ? '' : 'none';
+      }
+
+      function removeHeaderMaintenanceBanner() {
+        document.querySelectorAll('.maintenance-header-banner').forEach(el => el.remove());
+      }
+
+      if (enabled) {
+        // Render in submit-ticket and ticket-history, plus header banner
+        renderMaintenanceBannerInSection('#submit-ticket .card', message);
+        renderMaintenanceBannerInSection('#ticket-history .card', message);
+        renderHeaderMaintenanceBanner('THIS PAGE IS UNDER MAINTENANCE');
+        // Monkeypatch showSection to enforce maintenance
+        if (!window._originalShowSection) {
+          window._originalShowSection = window.showSection.bind(window);
+          window.showSection = function(sectionId) {
+            if (!allowedSections.has(sectionId)) {
+              // redirect to submit-ticket and show message there
+              window._originalShowSection('submit-ticket');
+              const submitCard = document.querySelector('#submit-ticket .card');
+              if (submitCard) {
+                let msgEl = submitCard.querySelector('.maintenance-message');
+                if (!msgEl) {
+                  msgEl = document.createElement('div');
+                  msgEl.className = 'maintenance-message';
+                  msgEl.style.marginTop = '1rem';
+                  msgEl.style.color = '#94a3b8';
+                  msgEl.style.padding = '0.75rem';
+                  msgEl.style.background = '#0f172a';
+                  msgEl.style.border = '1px solid #374151';
+                  msgEl.style.borderRadius = '0.5rem';
+                  submitCard.insertBefore(msgEl, submitCard.firstChild.nextSibling);
+                }
+                msgEl.textContent = message;
+              }
+              return;
+            }
+            window._originalShowSection(sectionId);
+          };
+        } else {
+          // update maintenance message if already patched
+          const submitCard = document.querySelector('#submit-ticket .card');
+          if (submitCard) {
+            let msgEl = submitCard.querySelector('.maintenance-message');
+            if (msgEl) msgEl.textContent = message;
+          }
+        }
+
+        // Activate submit-ticket if current visible section is not allowed
+        const active = document.querySelector('.content-section.active');
+        if (!active || !allowedSections.has(active.id)) {
+          window._originalShowSection('submit-ticket');
+        }
+        window.maintenanceEnforced = true;
+      } else {
+        // restore original showSection if present
+        if (window._originalShowSection) {
+          window.showSection = window._originalShowSection;
+          window._originalShowSection = null;
+        }
+        window.maintenanceEnforced = false;
+        // remove any maintenance message elements
+        document.querySelectorAll('.maintenance-message').forEach(el => el.remove());
+        removeMaintenanceMessageFromSubmitCard();
+      }
+    }, (error) => {
+      console.error('Maintenance onSnapshot error:', error);
+    });
+  } catch (error) {
+    console.error('Failed to initialize maintenance listener:', error);
+  }
+}
+
 function loadInAppNotifications() {
   onSnapshot(collection(db, "inAppNotifications"), (snap) => {
     const docs = [];
@@ -1704,6 +1875,7 @@ setupMentionAutocomplete('chatMessageInput', 'memberMentionDropdown');
     loadPolls();
     loadAnnouncements();
     loadInAppNotifications();
+    checkMaintenance();
     loadProgressReport();
     loadResources();
 

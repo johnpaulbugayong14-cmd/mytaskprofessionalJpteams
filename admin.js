@@ -540,6 +540,66 @@ loadLiveChatRooms();
   console.log('=== SETTING UP ADMIN LISTENERS ===');
   console.log('Admin authenticated, email:', adminEmail, 'role:', adminRole);
 
+  // Maintenance settings
+  async function loadMaintenanceSettings() {
+    try {
+      const maintenanceRef = doc(db, 'appSettings', 'maintenance');
+      onSnapshot(maintenanceRef, (snap) => {
+        const enabledEl = document.getElementById('maintenanceEnabled');
+        const messageEl = document.getElementById('maintenanceMessage');
+        const statusEl = document.getElementById('maintenanceStatus');
+
+        if (!enabledEl || !messageEl || !statusEl) return;
+
+        if (!snap.exists()) {
+          enabledEl.checked = false;
+          messageEl.value = '';
+          statusEl.textContent = 'No maintenance settings configured.';
+          return;
+        }
+
+        const data = snap.data();
+        enabledEl.checked = !!data.enabled;
+        messageEl.value = data.message || '';
+        statusEl.textContent = data.enabled ? `Enabled — last updated: ${data.updatedAt || ''}` : 'Disabled';
+      });
+    } catch (error) {
+      console.error('Failed to load maintenance settings:', error);
+    }
+  }
+
+  window.toggleMaintenance = async function () {
+    const enabledEl = document.getElementById('maintenanceEnabled');
+    const messageEl = document.getElementById('maintenanceMessage');
+    const statusEl = document.getElementById('maintenanceStatus');
+    if (!enabledEl || !messageEl || !statusEl) return;
+
+    const maintenanceRef = doc(db, 'appSettings', 'maintenance');
+    try {
+      await setDoc(maintenanceRef, {
+        enabled: !!enabledEl.checked,
+        message: messageEl.value || '',
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+      statusEl.textContent = 'Saved successfully.';
+    } catch (error) {
+      console.error('Failed to save maintenance settings:', error);
+      statusEl.textContent = 'Failed to save. See console.';
+    }
+  };
+
+  // Wire up save button
+  setTimeout(() => {
+    const saveBtn = document.getElementById('saveMaintenanceBtn');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', () => {
+        window.toggleMaintenance();
+      });
+    }
+  }, 200);
+
+  loadMaintenanceSettings();
+
   /* LOAD TICKETS */
   onSnapshot(collection(db, "tickets"), (snap) => {
     console.log('=== ADMIN TICKETS LISTENER TRIGGERED ===');

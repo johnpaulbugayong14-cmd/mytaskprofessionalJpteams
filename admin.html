@@ -41,6 +41,7 @@
       <li><button class="nav-btn" onclick="showSection('manage-polls')"><i class="fas fa-poll"></i> Manage Polls</button></li>
       <li><button class="nav-btn" onclick="showSection('manage-announcements')"><i class="fas fa-bullhorn"></i> Manage Announcements</button></li>
       <li><button class="nav-btn" onclick="showSection('support-tickets')"><i class="fas fa-ticket-alt"></i> Support Tickets</button></li>
+      <li><button class="nav-btn" onclick="showSection('maintenance')"><i class="fas fa-tools"></i> Maintenance</button></li>
       <li><button class="nav-btn" onclick="showSection('manage-resources')"><i class="fas fa-book"></i> Manage Resources</button></li>
       <li><button class="nav-btn" onclick="showSection('progress-report')"><i class="fas fa-chart-line"></i> Progress Report</button></li>
       <li><button class="nav-btn" onclick="showSection('task-analytics')"><i class="fas fa-chart-bar"></i> Analytics</button></li>
@@ -265,6 +266,29 @@
           </div>
         </div>
       </section>
+
+      <!-- Maintenance Mode Section -->
+      <section id="maintenance" class="content-section">
+        <div class="card">
+          <h2><i class="fas fa-tools"></i> Maintenance Mode</h2>
+          <p style="color: #94a3b8;">When enabled, members will see a maintenance notice and can only submit support tickets or view ticket status.</p>
+
+          <div style="margin-top: 1rem; display: flex; align-items: center; gap: 1rem;">
+            <label style="display: flex; align-items: center; gap: 0.5rem;">
+              <input type="checkbox" id="maintenanceEnabled">
+              <span>Enable Maintenance</span>
+            </label>
+            <button id="saveMaintenanceBtn" class="btn-secondary" style="background: #3b82f6; color: white;">Save</button>
+          </div>
+
+          <div style="margin-top: 1rem;">
+            <label for="maintenanceMessage">Message shown to members</label>
+            <textarea id="maintenanceMessage" rows="4" style="width: 100%; margin-top: 0.5rem;" placeholder="E.g. We're performing maintenance. You can submit a support ticket or view ticket status."></textarea>
+          </div>
+
+          <div id="maintenanceStatus" style="margin-top: 1rem; color: #94a3b8;"></div>
+        </div>
+      </section>
       
       <!-- Progress Report Section -->
       <section id="progress-report" class="content-section">
@@ -419,6 +443,7 @@ function showSection(sectionId) {
     'manage-polls': '<i class="fas fa-poll"></i> Manage Polls',
     'manage-announcements': '<i class="fas fa-bullhorn"></i> Manage Announcements',
     'support-tickets': '<i class="fas fa-ticket-alt"></i> Support Tickets',
+    'maintenance': '<i class="fas fa-tools"></i> Maintenance Mode',
     'manage-resources': '<i class="fas fa-book"></i> Manage Resources',
     'progress-report': '<i class="fas fa-chart-line"></i> Progress Report',
     'task-analytics': '<i class="fas fa-chart-bar"></i> Task Analytics',
