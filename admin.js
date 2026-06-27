@@ -1039,10 +1039,12 @@ onSnapshot(collection(db, "tasks"), (snap) => {
     docs.forEach(docSnap => {
       const t = docSnap.data();
       // Render existing feedbacks
-      const feedbackHtml = Array.isArray(t.feedbacks) && t.feedbacks.length > 0 ? t.feedbacks.map(f => {
+      const feedbackHtml = Array.isArray(t.feedbacks) && t.feedbacks.length > 0 ? t.feedbacks.map((f, idx) => {
         const time = f.createdAt && f.createdAt.toDate ? f.createdAt.toDate().toLocaleString() : (f.createdAt ? new Date(f.createdAt).toLocaleString() : '');
-        const author = f.author || 'Admin';
-        return `<div style="padding:0.5rem; border:1px solid #334155; border-radius:6px; margin-bottom:0.5rem; background:#041024;"><div style=\"font-weight:600; color:#f3f4f6;\">${author} <span style=\"font-weight:400; color:#94a3b8; font-size:0.85rem; margin-left:0.5rem;\">${time}</span></div><div style=\"color:#cbd5e1; margin-top:0.25rem;\">${f.message}</div></div>`;
+        const authorName = getUserName(f.author) || 'Admin';
+        const showDelete = normalizeEmail(f.author) === normalizeEmail(adminEmail || '');
+        const deleteButton = showDelete ? `<button onclick="removeTaskFeedback('${docSnap.id}', ${idx})" style=\"background:#ef4444; color:white; border:none; padding:0.25rem 0.5rem; border-radius:6px; margin-left:0.5rem;\">Delete</button>` : '';
+        return `<div style="padding:0.5rem; border:1px solid #334155; border-radius:6px; margin-bottom:0.5rem; background:#041024;"><div style=\"display:flex; align-items:center; justify-content:space-between; gap:0.5rem;\"><div style=\\"font-weight:600; color:#f3f4f6;\\">${authorName} <span style=\\"font-weight:400; color:#94a3b8; font-size:0.85rem; margin-left:0.5rem;\\">${time}</span></div><div>${deleteButton}</div></div><div style=\"color:#cbd5e1; margin-top:0.25rem;\">${f.message}</div></div>`;
       }).join('') : '<p style="color:#94a3b8;">No feedback yet.</p>';
 
       html += `
@@ -1108,6 +1110,37 @@ window.addTaskFeedback = async function(taskId) {
   } catch (error) {
     console.error('Failed to add feedback:', error);
     alert('Failed to add feedback. See console for details.');
+  }
+};
+
+// Remove a specific feedback from a task (admin only) - uses array index at render time
+window.removeTaskFeedback = async function(taskId, feedbackIndex) {
+  if (!confirm('Delete this feedback? This action cannot be undone.')) return;
+  try {
+    const taskRef = doc(db, 'tasks', taskId);
+    const snap = await getDoc(taskRef);
+    if (!snap.exists()) {
+      alert('Task not found');
+      return;
+    }
+    const data = snap.data();
+    const feedbacks = Array.isArray(data.feedbacks) ? data.feedbacks.slice() : [];
+    if (feedbackIndex < 0 || feedbackIndex >= feedbacks.length) {
+      alert('Feedback not found');
+      return;
+    }
+    const target = feedbacks[feedbackIndex];
+    // Only allow admin to remove their own feedback
+    if (normalizeEmail(target.author) !== normalizeEmail(adminEmail || '')) {
+      alert('You can only delete your own feedback');
+      return;
+    }
+    feedbacks.splice(feedbackIndex, 1);
+    await updateDoc(taskRef, { feedbacks });
+    alert('Feedback deleted');
+  } catch (error) {
+    console.error('Failed to remove feedback:', error);
+    alert('Failed to remove feedback. See console for details.');
   }
 };
 

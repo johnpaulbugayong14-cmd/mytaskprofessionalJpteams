@@ -1882,8 +1882,8 @@ setupMentionAutocomplete('chatMessageInput', 'memberMentionDropdown');
               <div id="member-feedback-list-${doc.id}">
                 ${Array.isArray(t.feedbacks) && t.feedbacks.length > 0 ? t.feedbacks.map(f => {
                   const time = f.createdAt && f.createdAt.toDate ? f.createdAt.toDate().toLocaleString() : (f.createdAt ? new Date(f.createdAt).toLocaleString() : '');
-                  const author = f.author || 'Admin';
-                  return `<div style="padding:0.5rem; border:1px solid #334155; border-radius:6px; margin-bottom:0.5rem; background:#041024;"><div style=\"font-weight:600; color:#f3f4f6;\">${author} <span style=\"font-weight:400; color:#94a3b8; font-size:0.85rem; margin-left:0.5rem;\">${time}</span></div><div style=\"color:#cbd5e1; margin-top:0.25rem;\">${f.message}</div></div>`;
+                  const authorName = getUserName(f.author) || 'Admin';
+                  return `<div style="padding:0.5rem; border:1px solid #334155; border-radius:6px; margin-bottom:0.5rem; background:#041024;"><div style=\\"font-weight:600; color:#f3f4f6;\\">${authorName} <span style=\\"font-weight:400; color:#94a3b8; font-size:0.85rem; margin-left:0.5rem;\\">${time}</span></div><div style=\\"color:#cbd5e1; margin-top:0.25rem;\\">${f.message}</div></div>`;
                 }).join('') : '<p style="color:#94a3b8;">No feedback yet.</p>'}
               </div>
             </div>
