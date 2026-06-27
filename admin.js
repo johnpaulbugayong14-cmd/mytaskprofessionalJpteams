@@ -90,7 +90,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 import { db } from "./firebase.js";
-import { signOutUser, getStoredUserEmail, getStoredUserRole } from "./auth.js";
+import { signOutUser, getStoredUserEmail, getStoredUserRole, setUserRole } from "./auth.js";
 import { sendNotificationToUsers, showLocalNotification, initializeNotifications } from "./notifications.js";
 
 window.signOutUser = signOutUser;
@@ -192,6 +192,82 @@ let members = [
   { uid: "rogelioledda@gmail.com", name: "Rogelio Ledda" },
   { uid: "johnpaulbugayong@gmail.com", name: "Admin" }
 ];
+
+const memberRoles = {
+  member: {
+    label: 'Member',
+    privileges: []
+  },
+  'limited-admin': {
+    label: 'Limited Admin',
+    privileges: [
+      'manage task created',
+      'manage progress report section',
+      'create task',
+      'manage chat',
+      'manage ticket submitted',
+      'create announcement',
+      'create poll',
+      'create resource',
+      'task analytics'
+    ]
+  },
+  admin: {
+    label: 'Admin',
+    privileges: [
+      'manage task created',
+      'manage progress report section',
+      'create task',
+      'manage chat',
+      'manage ticket submitted',
+      'create announcement',
+      'create poll',
+      'create resource',
+      'manage in-app notifications',
+      'manage polls',
+      'manage announcements',
+      'manage resources',
+      'manage members',
+      'maintenance',
+      'task analytics',
+      'video conference'
+    ]
+  }
+};
+
+const adminRoleAllowedSections = {
+  member: [],
+  'limited-admin': [
+    'create-task',
+    'create-poll',
+    'create-announcement',
+    'create-resource',
+    'support-tickets',
+    'progress-report',
+    'task-analytics',
+    'all-tasks',
+    'live-chat'
+  ],
+  admin: [
+    'create-task',
+    'create-poll',
+    'create-announcement',
+    'create-in-app-notification',
+    'create-resource',
+    'manage-in-app-notifications',
+    'manage-polls',
+    'manage-announcements',
+    'support-tickets',
+    'maintenance',
+    'manage-resources',
+    'manage-members',
+    'progress-report',
+    'task-analytics',
+    'all-tasks',
+    'video-conference',
+    'live-chat'
+  ]
+};
 
 const mentionUsers = [
   ...members.filter(member => member.uid !== 'everyone'),
@@ -431,6 +507,154 @@ function loadInAppNotificationRecipients() {
   });
 }
 
+async function loadMemberRoles() {
+  try {
+    const snapshot = await getDocs(collection(db, "userRoles"));
+    snapshot.forEach((docSnap) => {
+      const role = docSnap.data()?.role;
+      const member = members.find(m => normalizeEmail(m.uid) === normalizeEmail(docSnap.id));
+      if (member && role) {
+        member.role = role;
+      }
+    });
+  } catch (error) {
+    console.warn("Could not load member roles from Firestore:", error);
+  }
+}
+
+function getPrivilegeList(role) {
+  const roleData = memberRoles[role] || memberRoles.member;
+  return roleData.privileges.map(privilege => `<li style="margin: 0.25rem 0; color: #d1d5db;">${privilege}</li>`).join('');
+}
+
+function getAllowedSections(role) {
+  return adminRoleAllowedSections[role] || [];
+}
+
+function applyAdminRoleRestrictions() {
+  const allowedSections = getAllowedSections(adminRole);
+  const navButtons = document.querySelectorAll('.nav-btn');
+  navButtons.forEach(btn => {
+    const onclickValue = btn.getAttribute('onclick') || '';
+    const match = onclickValue.match(/showSection\('([^']+)'\)/);
+    if (!match) return;
+    const sectionId = match[1];
+    btn.style.display = allowedSections.includes(sectionId) ? '' : 'none';
+  });
+
+  const sections = document.querySelectorAll('.content-section');
+  sections.forEach(section => {
+    section.style.display = allowedSections.includes(section.id) ? '' : 'none';
+    section.classList.remove('active');
+  });
+
+  const firstAllowed = allowedSections.find(id => document.getElementById(id));
+  if (firstAllowed) {
+    showSection(firstAllowed);
+  }
+}
+
+function waitForAdminRole() {
+  return new Promise((resolve) => {
+    const start = Date.now();
+    const interval = setInterval(() => {
+      if (adminRole !== null || Date.now() - start > 3000) {
+        clearInterval(interval);
+        resolve();
+      }
+    }, 100);
+  });
+}
+
+async function applyAdminRoleRestrictionsWhenReady() {
+  await waitForAdminRole();
+  applyAdminRoleRestrictions();
+}
+
+async function loadMemberRoles() {
+  try {
+    const snapshot = await getDocs(collection(db, "userRoles"));
+    snapshot.forEach((docSnap) => {
+      const role = docSnap.data()?.role;
+      const member = members.find(m => normalizeEmail(m.uid) === normalizeEmail(docSnap.id));
+      if (member && role) {
+        member.role = role;
+      }
+    });
+  } catch (error) {
+    console.warn("Could not load member roles from Firestore:", error);
+  }
+}
+
+function renderMemberManagementPanel() {
+  const container = document.getElementById('memberManagementPanel');
+  if (!container) return;
+
+  container.innerHTML = members
+    .filter(member => member.uid !== 'johnpaulbugayong@gmail.com' && member.uid !== 'everyone')
+    .map(member => {
+      const role = member.role || 'member';
+      const privileges = getPrivilegeList(role);
+      const actionLabel = role === 'limited-admin' ? 'Demote to Member' : (role === 'admin' ? 'Demote to Member' : 'Grant Limited Admin');
+      const actionFn = role === 'limited-admin' || role === 'admin' ? 'demoteMemberToMember' : 'promoteMemberToLimitedAdmin';
+      const badgeColor = role === 'limited-admin' ? '#7c3aed' : (role === 'admin' ? '#10b981' : '#64748b');
+
+      return `
+      <div style="border: 1px solid #374151; border-radius: 0.75rem; padding: 1rem; margin-bottom: 1rem; background: #111827;">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
+          <div>
+            <h3 style="margin: 0 0 0.5rem 0; color: #f8fafc;">${member.name}</h3>
+            <p style="margin: 0 0.5rem 0 0; color: #94a3b8; font-size: 0.9rem;">${member.uid}</p>
+            <span style="display: inline-block; padding: 0.25rem 0.75rem; border-radius: 999px; background: ${badgeColor}; color: white; font-size: 0.8rem;">${role.toUpperCase()}</span>
+          </div>
+          <button onclick="${actionFn}('${member.uid}')" style="background: ${role === 'limited-admin' || role === 'admin' ? '#ef4444' : '#10b981'}; color: white; border: none; padding: 0.6rem 1rem; border-radius: 0.5rem; cursor: pointer;">${actionLabel}</button>
+        </div>
+        <div style="margin-top: 1rem;">
+          <strong style="color: #f8fafc;">Privileges:</strong>
+          <ul style="margin: 0.75rem 0 0 1.25rem; padding: 0; list-style: disc;">${privileges}</ul>
+        </div>
+      </div>
+    `;
+    }).join('');
+}
+
+async function setMemberRole(email, role) {
+  if (!email || !role) return;
+  const confirmMessage = role === 'limited-admin'
+    ? 'Grant limited admin privileges to this member?'
+    : (role === 'admin'
+      ? 'Grant full admin privileges to this member?'
+      : 'Revoke admin privileges and return this member to a standard member role?');
+
+  if (!confirm(confirmMessage)) return;
+
+  try {
+    await setUserRole(email, role);
+    const member = members.find(m => m.uid === email);
+    if (member) member.role = role;
+    await loadMemberRoles();
+    renderMemberManagementPanel();
+    await applyAdminRoleRestrictionsWhenReady();
+    alert(`Role updated to ${role.toUpperCase()}. The user will reflect this role on next login.`);
+  } catch (error) {
+    console.error('Failed to update member role:', error);
+    alert('Could not update role. Check console for details.');
+  }
+}
+
+async function promoteMemberToLimitedAdmin(email) {
+  await setMemberRole(email, 'limited-admin');
+}
+
+async function demoteMemberToMember(email) {
+  await setMemberRole(email, 'member');
+}
+
+window.promoteMemberToLimitedAdmin = promoteMemberToLimitedAdmin;
+window.promoteMemberToAdmin = promoteMemberToLimitedAdmin;
+window.demoteMemberToMember = demoteMemberToMember;
+window.renderMemberManagementPanel = renderMemberManagementPanel;
+
 function formatInAppNotificationDate(dateValue) {
   if (!dateValue) return "Unknown date";
   if (dateValue.toDate) return dateValue.toDate().toLocaleString();
@@ -500,6 +724,14 @@ loadMembers();
 loadAnnouncementAssignTo();
 loadInAppNotificationRecipients();
 loadInAppNotificationsList();
+loadMemberRoles().then(() => {
+  renderMemberManagementPanel();
+  applyAdminRoleRestrictionsWhenReady();
+}).catch((error) => {
+  console.warn('Unable to load member roles before rendering management panel:', error);
+  renderMemberManagementPanel();
+  applyAdminRoleRestrictionsWhenReady();
+});
 
 // Load live chat room list immediately so refresh always restores the list
 loadLiveChatRooms();
@@ -663,7 +895,7 @@ loadLiveChatRooms();
             </div>
           </div>
           
-          <p style="margin: 0 0 1rem 0; color: #d1d5db; white-space: pre-wrap;">${ticket.description}</p>
+<p style="margin: 0 0 1rem 0; color: #d1d5db; white-space: pre-wrap; word-break: break-word;">${ticket.description}</p>
           
           ${responseHtml ? `
             <div style="margin-bottom: 1rem;">
@@ -716,7 +948,7 @@ loadLiveChatRooms();
         <div class="card" style="margin-bottom: 1rem;">
           <h4 style="margin-bottom: 0.5rem;">${resource.title}</h4>
           <p style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 0.75rem;">Posted: ${createdDate}</p>
-          <p style="margin: 0.5rem 0; line-height: 1.4; color: #d1d5db;">${resource.description}</p>
+          <p style="margin: 0.5rem 0; line-height: 1.4; color: #d1d5db; white-space: pre-wrap; word-break: break-word;">${resource.description}</p>
           <div style="margin-top: 1rem;">
             <a href="${resource.link}" target="_blank" style="background: #10b981; color: white; padding: 0.5rem 1rem; border-radius: 0.375rem; text-decoration: none; display: inline-block;">🔗 Open Resource</a>
             <button onclick="window.deleteResource('${docSnap.id}')" class="btn-danger" style="margin-left: 0.5rem; padding: 0.5rem 1rem;">🗑️ Delete</button>
@@ -1044,7 +1276,7 @@ onSnapshot(collection(db, "tasks"), (snap) => {
         const authorName = getUserName(f.author) || 'Admin';
         const showDelete = normalizeEmail(f.author) === normalizeEmail(adminEmail || '');
         const deleteButton = showDelete ? `<button onclick="removeTaskFeedback('${docSnap.id}', ${idx})" style=\"background:#ef4444; color:white; border:none; padding:0.25rem 0.5rem; border-radius:6px; margin-left:0.5rem;\">Delete</button>` : '';
-        return `<div style="padding:0.5rem; border:1px solid #334155; border-radius:6px; margin-bottom:0.5rem; background:#041024;"><div style=\"display:flex; align-items:center; justify-content:space-between; gap:0.5rem;\"><div style=\\"font-weight:600; color:#f3f4f6;\\">${authorName} <span style=\\"font-weight:400; color:#94a3b8; font-size:0.85rem; margin-left:0.5rem;\\">${time}</span></div><div>${deleteButton}</div></div><div style=\"color:#cbd5e1; margin-top:0.25rem;\">${f.message}</div></div>`;
+        return `<div style="padding:0.5rem; border:1px solid #334155; border-radius:6px; margin-bottom:0.5rem; background:#041024;"><div style=\"display:flex; align-items:center; justify-content:space-between; gap:0.5rem;\"><div style=\\"font-weight:600; color:#f3f4f6;\\">${authorName} <span style=\\"font-weight:400; color:#94a3b8; font-size:0.85rem; margin-left:0.5rem;\\">${time}</span></div><div>${deleteButton}</div></div><div style=\"color:#cbd5e1; margin-top:0.25rem; white-space: pre-wrap; word-break: break-word;\">${f.message}</div></div>`;
       }).join('') : '<p style="color:#94a3b8;">No feedback yet.</p>';
 
       html += `
@@ -1052,7 +1284,7 @@ onSnapshot(collection(db, "tasks"), (snap) => {
           <h3>${t.title}</h3>
           <p>Assigned To: ${t.assignedToName}</p>
           <p>Deadline: ${t.deadline}</p>
-          ${t.description ? `<p><strong>Description:</strong> ${t.description}</p>` : ""}  
+          ${t.description ? `<p><strong>Description:</strong> <span style="white-space: pre-wrap; word-break: break-word;">${t.description}</span></p>` : ""}  
           ${t.linkURL ? `<a href="${t.linkURL}" target="_blank">🔗 Open Link</a>` : ""}
           <p>Status: <span style="${t.status === 'pending validation' ? 'color: #f59e0b; font-weight: bold;' : ''}">${t.status}</span></p>
           ${t.status === 'pending validation' ? '<p style="color: #f59e0b; font-weight: bold;">⚠️ Member has submitted this task for validation!</p>' : ''}
@@ -1104,7 +1336,7 @@ window.addTaskFeedback = async function(taskId) {
       const item = document.createElement('div');
       item.style.cssText = 'padding:0.5rem; border:1px solid #334155; border-radius:6px; margin-bottom:0.5rem; background:#041024;';
       const time = new Date(feedback.createdAt).toLocaleString();
-      item.innerHTML = `<div style="font-weight:600; color:#f3f4f6;">${feedback.author} <span style=\"font-weight:400; color:#94a3b8; font-size:0.85rem; margin-left:0.5rem;\">${time}</span></div><div style=\"color:#cbd5e1; margin-top:0.25rem;\">${feedback.message}</div>`;
+      item.innerHTML = `<div style="font-weight:600; color:#f3f4f6;">${feedback.author} <span style=\"font-weight:400; color:#94a3b8; font-size:0.85rem; margin-left:0.5rem;\">${time}</span></div><div style=\"color:#cbd5e1; margin-top:0.25rem; white-space: pre-wrap; word-break: break-word;\">${feedback.message}</div>`;
       list.insertBefore(item, list.firstChild);
     }
   } catch (error) {
@@ -1755,7 +1987,7 @@ onSnapshot(collection(db, "announcements"), (snap) => {
         <h4>${announcement.title}</h4>
         <p style="color: #94a3b8; font-size: 0.8rem;">Created: ${createdDate}</p>
         <p style="color: #60a5fa; font-size: 0.85rem; margin: 0.25rem 0;">${assignedToText}</p>
-        <p style="margin: 0.5rem 0; line-height: 1.4;">${announcement.content}</p>
+        <p style="margin: 0.5rem 0; line-height: 1.4; white-space: pre-wrap; word-break: break-word;">${announcement.content}</p>
         <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem;">
           <button onclick="toggleAnnouncementComments('${docSnap.id}', ${commentsEnabled})" class="btn-secondary" style="padding: 0.3rem 0.65rem; font-size: 0.75rem; min-width: auto;">${commentsEnabled ? 'Disable Comments' : 'Enable Comments'}</button>
           <span style="align-self: center; color: ${commentsEnabled ? '#10b981' : '#f59e0b'}; font-size: 0.85rem;">Comments ${commentsEnabled ? 'Enabled' : 'Disabled'}</span>
@@ -2075,7 +2307,7 @@ function renderAdminChatMessages(messages) {
     const replyPreview = msg.replyToId ? `
       <div style="padding: 0.75rem 1rem; margin-bottom: 0.75rem; border-radius: 12px; background: #0f172a; border: 1px solid #374151;">
         <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.25rem;">Replying to ${escapeHtml(msg.replyToSenderName || 'Unknown')}</div>
-        <div style="font-size: 0.9rem; color: #e5e7eb; line-height: 1.4;">${escapeHtml(msg.replyToText || '')}</div>
+        <div style="font-size: 0.9rem; color: #e5e7eb; line-height: 1.4; white-space: pre-wrap; word-break: break-word;">${escapeHtml(msg.replyToText || '')}</div>
       </div>
     ` : '';
     const buttonBaseStyle = 'display: inline-flex; align-items: center; justify-content: center; width: auto; background: rgba(96, 165, 250, 0.12); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.35); border-radius: 9999px; cursor: pointer; padding: 0.2rem 0.5rem; font-size: 0.75rem; line-height: 1; white-space: nowrap;';
@@ -2091,7 +2323,7 @@ function renderAdminChatMessages(messages) {
         <div style="font-size: 0.85rem; color: #94a3b8;">${escapeHtml(msg.senderName || getUserName(msg.senderEmail) || 'Guest')}</div>
         <div style="font-size: 0.75rem; color: #6b7280;">${msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</div>
       </div>
-      <div style="color: ${msg.deleted ? '#9ca3af' : '#e5e7eb'}; line-height: 1.6; margin-bottom: 0.5rem;">${imageMarkup}${renderedText}</div>
+      <div style="color: ${msg.deleted ? '#9ca3af' : '#e5e7eb'}; line-height: 1.6; margin-bottom: 0.5rem; white-space: pre-wrap; word-break: break-word;">${imageMarkup}${renderedText}</div>
       <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; flex-wrap: wrap; margin-bottom: ${msg.reactions && Object.keys(msg.reactions).length > 0 ? '0.5rem' : '0'};">
         ${actionButtons ? `<div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">${actionButtons}</div>` : ''}
         <button type="button" class="admin-react-btn" data-message-id="${msg.id}" style="display: inline-flex; align-items: center; justify-content: center; width: auto; background: rgba(249, 115, 22, 0.12); color: #f97316; border: 1px solid rgba(249, 115, 22, 0.35); border-radius: 9999px; cursor: pointer; padding: 0.2rem 0.5rem; font-size: 0.75rem; line-height: 1; white-space: nowrap;">😊 React</button>

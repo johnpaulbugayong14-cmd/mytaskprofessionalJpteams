@@ -81,7 +81,7 @@ function renderChatMessages(messages) {
         <div style="font-size: 0.9rem; color: #94a3b8;">${escapeHtml(sender)}</div>
         <div style="font-size: 0.8rem; color: #6b7280;">${timestamp}</div>
       </div>
-      <div style="color: ${msg.deleted ? '#9ca3af' : '#e5e7eb'}; line-height: 1.6;">
+      <div style="color: ${msg.deleted ? '#9ca3af' : '#e5e7eb'}; line-height: 1.6; white-space: pre-wrap; word-break: break-word;">
         ${imageMarkup}${renderedText}
       </div>
       <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; margin-bottom: ${msg.reactions && Object.keys(msg.reactions).length > 0 ? '0.5rem' : '0'};">

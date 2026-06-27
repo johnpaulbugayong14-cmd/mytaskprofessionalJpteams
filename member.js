@@ -986,7 +986,7 @@ function loadResources() {
         <div class="card" style="margin-bottom: 1rem;">
           <h4 style="margin-bottom: 0.5rem;">${resource.title}</h4>
           <p style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 0.75rem;">Posted: ${createdDate}</p>
-          <p style="margin: 0.5rem 0; line-height: 1.4; color: #d1d5db;">${resource.description}</p>
+          <p style="margin: 0.5rem 0; line-height: 1.4; color: #d1d5db; white-space: pre-wrap; word-break: break-word;">${resource.description}</p>
           <div style="margin-top: 1rem;">
             <a href="${resource.link}" target="_blank" style="background: #10b981; color: white; padding: 0.75rem 1.25rem; border-radius: 0.375rem; text-decoration: none; display: inline-block; font-weight: 500;">🔗 Open Resource</a>
           </div>
@@ -1305,7 +1305,7 @@ function renderChatMessages(messages) {
     const replyPreview = msg.replyToId ? `
       <div style="padding: 0.75rem 1rem; margin-bottom: 0.75rem; border-radius: 12px; background: #0f172a; border: 1px solid #374151;">
         <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.25rem;">Replying to ${escapeHtml(msg.replyToSenderName || 'Unknown')}</div>
-        <div style="font-size: 0.9rem; color: #e5e7eb; line-height: 1.4;">${escapeHtml(msg.replyToText || '')}</div>
+        <div style="font-size: 0.9rem; color: #e5e7eb; line-height: 1.4; white-space: pre-wrap; word-break: break-word;">${escapeHtml(msg.replyToText || '')}</div>
       </div>
     ` : '';
     const buttonBaseStyle = 'display: inline-flex; align-items: center; justify-content: center; width: auto; background: rgba(96, 165, 250, 0.12); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.35); border-radius: 9999px; cursor: pointer; padding: 0.2rem 0.5rem; font-size: 0.75rem; line-height: 1; white-space: nowrap;';
@@ -1319,7 +1319,7 @@ function renderChatMessages(messages) {
         <div style="font-size: 0.85rem; color: #94a3b8;">${escapeHtml(sender)}</div>
         <div style="font-size: 0.75rem; color: #6b7280;">${timestamp}</div>
       </div>
-      <div style="color: ${msg.deleted ? '#9ca3af' : '#e5e7eb'}; line-height: 1.6; margin-bottom: 0.5rem;">${imageMarkup}${renderedText}</div>
+      <div style="color: ${msg.deleted ? '#9ca3af' : '#e5e7eb'}; line-height: 1.6; margin-bottom: 0.5rem; white-space: pre-wrap; word-break: break-word;">${imageMarkup}${renderedText}</div>
       <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; flex-wrap: wrap; margin-bottom: ${msg.reactions && Object.keys(msg.reactions).length > 0 ? '0.5rem' : '0'};">
         ${actionButtons ? `<div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">${actionButtons}</div>` : ''}
         <button type="button" class="chat-react-btn" data-message-id="${msg.id}" style="display: inline-flex; align-items: center; justify-content: center; width: auto; background: rgba(249, 115, 22, 0.12); color: #f97316; border: 1px solid rgba(249, 115, 22, 0.35); border-radius: 9999px; cursor: pointer; padding: 0.2rem 0.5rem; font-size: 0.75rem; line-height: 1; white-space: nowrap;">😊 React</button>
@@ -1859,7 +1859,7 @@ setupMentionAutocomplete('chatMessageInput', 'memberMentionDropdown');
               <span class="task-status ${t.status === "done" ? "status-completed" : t.status === "pending validation" ? "status-validation" : t.status === "needs action" ? "status-needs-action" : "status-pending"}">${t.status === "needs action" ? "Needs Action" : t.status}</span>
               ${warning.message ? `<span class="task-warning">${warning.message}</span>` : ""}
             </div>
-            ${t.description ? `<p style="color: #cbd5e1; margin: 0.75rem 0;">${t.description}</p>` : ""}
+            ${t.description ? `<p style="color: #cbd5e1; margin: 0.75rem 0; white-space: pre-wrap; word-break: break-word;">${t.description}</p>` : ""}
             ${t.status === "needs action" ? `<p style="color: #f59e0b; margin: 0.5rem 0; font-weight: bold;">⚠️ This task needs your immediate action from the admin.</p>` : ""}
             <div class="task-meta">
               <span>📅 ${t.deadline}</span>
@@ -1874,7 +1874,7 @@ setupMentionAutocomplete('chatMessageInput', 'memberMentionDropdown');
                 ${Array.isArray(t.feedbacks) && t.feedbacks.length > 0 ? t.feedbacks.map(f => {
                   const time = f.createdAt && f.createdAt.toDate ? f.createdAt.toDate().toLocaleString() : (f.createdAt ? new Date(f.createdAt).toLocaleString() : '');
                   const authorName = getUserName(f.author) || 'Admin';
-                  return `<div style="padding:0.5rem; border:1px solid #334155; border-radius:6px; margin-bottom:0.5rem; background:#041024;"><div style=\\"font-weight:600; color:#f3f4f6;\\">${authorName} <span style=\\"font-weight:400; color:#94a3b8; font-size:0.85rem; margin-left:0.5rem;\\">${time}</span></div><div style=\\"color:#cbd5e1; margin-top:0.25rem;\\">${f.message}</div></div>`;
+                  return `<div style="padding:0.5rem; border:1px solid #334155; border-radius:6px; margin-bottom:0.5rem; background:#041024;"><div style=\\"font-weight:600; color:#f3f4f6;\\">${authorName} <span style=\\"font-weight:400; color:#94a3b8; font-size:0.85rem; margin-left:0.5rem;\\">${time}</span></div><div style=\\"color:#cbd5e1; margin-top:0.25rem; white-space: pre-wrap; word-break: break-word;\\">${f.message}</div></div>`;
                 }).join('') : '<p style="color:#94a3b8;">No feedback yet.</p>'}
               </div>
             </div>
@@ -2015,7 +2015,7 @@ function loadTicketHistory() {
         const responseHtml = responses.length > 0 ?
           responses.map(response => `
             <div style="margin-bottom: 0.5rem; padding: 0.5rem; border: 1px solid #4b5563; border-radius: 0.25rem; background: #1f2937;">
-              <strong>${response.author || 'Admin'}:</strong> ${response.content}
+              <strong>${response.author || 'Admin'}:</strong> <span style="white-space: pre-wrap; word-break: break-word;">${response.content}</span>
             </div>
           `).join('') : '<p style="color: #9ca3af; margin: 0;">No admin feedback yet.</p>';
 
@@ -2026,7 +2026,7 @@ function loadTicketHistory() {
               <span style="padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem; font-weight: 600; background: ${status === 'open' ? '#ef4444' : status === 'pending validation' ? '#f59e0b' : '#10b981'}; color: white;">${statusLabel}</span>
             </div>
             <p style="margin: 0 0 0.5rem 0; color: #94a3b8; font-size: 0.8rem;">Assigned: ${createdDate}</p>
-            <p style="margin: 0 0 0.5rem 0; color: #d1d5db;">${ticket.description}</p>
+            <p style="margin: 0 0 0.5rem 0; color: #d1d5db; white-space: pre-wrap; word-break: break-word;">${ticket.description}</p>
             <div style="padding: 0.5rem; background: #0f172a; border-radius: 0.25rem;">
               <h5 style="margin: 0 0 0.5rem 0; color: #f3f4f6; font-size: 0.9rem;">Admin Feedback</h5>
               ${responseHtml}

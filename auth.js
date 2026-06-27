@@ -1,6 +1,7 @@
 // Firebase Auth imports
 import { signInAnonymously, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { auth } from "./firebase.js";
+import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { auth, db } from "./firebase.js";
 
 // Storage utility for cross-platform compatibility
 class StorageManager {
@@ -131,6 +132,43 @@ function showMessage(text, type = "error") {
   message.style.border = type === "error" ? "1px solid rgba(248, 113, 113, 0.35)" : "1px solid rgba(16, 185, 129, 0.35)";
 }
 
+function normalizeEmail(email) {
+  return String(email || '').trim().toLowerCase();
+}
+
+export async function getEffectiveRole(email) {
+  if (!email) return null;
+
+  const normalized = normalizeEmail(email);
+  try {
+    const roleRef = doc(db, "userRoles", normalized);
+    const roleSnap = await getDoc(roleRef);
+    if (roleSnap.exists()) {
+      const data = roleSnap.data();
+      if (data && data.role) {
+        return data.role;
+      }
+    }
+  } catch (error) {
+    console.warn("Unable to read custom role from Firestore:", error);
+  }
+
+  const account = PRE_REGISTERED_CREDENTIALS.find(account => normalizeEmail(account.email) === normalized);
+  return account ? account.role : null;
+}
+
+export async function setUserRole(email, role) {
+  if (!email) return;
+  const normalized = normalizeEmail(email);
+  try {
+    const roleRef = doc(db, "userRoles", normalized);
+    await setDoc(roleRef, { role }, { merge: true });
+  } catch (error) {
+    console.error("Error setting user role in Firestore:", error);
+    throw error;
+  }
+}
+
 // Pre-registered credentials
 const PRE_REGISTERED_CREDENTIALS = [
   { email: "kingfordnabor@gmail.com", password: "kingford002", role: "member" },
@@ -200,15 +238,19 @@ window.login = async function() {
 
   try {
     console.log('Signing in with Firebase Auth (anonymously)...');
-    // Sign in anonymously with Firebase Auth
     await signInAnonymously(auth);
     console.log('Firebase Auth successful');
 
+    console.log('Resolving effective user role...');
+    const roleOverride = await getEffectiveRole(account.email);
+    const role = roleOverride || account.role;
+
     console.log('Storing user in storage...');
-    await storeUser({ email: account.email, role: account.role });
-    console.log('User stored, redirecting to:', account.role === "admin" ? "admin.html" : "member.html");
+    await storeUser({ email: account.email, role });
+    const destination = role === "admin" || role === "limited-admin" ? "admin.html" : "member.html";
+    console.log('User stored, redirecting to:', destination);
     
-    window.location.href = account.role === "admin" ? "admin.html" : "member.html";
+    window.location.href = destination;
   } catch (error) {
     console.error("Firebase Auth error:", error);
     showMessage("Authentication failed. Please try again.");
@@ -227,7 +269,19 @@ export async function getStoredUserEmail() {
 
 export async function getStoredUserRole() {
   const user = await getStoredUser();
-  return user ? user.role : null;
+  if (!user) return null;
+
+  try {
+    const effectiveRole = await getEffectiveRole(user.email);
+    if (effectiveRole && effectiveRole !== user.role) {
+      await storeUser({ email: user.email, role: effectiveRole });
+      return effectiveRole;
+    }
+  } catch (error) {
+    console.warn('Failed to resolve effective role from Firestore, using stored role:', error);
+  }
+
+  return user.role;
 }
 
 export async function isAuthenticated() {
@@ -243,7 +297,12 @@ export async function requireAuth(allowedRoles = null) {
     return;
   }
 
-  if (allowedRoles && !allowedRoles.includes(storedUser.role)) {
+  let effectiveRole = storedUser.role;
+  if (allowedRoles) {
+    effectiveRole = await getStoredUserRole();
+  }
+
+  if (allowedRoles && !allowedRoles.includes(effectiveRole)) {
     window.location.href = "login.html";
     return;
   }
