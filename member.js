@@ -19,6 +19,8 @@ let selectedChatImageName = null;
 let shownDeadlineTaskIds = new Set();
 let shownInAppNotificationIds = new Set();
 let dismissedInAppNotificationIds = new Set(getDismissedInAppNotifications());
+let inAppNotificationQueue = [];
+let inAppNotificationDisplaying = false;
 const container = document.getElementById("tasks");
 const emptyState = document.getElementById("emptyState");
 const welcomeEl = document.getElementById("welcome");
@@ -274,12 +276,13 @@ function showInAppNotificationOverlay(notification) {
     return;
   }
 
-  shownInAppNotificationIds.add(notificationId);
-
-  const existingModal = document.getElementById("inAppNotificationOverlay");
-  if (existingModal) {
-    existingModal.remove();
+  if (inAppNotificationDisplaying) {
+    inAppNotificationQueue.push(notification);
+    return;
   }
+
+  inAppNotificationDisplaying = true;
+  shownInAppNotificationIds.add(notificationId);
 
   const overlay = document.createElement("div");
   overlay.id = "inAppNotificationOverlay";
@@ -302,7 +305,7 @@ function showInAppNotificationOverlay(notification) {
   button.onclick = () => {
     dismissedInAppNotificationIds.add(notificationId);
     persistDismissedInAppNotifications();
-    overlay.remove();
+    closeInAppNotificationOverlay();
   };
 
   modal.appendChild(title);
@@ -314,11 +317,21 @@ function showInAppNotificationOverlay(notification) {
     if (event.target === overlay) {
       dismissedInAppNotificationIds.add(notificationId);
       persistDismissedInAppNotifications();
-      overlay.remove();
+      closeInAppNotificationOverlay();
     }
   });
 
   document.body.appendChild(overlay);
+}
+
+function closeInAppNotificationOverlay() {
+  const overlay = document.getElementById("inAppNotificationOverlay");
+  if (overlay) overlay.remove();
+  inAppNotificationDisplaying = false;
+  const nextNotification = inAppNotificationQueue.shift();
+  if (nextNotification) {
+    showInAppNotificationOverlay(nextNotification);
+  }
 }
 
 // Maintenance overlay: when admin enables maintenance, show notice and allow only tickets
