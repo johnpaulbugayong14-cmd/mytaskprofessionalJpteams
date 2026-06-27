@@ -247,7 +247,7 @@ window.login = async function() {
 
     console.log('Storing user in storage...');
     await storeUser({ email: account.email, role });
-    const destination = role === "admin" || role === "limited-admin" ? "admin.html" : "member.html";
+    const destination = role === "admin" ? "admin.html" : "member.html";
     console.log('User stored, redirecting to:', destination);
     
     window.location.href = destination;

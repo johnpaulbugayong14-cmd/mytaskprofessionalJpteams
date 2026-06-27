@@ -1553,6 +1553,8 @@ function showMemberTaskDetails(memberName) {
     description.style.margin = '0';
     description.style.color = '#94a3b8';
     description.style.fontSize = '0.92rem';
+    description.style.whiteSpace = 'pre-wrap';
+    description.style.wordBreak = 'break-word';
 
     item.appendChild(title);
     item.appendChild(status);

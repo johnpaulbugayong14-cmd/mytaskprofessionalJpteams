@@ -44,6 +44,10 @@ if (savedMemberSection) {
       <li><button class="nav-btn" onclick="showSection('submit-ticket')"><i class="fas fa-headset"></i> Submit Ticket</button></li>
       <li><button class="nav-btn active" onclick="showSection('video-conference')"><i class="fas fa-video"></i> Video Conference</button></li>
       <li><button class="nav-btn" onclick="showSection('live-chat')"><i class="fas fa-comments"></i> Live Chat</button></li>
+      <li><button id="limited-admin-create-task-btn" class="nav-btn limited-admin-only" style="display:none;" onclick="showSection('my-tasks')"><i class="fas fa-plus"></i> Create Task</button></li>
+      <li><button id="limited-admin-create-announcement-btn" class="nav-btn limited-admin-only" style="display:none;" onclick="showSection('announcements')"><i class="fas fa-bullhorn"></i> Create Announcement</button></li>
+      <li><button id="limited-admin-create-poll-btn" class="nav-btn limited-admin-only" style="display:none;" onclick="showSection('active-polls')"><i class="fas fa-poll"></i> Create Poll</button></li>
+      <li><button id="limited-admin-create-resource-btn" class="nav-btn limited-admin-only" style="display:none;" onclick="showSection('resources')"><i class="fas fa-book"></i> Create Resource</button></li>
       <li><button class="nav-btn" onclick="showSection('resources')"><i class="fas fa-book"></i> Resources</button></li>
       <li><button class="nav-btn" onclick="showSection('progress-report')"><i class="fas fa-file-alt"></i> Progress Report</button></li>
     </ul>
@@ -64,6 +68,25 @@ if (savedMemberSection) {
       <!-- My Tasks Section -->
       <section id="my-tasks" class="content-section">
         <div class="card">
+          <div id="createTaskForm" class="limited-admin-only" style="display:none; margin-bottom: 1.25rem; padding: 1rem; border: 1px solid #374151; border-radius: 0.75rem; background: #0f172a;">
+            <h3 style="margin: 0 0 0.75rem 0; color: #f8fafc;">Create New Task</h3>
+            <div style="display: grid; gap: 0.75rem;">
+              <input id="taskTitleCreate" type="text" placeholder="Task title" style="padding: 0.75rem; border-radius: 0.5rem; border: 1px solid #374151; background: #111827; color: #f8fafc;" />
+              <textarea id="taskDescriptionCreate" rows="3" placeholder="Task description" style="padding: 0.75rem; border-radius: 0.5rem; border: 1px solid #374151; background: #111827; color: #f8fafc;"></textarea>
+              <div style="display:grid; gap:0.75rem; grid-template-columns:1fr 1fr;">
+                <input id="taskDeadlineCreate" type="date" style="padding: 0.75rem; border-radius: 0.5rem; border: 1px solid #374151; background: #111827; color: #f8fafc;" />
+                <select id="taskAssignedTo" style="padding: 0.75rem; border-radius: 0.5rem; border: 1px solid #374151; background: #111827; color: #f8fafc;">
+                  <option value="everyone">Assign to Everyone</option>
+                  <option value="kingfordnabor@gmail.com">Kingford Nabor</option>
+                  <option value="allancorral@gmail.com">Allan Corral</option>
+                  <option value="phricksborebor@gmail.com">Phricks Borebor</option>
+                  <option value="moezarperez@gmail.com">Moezar Perez</option>
+                  <option value="rogelioledda@gmail.com">Rogelio Ledda</option>
+                </select>
+              </div>
+              <button onclick="createTask()" style="width: fit-content; padding: 0.75rem 1rem; border: none; border-radius: 0.5rem; background: #10b981; color: white; cursor: pointer;">Create Task</button>
+            </div>
+          </div>
           <div id="tasks"></div>
           <p id="emptyState" style="text-align: center; color: #94a3b8; padding: 2rem;">
             No tasks assigned yet. Check back soon!
@@ -75,7 +98,8 @@ if (savedMemberSection) {
       <section id="ticket-history" class="content-section">
         <div class="card">
           <h2 style="margin-bottom: 1rem;"><i class="fas fa-ticket-alt"></i> Ticket History</h2>
-          <div style="margin-bottom: 1rem;">
+          <div id="ticketAnalyticsSummary" class="limited-admin-only" style="display:none; margin-bottom: 1rem;"></div>
+          <div style="margin-bottom: 1rem; display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
             <button onclick="loadTicketHistory()" style="background: #3b82f6; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer;"><i class="fas fa-sync-alt"></i> Refresh Tickets</button>
           </div>
           <div id="ticketHistory"></div>
@@ -89,6 +113,16 @@ if (savedMemberSection) {
       <section id="active-polls" class="content-section">
         <div class="card">
           <h2 style="margin-bottom: 1rem;"><i class="fas fa-chart-bar"></i> Active Polls</h2>
+          <div id="createPollForm" class="limited-admin-only" style="display:none; margin-bottom: 1.25rem; padding: 1rem; border: 1px solid #374151; border-radius: 0.75rem; background: #0f172a;">
+            <h3 style="margin: 0 0 0.75rem 0; color: #f8fafc;">Create Poll</h3>
+            <div style="display: grid; gap: 0.75rem;">
+              <input id="pollQuestion" type="text" placeholder="Poll question" style="padding: 0.75rem; border-radius: 0.5rem; border: 1px solid #374151; background: #111827; color: #f8fafc;" />
+              <input id="pollOption1" type="text" placeholder="Option 1" style="padding: 0.75rem; border-radius: 0.5rem; border: 1px solid #374151; background: #111827; color: #f8fafc;" />
+              <input id="pollOption2" type="text" placeholder="Option 2" style="padding: 0.75rem; border-radius: 0.5rem; border: 1px solid #374151; background: #111827; color: #f8fafc;" />
+              <input id="pollOption3" type="text" placeholder="Option 3" style="padding: 0.75rem; border-radius: 0.5rem; border: 1px solid #374151; background: #111827; color: #f8fafc;" />
+              <button onclick="createPoll()" style="width: fit-content; padding: 0.75rem 1rem; border: none; border-radius: 0.5rem; background: #3b82f6; color: white; cursor: pointer;">Create Poll</button>
+            </div>
+          </div>
           <div id="polls"></div>
           <p id="pollsEmptyState" style="text-align: center; color: #94a3b8; padding: 2rem;">
             No active polls at the moment.
@@ -100,6 +134,14 @@ if (savedMemberSection) {
       <section id="announcements" class="content-section">
         <div class="card">
           <h2 style="margin-bottom: 1rem;"><i class="fas fa-bullhorn"></i> Announcements</h2>
+          <div id="createAnnouncementForm" class="limited-admin-only" style="display:none; margin-bottom: 1.25rem; padding: 1rem; border: 1px solid #374151; border-radius: 0.75rem; background: #0f172a;">
+            <h3 style="margin: 0 0 0.75rem 0; color: #f8fafc;">Create Announcement</h3>
+            <div style="display: grid; gap: 0.75rem;">
+              <input id="announcementTitle" type="text" placeholder="Announcement title" style="padding: 0.75rem; border-radius: 0.5rem; border: 1px solid #374151; background: #111827; color: #f8fafc;" />
+              <textarea id="announcementContent" rows="4" placeholder="Announcement content" style="padding: 0.75rem; border-radius: 0.5rem; border: 1px solid #374151; background: #111827; color: #f8fafc;"></textarea>
+              <button onclick="createAnnouncement()" style="width: fit-content; padding: 0.75rem 1rem; border: none; border-radius: 0.5rem; background: #3b82f6; color: white; cursor: pointer;">Create Announcement</button>
+            </div>
+          </div>
           <div id="announcements"></div>
           <p id="announcementsEmptyState" style="text-align: center; color: #94a3b8; padding: 2rem;">
             No announcements at the moment.
@@ -207,6 +249,7 @@ if (savedMemberSection) {
           </p>
         </div>
       </section>
+
     </div>
   </main>
 </div>
@@ -220,59 +263,6 @@ if (savedMemberSection) {
 
 <script>
 // Navigation functions
-function showSection(sectionId) {
-  // Hide all sections
-  const sections = document.querySelectorAll('.content-section');
-  sections.forEach(section => section.classList.remove('active'));
-  
-  // Show selected section
-  const targetSection = document.getElementById(sectionId);
-  if (targetSection) {
-    targetSection.classList.add('active');
-    
-    // Handle video conference section
-    if (sectionId === 'video-conference') {
-      loadMeetings();
-    }
-    if (sectionId === 'live-chat') {
-      if (typeof loadChatRooms === 'function') {
-        loadChatRooms();
-      }
-    }
-  }
-  
-  // Update active nav button
-  const navButtons = document.querySelectorAll('.nav-btn');
-  navButtons.forEach(btn => btn.classList.remove('active'));
-  
-  // Find and activate the corresponding nav button
-  const activeBtn = document.querySelector(`[onclick="showSection('${sectionId}')"]`);
-  if (activeBtn) {
-    activeBtn.classList.add('active');
-  }
-  
-  // Update page title
-  const titles = {
-    'my-tasks': '<i class="fas fa-clipboard-list"></i> My Tasks',
-    'ticket-history': '<i class="fas fa-ticket-alt"></i> Ticket History',
-    'active-polls': '<i class="fas fa-chart-bar"></i> Active Polls',
-    'announcements': '<i class="fas fa-bullhorn"></i> Announcements',
-    'submit-ticket': '<i class="fas fa-paper-plane"></i> Submit Ticket',
-    'video-conference': '<i class="fas fa-video"></i> Video Conference',
-    'live-chat': '<i class="fas fa-comments"></i> Live Chat',
-    'resources': '<i class="fas fa-book"></i> Resources',
-    'progress-report': '<i class="fas fa-file-alt"></i> Progress Report'
-  };
-  
-  const pageTitle = document.getElementById('page-title');
-  if (pageTitle && titles[sectionId]) {
-    pageTitle.innerHTML = titles[sectionId];
-  }
-  
-  // Close mobile sidebar after selection
-  closeMobileSidebar();
-}
-
 function toggleSidebar() {
   const sidebar = document.querySelector('.sidebar');
   sidebar.classList.toggle('collapsed');
@@ -296,12 +286,19 @@ function closeMobileSidebar() {
   sidebar.classList.remove('open');
   overlay.classList.remove('show');
 }
+
 </script>
 <script type="module">
-  import { requireAuth } from "./auth.js?v=5";
+  import { requireAuth, getStoredUserRole } from "./auth.js?v=5";
   import { initializeNotifications } from "./notifications.js?v=5";
-  await requireAuth(['member', 'admin']);
+  await requireAuth(['member', 'limited-admin']);
+
+  const role = await getStoredUserRole();
+  document.querySelectorAll('.limited-admin-only').forEach(el => {
+    el.style.display = (role === 'limited-admin') ? '' : 'none';
+  });
 </script>
+<script type="module" src="admin.js?v=6"></script>
 <script type="module" src="member.js?v=6"></script>
 <script>
 if ("serviceWorker" in navigator) {
@@ -387,35 +384,33 @@ function initializeJitsiConference(roomName = null) {
 
 // Initialize Jitsi when video conference section becomes active
 function showSection(sectionId) {
-  // Hide all sections
   const sections = document.querySelectorAll('.content-section');
   sections.forEach(section => section.classList.remove('active'));
-  
-  // Show selected section
+
   const targetSection = document.getElementById(sectionId);
   if (targetSection) {
     targetSection.classList.add('active');
-    
-    // Initialize Jitsi conference when video conference section is shown
+
     if (sectionId === 'video-conference') {
       loadMeetings();
       setTimeout(initializeJitsiConference, 100);
     }
+
+    if (sectionId === 'live-chat' && typeof loadChatRooms === 'function') {
+      loadChatRooms();
+    }
   }
-  
-  // Update active nav button
+
   const navButtons = document.querySelectorAll('.nav-btn');
   navButtons.forEach(btn => btn.classList.remove('active'));
-  
-  // Find and activate the corresponding nav button
+
   const activeBtn = document.querySelector(`[onclick="showSection('${sectionId}')"]`);
   if (activeBtn) {
     activeBtn.classList.add('active');
   }
 
   localStorage.setItem('memberSelectedSection', sectionId);
-  
-  // Update page title
+
   const titles = {
     'my-tasks': '<i class="fas fa-check-circle"></i> My Tasks',
     'ticket-history': '<i class="fas fa-ticket-alt"></i> Ticket History',
@@ -427,21 +422,16 @@ function showSection(sectionId) {
     'resources': '<i class="fas fa-book"></i> Resources',
     'progress-report': '<i class="fas fa-file-alt"></i> Progress Report'
   };
-  
+
   const pageTitle = document.getElementById('page-title');
   if (pageTitle && titles[sectionId]) {
     pageTitle.innerHTML = titles[sectionId];
   }
 
-  if (sectionId === 'live-chat') {
-    if (typeof loadChatRooms === 'function') {
-      loadChatRooms();
-    }
-  }
-  
-  // Close mobile sidebar after selection
   closeMobileSidebar();
 }
+
+window.showSection = showSection;
 </script>
 
 </body>

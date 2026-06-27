@@ -322,6 +322,17 @@ function showInAppNotificationOverlay(notification) {
 }
 
 // Maintenance overlay: when admin enables maintenance, show notice and allow only tickets
+function getCurrentStoredUserRole() {
+  try {
+    const raw = localStorage.getItem('authUser');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.role || null;
+  } catch (error) {
+    return null;
+  }
+}
+
 function checkMaintenance() {
   try {
     const maintenanceRef = doc(db, 'appSettings', 'maintenance');
@@ -379,11 +390,22 @@ function checkMaintenance() {
           banner = document.createElement('div');
           banner.className = 'maintenance-banner';
           banner.style.marginTop = '1rem';
-          banner.style.color = '#e5e7eb';
-          banner.style.padding = '0.75rem';
-          banner.style.background = '#1f2937';
-          banner.style.border = '1px solid #374151';
-          banner.style.borderRadius = '0.5rem';
+          banner.style.padding = '1rem';
+          banner.style.background = 'linear-gradient(180deg, rgba(30, 41, 59, 0.96), rgba(15, 23, 42, 0.95))';
+          banner.style.border = '1px solid rgba(59, 130, 246, 0.25)';
+          banner.style.borderRadius = '1rem';
+          banner.style.display = 'flex';
+          banner.style.alignItems = 'center';
+          banner.style.gap = '1rem';
+          banner.style.flexWrap = 'wrap';
+          banner.style.whiteSpace = 'pre-wrap';
+          banner.style.wordBreak = 'break-word';
+          banner.innerHTML = `
+            <div class="maintenance-icon"><i class="fas fa-user-cog"></i></div>
+            <div class="maintenance-text">
+              <div class="maintenance-banner-message"></div>
+            </div>
+          `;
           const h2 = sectionCard.querySelector('h2');
           if (h2 && h2.parentNode === sectionCard) {
             h2.insertAdjacentElement('afterend', banner);
@@ -391,7 +413,10 @@ function checkMaintenance() {
             sectionCard.insertBefore(banner, sectionCard.firstChild);
           }
         }
-        banner.textContent = msg || '';
+        const messageEl = banner.querySelector('.maintenance-banner-message');
+        if (messageEl) {
+          messageEl.textContent = msg || '';
+        }
         banner.style.display = msg ? '' : 'none';
       }
 
@@ -412,13 +437,26 @@ function checkMaintenance() {
           banner.className = 'maintenance-header-banner';
           banner.style.marginTop = '0.5rem';
           banner.style.color = '#fee2e2';
-          banner.style.padding = '0.5rem 0.75rem';
-          banner.style.background = '#b91c1c';
-          banner.style.borderRadius = '0.375rem';
+          banner.style.padding = '0.75rem 1rem';
+          banner.style.background = 'linear-gradient(135deg, rgba(185, 28, 43, 0.95), rgba(125, 29, 29, 0.9))';
+          banner.style.borderRadius = '0.5rem';
           banner.style.fontWeight = '700';
+          banner.style.display = 'flex';
+          banner.style.alignItems = 'center';
+          banner.style.gap = '0.75rem';
+          banner.style.whiteSpace = 'pre-wrap';
+          banner.style.wordBreak = 'break-word';
+          banner.innerHTML = `
+            <div class="maintenance-icon"><i class="fas fa-triangle-exclamation"></i></div>
+            <div class="maintenance-text">
+              <strong>${msg || 'Maintenance mode is enabled.'}</strong>
+            </div>
+          `;
           header.appendChild(banner);
+        } else {
+          const textEl = banner.querySelector('.maintenance-text strong');
+          if (textEl) textEl.textContent = msg || 'Maintenance mode is enabled.';
         }
-        banner.textContent = msg || '';
         banner.style.display = msg ? '' : 'none';
       }
 
@@ -430,7 +468,7 @@ function checkMaintenance() {
         // Render in submit-ticket and ticket-history, plus header banner
         renderMaintenanceBannerInSection('#submit-ticket .card', message);
         renderMaintenanceBannerInSection('#ticket-history .card', message);
-        renderHeaderMaintenanceBanner('THIS PAGE IS UNDER MAINTENANCE');
+        renderHeaderMaintenanceBanner('DOWNTIME ALERT');
         // Monkeypatch showSection to enforce maintenance
         if (!window._originalShowSection) {
           window._originalShowSection = window.showSection.bind(window);
