@@ -15,6 +15,26 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <link rel="stylesheet" href="style.css?v=1">
   <script src="https://8x8.vc/vpaas-magic-cookie-31c887a17ea34701a28e22e5178164e3/external_api.js" async></script>
+  <style>
+    @keyframes restrictedPulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.06); opacity: 0.85; }
+    }
+    .restricted-access-banner {
+      border: 1px solid rgba(248, 113, 113, 0.4);
+      background: linear-gradient(135deg, rgba(127, 29, 29, 0.9), rgba(30, 41, 59, 0.95));
+      border-radius: 1rem;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+      animation: restrictedPulse 1.8s ease-in-out infinite;
+    }
+    .restricted-access-banner .restricted-icon {
+      font-size: 2rem;
+      color: #fca5a5;
+      margin-bottom: 0.4rem;
+    }
+  </style>
 </head>
 <body>
 <script>
@@ -36,20 +56,9 @@ if (savedMemberSection) {
     <div class="sidebar-header">
       <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
     </div>
-    <ul class="nav-list">
-      <li><button class="nav-btn" onclick="showSection('my-tasks')"><i class="fas fa-clipboard-list"></i> My Tasks</button></li>
+    <ul class="nav-list" id="member-nav-list">
       <li><button class="nav-btn" onclick="showSection('ticket-history')"><i class="fas fa-ticket-alt"></i> Ticket History</button></li>
-      <li><button class="nav-btn" onclick="showSection('active-polls')"><i class="fas fa-chart-bar"></i> Active Polls</button></li>
-      <li><button class="nav-btn" onclick="showSection('announcements')"><i class="fas fa-bullhorn"></i> Announcements</button></li>
-      <li><button class="nav-btn" onclick="showSection('submit-ticket')"><i class="fas fa-headset"></i> Submit Ticket</button></li>
-      <li><button class="nav-btn active" onclick="showSection('video-conference')"><i class="fas fa-video"></i> Video Conference</button></li>
-      <li><button class="nav-btn" onclick="showSection('live-chat')"><i class="fas fa-comments"></i> Live Chat</button></li>
-      <li><button id="limited-admin-create-task-btn" class="nav-btn limited-admin-only" style="display:none;" onclick="showSection('my-tasks')"><i class="fas fa-plus"></i> Create Task</button></li>
-      <li><button id="limited-admin-create-announcement-btn" class="nav-btn limited-admin-only" style="display:none;" onclick="showSection('announcements')"><i class="fas fa-bullhorn"></i> Create Announcement</button></li>
-      <li><button id="limited-admin-create-poll-btn" class="nav-btn limited-admin-only" style="display:none;" onclick="showSection('active-polls')"><i class="fas fa-poll"></i> Create Poll</button></li>
-      <li><button id="limited-admin-create-resource-btn" class="nav-btn limited-admin-only" style="display:none;" onclick="showSection('resources')"><i class="fas fa-book"></i> Create Resource</button></li>
-      <li><button class="nav-btn" onclick="showSection('resources')"><i class="fas fa-book"></i> Resources</button></li>
-      <li><button class="nav-btn" onclick="showSection('progress-report')"><i class="fas fa-file-alt"></i> Progress Report</button></li>
+      <li><button class="nav-btn active" onclick="showSection('submit-ticket')"><i class="fas fa-headset"></i> Submit Ticket</button></li>
     </ul>
   </nav>
 
@@ -65,6 +74,12 @@ if (savedMemberSection) {
     </div>
     
     <div class="content-sections">
+      <div id="restrictedAccessNotice" class="restricted-access-banner" style="display:none;">
+        <div class="restricted-icon"><i class="fas fa-user-lock"></i></div>
+        <h2 style="margin:0 0 0.5rem 0; color:#f8fafc;">Your account access has been restricted by the administrator.</h2>
+        <p id="restrictedAccessReason" style="margin:0; color:#fecaca; white-space: pre-wrap; word-break: break-word;"></p>
+      </div>
+
       <!-- My Tasks Section -->
       <section id="my-tasks" class="content-section">
         <div class="card">
@@ -289,11 +304,30 @@ function closeMobileSidebar() {
 
 </script>
 <script type="module">
-  import { requireAuth, getStoredUserRole } from "./auth.js?v=5";
+  import { requireAuth, getStoredUserRole, getStoredUserAccess, getStoredUserAccessReason } from "./auth.js?v=5";
   import { initializeNotifications } from "./notifications.js?v=5";
   await requireAuth(['member', 'limited-admin']);
 
   const role = await getStoredUserRole();
+  const accessAllowed = await getStoredUserAccess();
+  const accessReason = await getStoredUserAccessReason();
+  if (accessAllowed === false) {
+    document.getElementById('restrictedAccessNotice').style.display = 'block';
+    const reasonEl = document.getElementById('restrictedAccessReason');
+    if (reasonEl) {
+      reasonEl.textContent = accessReason || 'Please contact the administrator for more information.';
+    }
+    window.__restrictedMemberMode = true;
+    const navList = document.getElementById('member-nav-list');
+    if (navList) {
+      navList.innerHTML = `
+        <li><button class="nav-btn active" onclick="showSection('submit-ticket')"><i class="fas fa-headset"></i> Submit Ticket</button></li>
+        <li><button class="nav-btn" onclick="showSection('ticket-history')"><i class="fas fa-ticket-alt"></i> Ticket History</button></li>
+      `;
+    }
+  } else {
+    window.__restrictedMemberMode = false;
+  }
   document.querySelectorAll('.limited-admin-only').forEach(el => {
     el.style.display = (role === 'limited-admin') ? '' : 'none';
   });
@@ -384,6 +418,10 @@ function initializeJitsiConference(roomName = null) {
 
 // Initialize Jitsi when video conference section becomes active
 function showSection(sectionId) {
+  if (window.__restrictedMemberMode && !['submit-ticket', 'ticket-history'].includes(sectionId)) {
+    sectionId = 'submit-ticket';
+  }
+
   const sections = document.querySelectorAll('.content-section');
   sections.forEach(section => section.classList.remove('active'));
 

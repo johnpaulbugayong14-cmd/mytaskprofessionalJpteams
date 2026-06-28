@@ -90,7 +90,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 import { db } from "./firebase.js";
-import { signOutUser, getStoredUserEmail, getStoredUserRole, setUserRole } from "./auth.js";
+import { signOutUser, getStoredUserEmail, getStoredUserRole, setUserRole, setUserAccess } from "./auth.js";
 import { sendNotificationToUsers, showLocalNotification, initializeNotifications } from "./notifications.js";
 
 window.signOutUser = signOutUser;
@@ -511,10 +511,15 @@ async function loadMemberRoles() {
   try {
     const snapshot = await getDocs(collection(db, "userRoles"));
     snapshot.forEach((docSnap) => {
-      const role = docSnap.data()?.role;
+      const data = docSnap.data() || {};
+      const role = data.role;
+      const accessAllowed = typeof data.accessAllowed === 'boolean' ? data.accessAllowed : true;
+      const accessReason = typeof data.accessReason === 'string' ? data.accessReason : '';
       const member = members.find(m => normalizeEmail(m.uid) === normalizeEmail(docSnap.id));
-      if (member && role) {
-        member.role = role;
+      if (member) {
+        if (role) member.role = role;
+        member.accessAllowed = accessAllowed;
+        member.accessReason = accessReason;
       }
     });
   } catch (error) {
@@ -571,21 +576,6 @@ async function applyAdminRoleRestrictionsWhenReady() {
   applyAdminRoleRestrictions();
 }
 
-async function loadMemberRoles() {
-  try {
-    const snapshot = await getDocs(collection(db, "userRoles"));
-    snapshot.forEach((docSnap) => {
-      const role = docSnap.data()?.role;
-      const member = members.find(m => normalizeEmail(m.uid) === normalizeEmail(docSnap.id));
-      if (member && role) {
-        member.role = role;
-      }
-    });
-  } catch (error) {
-    console.warn("Could not load member roles from Firestore:", error);
-  }
-}
-
 function renderMemberManagementPanel() {
   const container = document.getElementById('memberManagementPanel');
   if (!container) return;
@@ -595,9 +585,16 @@ function renderMemberManagementPanel() {
     .map(member => {
       const role = member.role || 'member';
       const privileges = getPrivilegeList(role);
+      const accessAllowed = member.accessAllowed !== false;
       const actionLabel = role === 'limited-admin' ? 'Demote to Member' : (role === 'admin' ? 'Demote to Member' : 'Grant Limited Admin');
       const actionFn = role === 'limited-admin' || role === 'admin' ? 'demoteMemberToMember' : 'promoteMemberToLimitedAdmin';
       const badgeColor = role === 'limited-admin' ? '#7c3aed' : (role === 'admin' ? '#10b981' : '#64748b');
+      const accessBadgeColor = accessAllowed ? '#10b981' : '#ef4444';
+      const accessBadgeText = accessAllowed ? 'ACCESS ACTIVE' : 'ACCESS RESTRICTED';
+      const accessButtonLabel = member.uid === adminEmail ? 'Current Admin' : (accessAllowed ? 'Restrict Access' : 'Allow Access');
+      const accessButtonFn = member.uid === adminEmail ? '' : (accessAllowed ? `restrictMemberAccess('${member.uid}', document.getElementById('restriction-reason-${member.uid.replace(/[^a-zA-Z0-9]/g, '')}').value)` : `allowMemberAccess('${member.uid}', document.getElementById('restriction-reason-${member.uid.replace(/[^a-zA-Z0-9]/g, '')}').value)`);
+      const accessButtonDisabled = member.uid === adminEmail ? 'disabled' : '';
+      const sanitizedId = member.uid.replace(/[^a-zA-Z0-9]/g, '');
 
       return `
       <div style="border: 1px solid #374151; border-radius: 0.75rem; padding: 1rem; margin-bottom: 1rem; background: #111827;">
@@ -605,9 +602,19 @@ function renderMemberManagementPanel() {
           <div>
             <h3 style="margin: 0 0 0.5rem 0; color: #f8fafc;">${member.name}</h3>
             <p style="margin: 0 0.5rem 0 0; color: #94a3b8; font-size: 0.9rem;">${member.uid}</p>
-            <span style="display: inline-block; padding: 0.25rem 0.75rem; border-radius: 999px; background: ${badgeColor}; color: white; font-size: 0.8rem;">${role.toUpperCase()}</span>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem;">
+              <span style="display: inline-block; padding: 0.25rem 0.75rem; border-radius: 999px; background: ${badgeColor}; color: white; font-size: 0.8rem;">${role.toUpperCase()}</span>
+              <span style="display: inline-block; padding: 0.25rem 0.75rem; border-radius: 999px; background: ${accessBadgeColor}; color: white; font-size: 0.8rem;">${accessBadgeText}</span>
+            </div>
           </div>
-          <button onclick="${actionFn}('${member.uid}')" style="background: ${role === 'limited-admin' || role === 'admin' ? '#ef4444' : '#10b981'}; color: white; border: none; padding: 0.6rem 1rem; border-radius: 0.5rem; cursor: pointer;">${actionLabel}</button>
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <button onclick="${actionFn}('${member.uid}')" style="background: ${role === 'limited-admin' || role === 'admin' ? '#ef4444' : '#10b981'}; color: white; border: none; padding: 0.6rem 1rem; border-radius: 0.5rem; cursor: pointer;">${actionLabel}</button>
+            <button onclick="${accessButtonFn}" ${accessButtonDisabled} style="background: ${accessAllowed ? '#f59e0b' : '#3b82f6'}; color: white; border: none; padding: 0.6rem 1rem; border-radius: 0.5rem; cursor: pointer; opacity: ${member.uid === adminEmail ? 0.7 : 1};">${accessButtonLabel}</button>
+          </div>
+        </div>
+        <div style="margin-top: 1rem;">
+          <label style="display:block; color:#cbd5e1; font-size:0.9rem; margin-bottom:0.35rem;">Restriction reason</label>
+          <textarea id="restriction-reason-${sanitizedId}" rows="3" style="width:100%; box-sizing:border-box; background:#0f172a; color:#f8fafc; border:1px solid #4b5563; border-radius:0.5rem; padding:0.6rem;">${(member.accessReason || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>
         </div>
         <div style="margin-top: 1rem;">
           <strong style="color: #f8fafc;">Privileges:</strong>
@@ -650,9 +657,48 @@ async function demoteMemberToMember(email) {
   await setMemberRole(email, 'member');
 }
 
+async function setMemberAccess(email, isAccessAllowed, reason = '') {
+  if (!email) return;
+  if (email === adminEmail && !isAccessAllowed) {
+    alert('You cannot restrict your own account.');
+    return;
+  }
+
+  const confirmMessage = isAccessAllowed
+    ? 'Allow this member to sign in again?'
+    : 'Restrict this member from signing in to their account?';
+
+  if (!confirm(confirmMessage)) return;
+
+  try {
+    await setUserAccess(email, isAccessAllowed, reason);
+    const member = members.find(m => m.uid === email);
+    if (member) {
+      member.accessAllowed = isAccessAllowed;
+      member.accessReason = reason;
+    }
+    await loadMemberRoles();
+    renderMemberManagementPanel();
+    alert(isAccessAllowed ? 'Access restored for this member.' : 'Access restricted for this member.');
+  } catch (error) {
+    console.error('Failed to update member access:', error);
+    alert('Could not update access. Check console for details.');
+  }
+}
+
+async function restrictMemberAccess(email, reason = '') {
+  await setMemberAccess(email, false, reason);
+}
+
+async function allowMemberAccess(email, reason = '') {
+  await setMemberAccess(email, true, reason);
+}
+
 window.promoteMemberToLimitedAdmin = promoteMemberToLimitedAdmin;
 window.promoteMemberToAdmin = promoteMemberToLimitedAdmin;
 window.demoteMemberToMember = demoteMemberToMember;
+window.restrictMemberAccess = restrictMemberAccess;
+window.allowMemberAccess = allowMemberAccess;
 window.renderMemberManagementPanel = renderMemberManagementPanel;
 
 function formatInAppNotificationDate(dateValue) {

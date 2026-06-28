@@ -169,6 +169,52 @@ export async function setUserRole(email, role) {
   }
 }
 
+export async function getUserAccessDetails(email) {
+  if (!email) return { accessAllowed: true, accessReason: '' };
+
+  const normalized = normalizeEmail(email);
+  try {
+    const roleRef = doc(db, "userRoles", normalized);
+    const roleSnap = await getDoc(roleRef);
+    if (roleSnap.exists()) {
+      const data = roleSnap.data() || {};
+      return {
+        accessAllowed: typeof data.accessAllowed === 'boolean' ? data.accessAllowed : true,
+        accessReason: typeof data.accessReason === 'string' ? data.accessReason : ''
+      };
+    }
+  } catch (error) {
+    console.warn("Unable to read account access from Firestore:", error);
+  }
+
+  return { accessAllowed: true, accessReason: '' };
+}
+
+export async function getUserAccessStatus(email) {
+  const { accessAllowed } = await getUserAccessDetails(email);
+  return accessAllowed;
+}
+
+export async function getUserAccessReason(email) {
+  const { accessReason } = await getUserAccessDetails(email);
+  return accessReason;
+}
+
+export async function setUserAccess(email, isAccessAllowed, reason = '') {
+  if (!email) return;
+  const normalized = normalizeEmail(email);
+  try {
+    const roleRef = doc(db, "userRoles", normalized);
+    await setDoc(roleRef, {
+      accessAllowed: Boolean(isAccessAllowed),
+      accessReason: String(reason || '')
+    }, { merge: true });
+  } catch (error) {
+    console.error("Error setting user access in Firestore:", error);
+    throw error;
+  }
+}
+
 // Pre-registered credentials
 const PRE_REGISTERED_CREDENTIALS = [
   { email: "kingfordnabor@gmail.com", password: "kingford002", role: "member" },
@@ -244,9 +290,12 @@ window.login = async function() {
     console.log('Resolving effective user role...');
     const roleOverride = await getEffectiveRole(account.email);
     const role = roleOverride || account.role;
+    const accessDetails = await getUserAccessDetails(account.email);
+    const accessAllowed = accessDetails.accessAllowed;
+    const accessReason = accessDetails.accessReason || '';
 
     console.log('Storing user in storage...');
-    await storeUser({ email: account.email, role });
+    await storeUser({ email: account.email, role, accessAllowed, accessReason });
     const destination = role === "admin" ? "admin.html" : "member.html";
     console.log('User stored, redirecting to:', destination);
     
@@ -274,7 +323,7 @@ export async function getStoredUserRole() {
   try {
     const effectiveRole = await getEffectiveRole(user.email);
     if (effectiveRole && effectiveRole !== user.role) {
-      await storeUser({ email: user.email, role: effectiveRole });
+      await storeUser({ email: user.email, role: effectiveRole, accessAllowed: user.accessAllowed !== false, accessReason: user.accessReason || '' });
       return effectiveRole;
     }
   } catch (error) {
@@ -282,6 +331,40 @@ export async function getStoredUserRole() {
   }
 
   return user.role;
+}
+
+export async function getStoredUserAccess() {
+  const user = await getStoredUser();
+  if (!user) return true;
+
+  try {
+    const effectiveAccess = await getUserAccessStatus(user.email);
+    if (typeof effectiveAccess === 'boolean' && effectiveAccess !== (user.accessAllowed !== false)) {
+      await storeUser({ ...user, accessAllowed: effectiveAccess });
+    }
+    return effectiveAccess;
+  } catch (error) {
+    console.warn('Failed to resolve account access from Firestore, using stored access:', error);
+  }
+
+  return user.accessAllowed !== false;
+}
+
+export async function getStoredUserAccessReason() {
+  const user = await getStoredUser();
+  if (!user) return '';
+
+  try {
+    const effectiveReason = await getUserAccessReason(user.email);
+    if (typeof effectiveReason === 'string' && effectiveReason !== (user.accessReason || '')) {
+      await storeUser({ ...user, accessReason: effectiveReason });
+    }
+    return effectiveReason;
+  } catch (error) {
+    console.warn('Failed to resolve account access reason from Firestore, using stored reason:', error);
+  }
+
+  return user.accessReason || '';
 }
 
 export async function isAuthenticated() {
@@ -293,6 +376,15 @@ export async function requireAuth(allowedRoles = null) {
   const storedUser = await getStoredUser();
 
   if (!storedUser) {
+    window.location.href = "login.html";
+    return;
+  }
+
+  const accessAllowed = await getStoredUserAccess();
+  if (accessAllowed === false && allowedRoles && allowedRoles.includes('member')) {
+    // Restricted members are allowed to enter the member experience with limited access.
+  } else if (accessAllowed === false) {
+    await clearAuthData();
     window.location.href = "login.html";
     return;
   }
@@ -357,6 +449,14 @@ async function init() {
 
   const user = await getStoredUser();
   console.log('Init: user found:', user, 'isLoginPage:', isLoginPage, 'path:', path);
+
+  if (user) {
+    const accessAllowed = await getStoredUserAccess();
+    if (accessAllowed === false && path.endsWith('login.html')) {
+      window.location.href = "member.html";
+      return;
+    }
+  }
 
   // Initialize notifications if user is logged in
   if (user) {

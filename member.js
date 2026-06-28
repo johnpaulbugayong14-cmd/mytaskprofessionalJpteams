@@ -346,6 +346,62 @@ function getCurrentStoredUserRole() {
   }
 }
 
+function applyRestrictedMemberView(accessAllowed = true, accessReason = '') {
+  const restrictedNotice = document.getElementById('restrictedAccessNotice');
+  const reasonEl = document.getElementById('restrictedAccessReason');
+  if (restrictedNotice) {
+    restrictedNotice.style.display = accessAllowed === false ? 'block' : 'none';
+  }
+  if (reasonEl) {
+    reasonEl.textContent = accessAllowed === false ? (accessReason || 'Please contact the administrator for more information.') : '';
+  }
+
+  const allowedSections = new Set(['submit-ticket', 'ticket-history']);
+
+  document.querySelectorAll('.nav-list .nav-btn').forEach(btn => {
+    try {
+      const onclick = btn.getAttribute('onclick') || '';
+      const matches = onclick.match(/showSection\('\s*([^']+)\s*'\)/);
+      const sectionId = matches ? matches[1] : null;
+      if (accessAllowed === false) {
+        btn.style.display = allowedSections.has(sectionId) ? '' : 'none';
+      } else {
+        btn.style.display = '';
+      }
+    } catch (e) {
+      // ignore
+    }
+  });
+
+  document.querySelectorAll('.content-section').forEach(sec => {
+    if (accessAllowed === false) {
+      if (!allowedSections.has(sec.id)) {
+        sec.style.display = 'none';
+      } else {
+        sec.style.display = '';
+      }
+    } else {
+      sec.style.display = '';
+    }
+  });
+
+  const activeSection = document.querySelector('.content-section.active');
+  if (accessAllowed === false && (!activeSection || !allowedSections.has(activeSection.id))) {
+    if (typeof window.showSection === 'function') {
+      window.showSection('submit-ticket');
+    }
+  }
+
+  if (accessAllowed === false) {
+    const restrictedSections = document.querySelectorAll('.content-section');
+    restrictedSections.forEach(sec => {
+      if (!allowedSections.has(sec.id)) {
+        sec.classList.remove('active');
+      }
+    });
+  }
+}
+
 function checkMaintenance() {
   try {
     const maintenanceRef = doc(db, 'appSettings', 'maintenance');
@@ -1843,6 +1899,15 @@ setupMentionAutocomplete('chatMessageInput', 'memberMentionDropdown');
     
     // Initialize notifications
     initializeNotifications();
+
+    const storedUser = JSON.parse(localStorage.getItem('authUser') || '{}');
+    applyRestrictedMemberView(storedUser.accessAllowed !== false, storedUser.accessReason || '');
+
+    if (window.__restrictedMemberMode) {
+      if (typeof window.showSection === 'function') {
+        window.showSection('submit-ticket');
+      }
+    }
     
     // Update date and time every second
     updateDateTime();
