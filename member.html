@@ -57,8 +57,19 @@ if (savedMemberSection) {
       <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
     </div>
     <ul class="nav-list" id="member-nav-list">
+      <li><button class="nav-btn" onclick="showSection('my-tasks')"><i class="fas fa-clipboard-list"></i> My Tasks</button></li>
       <li><button class="nav-btn" onclick="showSection('ticket-history')"><i class="fas fa-ticket-alt"></i> Ticket History</button></li>
-      <li><button class="nav-btn active" onclick="showSection('submit-ticket')"><i class="fas fa-headset"></i> Submit Ticket</button></li>
+      <li><button class="nav-btn" onclick="showSection('active-polls')"><i class="fas fa-chart-bar"></i> Active Polls</button></li>
+      <li><button class="nav-btn" onclick="showSection('announcements')"><i class="fas fa-bullhorn"></i> Announcements</button></li>
+      <li><button class="nav-btn" onclick="showSection('submit-ticket')"><i class="fas fa-headset"></i> Submit Ticket</button></li>
+      <li><button class="nav-btn active" onclick="showSection('video-conference')"><i class="fas fa-video"></i> Video Conference</button></li>
+      <li><button class="nav-btn" onclick="showSection('live-chat')"><i class="fas fa-comments"></i> Live Chat</button></li>
+      <li><button id="limited-admin-create-task-btn" class="nav-btn limited-admin-only" style="display:none;" onclick="showSection('my-tasks')"><i class="fas fa-plus"></i> Create Task</button></li>
+      <li><button id="limited-admin-create-announcement-btn" class="nav-btn limited-admin-only" style="display:none;" onclick="showSection('announcements')"><i class="fas fa-bullhorn"></i> Create Announcement</button></li>
+      <li><button id="limited-admin-create-poll-btn" class="nav-btn limited-admin-only" style="display:none;" onclick="showSection('active-polls')"><i class="fas fa-poll"></i> Create Poll</button></li>
+      <li><button id="limited-admin-create-resource-btn" class="nav-btn limited-admin-only" style="display:none;" onclick="showSection('resources')"><i class="fas fa-book"></i> Create Resource</button></li>
+      <li><button class="nav-btn" onclick="showSection('resources')"><i class="fas fa-book"></i> Resources</button></li>
+      <li><button class="nav-btn" onclick="showSection('progress-report')"><i class="fas fa-file-alt"></i> Progress Report</button></li>
     </ul>
   </nav>
 
@@ -303,6 +314,36 @@ function closeMobileSidebar() {
 }
 
 </script>
+<script>
+function renderMemberNavigation(isRestricted) {
+  const navList = document.getElementById('member-nav-list');
+  if (!navList) return;
+
+  if (isRestricted) {
+    navList.innerHTML = `
+      <li><button class="nav-btn active" onclick="showSection('submit-ticket')"><i class="fas fa-headset"></i> Submit Ticket</button></li>
+      <li><button class="nav-btn" onclick="showSection('ticket-history')"><i class="fas fa-ticket-alt"></i> Ticket History</button></li>
+    `;
+    return;
+  }
+
+  navList.innerHTML = `
+    <li><button class="nav-btn" onclick="showSection('my-tasks')"><i class="fas fa-clipboard-list"></i> My Tasks</button></li>
+    <li><button class="nav-btn" onclick="showSection('ticket-history')"><i class="fas fa-ticket-alt"></i> Ticket History</button></li>
+    <li><button class="nav-btn" onclick="showSection('active-polls')"><i class="fas fa-chart-bar"></i> Active Polls</button></li>
+    <li><button class="nav-btn" onclick="showSection('announcements')"><i class="fas fa-bullhorn"></i> Announcements</button></li>
+    <li><button class="nav-btn" onclick="showSection('submit-ticket')"><i class="fas fa-headset"></i> Submit Ticket</button></li>
+    <li><button class="nav-btn active" onclick="showSection('video-conference')"><i class="fas fa-video"></i> Video Conference</button></li>
+    <li><button class="nav-btn" onclick="showSection('live-chat')"><i class="fas fa-comments"></i> Live Chat</button></li>
+    <li><button id="limited-admin-create-task-btn" class="nav-btn limited-admin-only" style="display:none;" onclick="showSection('my-tasks')"><i class="fas fa-plus"></i> Create Task</button></li>
+    <li><button id="limited-admin-create-announcement-btn" class="nav-btn limited-admin-only" style="display:none;" onclick="showSection('announcements')"><i class="fas fa-bullhorn"></i> Create Announcement</button></li>
+    <li><button id="limited-admin-create-poll-btn" class="nav-btn limited-admin-only" style="display:none;" onclick="showSection('active-polls')"><i class="fas fa-poll"></i> Create Poll</button></li>
+    <li><button id="limited-admin-create-resource-btn" class="nav-btn limited-admin-only" style="display:none;" onclick="showSection('resources')"><i class="fas fa-book"></i> Create Resource</button></li>
+    <li><button class="nav-btn" onclick="showSection('resources')"><i class="fas fa-book"></i> Resources</button></li>
+    <li><button class="nav-btn" onclick="showSection('progress-report')"><i class="fas fa-file-alt"></i> Progress Report</button></li>
+  `;
+}
+</script>
 <script type="module">
   import { requireAuth, getStoredUserRole, getStoredUserAccess, getStoredUserAccessReason } from "./auth.js?v=5";
   import { initializeNotifications } from "./notifications.js?v=5";
@@ -311,23 +352,23 @@ function closeMobileSidebar() {
   const role = await getStoredUserRole();
   const accessAllowed = await getStoredUserAccess();
   const accessReason = await getStoredUserAccessReason();
+  const restrictedNotice = document.getElementById('restrictedAccessNotice');
+  const reasonEl = document.getElementById('restrictedAccessReason');
+
   if (accessAllowed === false) {
-    document.getElementById('restrictedAccessNotice').style.display = 'block';
-    const reasonEl = document.getElementById('restrictedAccessReason');
+    if (restrictedNotice) restrictedNotice.style.display = 'block';
     if (reasonEl) {
       reasonEl.textContent = accessReason || 'Please contact the administrator for more information.';
     }
     window.__restrictedMemberMode = true;
-    const navList = document.getElementById('member-nav-list');
-    if (navList) {
-      navList.innerHTML = `
-        <li><button class="nav-btn active" onclick="showSection('submit-ticket')"><i class="fas fa-headset"></i> Submit Ticket</button></li>
-        <li><button class="nav-btn" onclick="showSection('ticket-history')"><i class="fas fa-ticket-alt"></i> Ticket History</button></li>
-      `;
-    }
+    renderMemberNavigation(true);
   } else {
+    if (restrictedNotice) restrictedNotice.style.display = 'none';
+    if (reasonEl) reasonEl.textContent = '';
     window.__restrictedMemberMode = false;
+    renderMemberNavigation(false);
   }
+
   document.querySelectorAll('.limited-admin-only').forEach(el => {
     el.style.display = (role === 'limited-admin') ? '' : 'none';
   });
