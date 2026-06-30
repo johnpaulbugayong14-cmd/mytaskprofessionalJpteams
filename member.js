@@ -21,6 +21,7 @@ let shownInAppNotificationIds = new Set();
 let dismissedInAppNotificationIds = new Set(getDismissedInAppNotifications());
 let inAppNotificationQueue = [];
 let inAppNotificationDisplaying = false;
+let accessStatusUnsubscribe = null;
 const container = document.getElementById("tasks");
 const emptyState = document.getElementById("emptyState");
 const welcomeEl = document.getElementById("welcome");
@@ -400,6 +401,59 @@ function applyRestrictedMemberView(accessAllowed = true, accessReason = '') {
       }
     });
   }
+}
+
+function persistMemberAccessState(accessAllowed, accessReason) {
+  try {
+    const raw = localStorage.getItem('authUser');
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    const updatedUser = {
+      ...parsed,
+      accessAllowed: accessAllowed,
+      accessReason: accessReason || ''
+    };
+    localStorage.setItem('authUser', JSON.stringify(updatedUser));
+  } catch (error) {
+    console.warn('Unable to persist updated member access info:', error);
+  }
+}
+
+function syncMemberAccessState(accessAllowed, accessReason) {
+  persistMemberAccessState(accessAllowed, accessReason);
+  applyRestrictedMemberView(accessAllowed, accessReason);
+  window.__restrictedMemberMode = accessAllowed === false;
+
+  if (typeof window.renderMemberNavigation === 'function') {
+    window.renderMemberNavigation(accessAllowed === false);
+  }
+
+  if (accessAllowed === false && typeof window.showSection === 'function') {
+    const activeSection = document.querySelector('.content-section.active');
+    if (!activeSection || !['submit-ticket', 'ticket-history'].includes(activeSection.id)) {
+      window.showSection('submit-ticket');
+    }
+  }
+}
+
+function watchMemberAccessState() {
+  if (!userEmail) return;
+
+  if (accessStatusUnsubscribe) {
+    accessStatusUnsubscribe();
+    accessStatusUnsubscribe = null;
+  }
+
+  const normalizedEmail = normalizeEmail(userEmail);
+  const accessRef = doc(db, 'userRoles', normalizedEmail);
+  accessStatusUnsubscribe = onSnapshot(accessRef, (snap) => {
+    const data = snap.exists() ? snap.data() : {};
+    const accessAllowed = typeof data.accessAllowed === 'boolean' ? data.accessAllowed : true;
+    const accessReason = typeof data.accessReason === 'string' ? data.accessReason : '';
+    syncMemberAccessState(accessAllowed, accessReason);
+  }, (error) => {
+    console.warn('Unable to watch member access state:', error);
+  });
 }
 
 function checkMaintenance() {
@@ -1899,6 +1953,8 @@ setupMentionAutocomplete('chatMessageInput', 'memberMentionDropdown');
     
     // Initialize notifications
     initializeNotifications();
+
+    watchMemberAccessState();
 
     const storedUser = JSON.parse(localStorage.getItem('authUser') || '{}');
     applyRestrictedMemberView(storedUser.accessAllowed !== false, storedUser.accessReason || '');
