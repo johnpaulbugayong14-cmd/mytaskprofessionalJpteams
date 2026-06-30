@@ -58,6 +58,7 @@ jobs:
             console.log(`Found ${snap.size} new announcements`);
             for (const doc of snap.docs) {
               const ann = doc.data();
+              await db.collection('announcements').doc(doc.id).update({ emailNotificationSent: true });
               let recipients = [];
               if (ann.assignedTo === 'everyone' || (Array.isArray(ann.assignedTo) && ann.assignedTo.includes('everyone'))) {
                 recipients = Object.values(emailMapping);

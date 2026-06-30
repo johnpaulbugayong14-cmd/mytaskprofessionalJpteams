@@ -73,6 +73,9 @@ jobs:
               }
               
               const daysUntil = Math.ceil((deadline - now) / (1000 * 3600 * 24));
+              await db.collection('tasks').doc(doc.id).update({
+                lastReminderSentDate: new Date()
+              });
               
               // Determine recipients - expand "everyone" to all team members
               let recipients = [];
@@ -97,8 +100,4 @@ jobs:
                 } catch (e) { console.error('Error:', e); }
               }
               
-              // Update lastReminderSentDate once per task
-              await db.collection('tasks').doc(doc.id).update({
-                lastReminderSentDate: new Date()
-              });
             }

@@ -58,6 +58,7 @@ jobs:
             console.log(`Found ${snap.size} completed tasks to notify`);
             for (const doc of snap.docs) {
               const task = doc.data();
+              await db.collection('tasks').doc(doc.id).update({ taskCompletionEmailSent: true });
               let recipients = [];
               if (task.assignedTo === 'everyone') {
                 recipients = Object.values(emailMapping);

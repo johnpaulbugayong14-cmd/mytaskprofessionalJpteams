@@ -58,6 +58,7 @@ jobs:
             console.log(`Found ${snap.size} new tickets to notify`);
             for (const doc of snap.docs) {
               const ticket = doc.data();
+              await db.collection('tickets').doc(doc.id).update({ adminEmailNotificationSent: true });
               const adminEmail = emailMapping['johnpaulbugayong@gmail.com'] || 'johnpaulbugayong@gmail.com';
               try {
                 await transporter.sendMail({

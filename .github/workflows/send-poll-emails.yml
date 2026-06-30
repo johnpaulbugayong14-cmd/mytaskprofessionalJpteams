@@ -58,6 +58,7 @@ jobs:
             console.log(`Found ${snap.size} new polls`);
             for (const doc of snap.docs) {
               const poll = doc.data();
+              await db.collection('polls').doc(doc.id).update({ emailNotificationSent: true });
               const recipients = ['johnpaulbugayong@gmail.com', 'kingfordnabor@gmail.com', 'allancorral@gmail.com', 'phricksborebor@gmail.com', 'moezarperez@gmail.com', 'rogelioledda@gmail.com'];
               for (const email of recipients) {
                 const notifEmail = emailMapping[email] || email;
